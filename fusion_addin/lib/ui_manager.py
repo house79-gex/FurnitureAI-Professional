@@ -1,5 +1,5 @@
 """
-Gestore UI per FurnitureAI - Crea panel separato nella toolbar
+Gestore UI per FurnitureAI - Crea workspace FURNITURE completo
 """
 
 import adsk.core
@@ -10,170 +10,256 @@ class UIManager:
     """Gestore dell'interfaccia utente per FurnitureAI"""
 
     def __init__(self, logger, ui):
-        """
-        Inizializza il gestore UI
-
-        Args:
-            logger: Logger per output
-            ui: Istanza di adsk.core.UserInterface
-        """
         self.logger = logger
         self.ui = ui
         self.app = adsk.core.Application.get()
-        self.panel = None
+        self.workspace = None
+        self.panels = []
         self.command_defs = []
         self.handlers = []
 
-        # ID panel
-        self.panel_id = 'FurnitureAI_Panel'
-
-        # Comandi da registrare
-        self.commands = [
-            {
-                'id': 'FurnitureAI_Wizard',
-                'name': 'Wizard Mobili',
-                'tooltip': 'Crea un mobile con procedura guidata'
-            },
-            {
-                'id': 'FurnitureAI_AILayout',
-                'name': 'Layout IA',
-                'tooltip': 'Genera layout cucina con intelligenza artificiale'
-            },
-            {
-                'id': 'FurnitureAI_Cutlist',
-                'name': 'Lista Taglio',
-                'tooltip': 'Genera lista dei tagli ottimizzata'
-            },
-            {
-                'id': 'FurnitureAI_Nesting',
-                'name': 'Ottimizza Taglio',
-                'tooltip': 'Ottimizza disposizione pannelli'
-            },
-            {
-                'id': 'FurnitureAI_Drawing',
-                'name': 'Disegni Tecnici',
-                'tooltip': 'Genera disegni tecnici professionali'
-            },
-            {
-                'id': 'FurnitureAI_DoorDesigner',
-                'name': 'Designer Ante',
-                'tooltip': 'Design personalizzato ante'
-            },
-            {
-                'id': 'FurnitureAI_Materials',
-                'name': 'Materiali',
-                'tooltip': 'Gestione materiali e finiture'
-            },
-            {
-                'id': 'FurnitureAI_Config',
-                'name': 'Configurazione',
-                'tooltip': 'Configura IA e impostazioni'
-            }
-        ]
+        # ID workspace
+        self.workspace_id = 'FurnitureAI_Workspace'
+        self.workspace_name = 'FURNITURE'
 
     def create_ui(self):
-        """Crea panel separato nella toolbar"""
+        """Crea workspace FURNITURE completo"""
         try:
-            self.logger.info("Creazione UI FurnitureAI...")
+            self.logger.info("Creazione workspace FURNITURE...")
 
-            # Trova workspace DESIGN
-            design_workspace = self.ui.workspaces.itemById('FusionSolidEnvironment')
-            if not design_workspace:
-                raise Exception("Workspace Design non trovato")
+            # Rimuovi workspace esistente se presente
+            workspaces = self.ui.workspaces
+            existing_ws = workspaces.itemById(self.workspace_id)
+            if existing_ws:
+                existing_ws.deleteMe()
+                self.logger.info("Workspace esistente rimosso")
 
-            # Ottieni toolbar panels
-            toolbar_panels = design_workspace.toolbarPanels
-
-            # Rimuovi panel esistente se presente
-            existing_panel = toolbar_panels.itemById(self.panel_id)
-            if existing_panel:
-                existing_panel.deleteMe()
-                self.logger.info("Panel esistente rimosso")
-
-            # Crea NUOVO PANEL dopo il panel CREA
-            # 'SolidCreatePanel' è il panel CREA
-            self.panel = toolbar_panels.add(
-                self.panel_id,
-                'FurnitureAI',  # Nome panel (appare nella toolbar)
-                'SolidCreatePanel',  # Inserisci DOPO panel CREA
-                False  # Non è additivo
+            # CREA NUOVO WORKSPACE
+            self.workspace = workspaces.add(
+                adsk.core.WorkspaceTypes.FusionTechnologyType,
+                self.workspace_id,
+                self.workspace_name,
+                ''  # Nessuna icona per ora
             )
 
-            self.logger.info("✅ Panel FurnitureAI creato")
+            self.logger.info(f"✅ Workspace '{self.workspace_name}' creato")
 
-            # Crea command definitions
-            for cmd_info in self.commands:
-                self._create_command_definition(cmd_info)
+            # Crea panel nel workspace
+            self._create_panels()
 
-            # Aggiungi comandi al panel
-            self._add_commands_to_panel()
+            # Crea comandi
+            self._create_commands()
 
-            self.logger.info(f"✅ UI creata con {len(self.command_defs)} comandi")
+            # Aggiungi comandi ai panel
+            self._populate_panels()
+
+            # Copia panel CREA da SOLIDO (opzionale)
+            # self._copy_create_panel()
+
+            self.logger.info(f"✅ UI completa: workspace con {len(self.panels)} panel")
 
         except Exception as e:
             self.logger.error(f"❌ Errore creazione UI: {str(e)}")
             self.logger.error(traceback.format_exc())
             raise
 
-    def _create_command_definition(self, cmd_info):
-        """Crea definizione comando"""
+    def _create_panels(self):
+        """Crea panel nel workspace FURNITURE"""
         try:
-            cmd_defs = self.ui.commandDefinitions
-            
-            # Rimuovi comando esistente
-            existing = cmd_defs.itemById(cmd_info['id'])
-            if existing:
-                existing.deleteMe()
+            toolbar_panels = self.workspace.toolbarPanels
 
-            # Crea comando SENZA resourceFolder
-            cmd_def = cmd_defs.addButtonDefinition(
-                cmd_info['id'],
-                cmd_info['name'],
-                cmd_info['tooltip']
+            # Panel 1: MOBILI (comandi principali)
+            panel_mobili = toolbar_panels.add(
+                'FurnitureAI_MobiliPanel',
+                'MOBILI',
+                '',
+                False
             )
+            self.panels.append(panel_mobili)
+            self.logger.info("✅ Panel MOBILI creato")
 
-            # Aggiungi handler comando
-            handler = CommandCreatedHandler(cmd_info['name'], self.logger)
-            cmd_def.commandCreated.add(handler)
-            self.handlers.append(handler)
+            # Panel 2: ANTE E CASSETTI
+            panel_ante = toolbar_panels.add(
+                'FurnitureAI_AntePanel',
+                'ANTE E CASSETTI',
+                '',
+                False
+            )
+            self.panels.append(panel_ante)
+            self.logger.info("✅ Panel ANTE E CASSETTI creato")
 
-            self.command_defs.append(cmd_def)
-            self.logger.info(f"✅ Comando '{cmd_info['name']}' creato")
+            # Panel 3: MATERIALI
+            panel_materiali = toolbar_panels.add(
+                'FurnitureAI_MaterialiPanel',
+                'MATERIALI',
+                '',
+                False
+            )
+            self.panels.append(panel_materiali)
+            self.logger.info("✅ Panel MATERIALI creato")
+
+            # Panel 4: PRODUZIONE
+            panel_produzione = toolbar_panels.add(
+                'FurnitureAI_ProduzionePanel',
+                'PRODUZIONE',
+                '',
+                False
+            )
+            self.panels.append(panel_produzione)
+            self.logger.info("✅ Panel PRODUZIONE creato")
+
+            # Panel 5: CONFIGURA
+            panel_config = toolbar_panels.add(
+                'FurnitureAI_ConfigPanel',
+                'CONFIGURA',
+                '',
+                False
+            )
+            self.panels.append(panel_config)
+            self.logger.info("✅ Panel CONFIGURA creato")
 
         except Exception as e:
-            self.logger.error(f"❌ Errore comando {cmd_info['name']}: {str(e)}")
-
-    def _add_commands_to_panel(self):
-        """Aggiunge comandi al panel"""
-        try:
-            if not self.panel:
-                raise Exception("Panel non creato")
-
-            cmd_defs = self.ui.commandDefinitions
-            controls = self.panel.controls
-
-            for cmd_info in self.commands:
-                cmd_def = cmd_defs.itemById(cmd_info['id'])
-                if cmd_def:
-                    # Aggiungi controllo al panel
-                    control = controls.addCommand(cmd_def)
-                    self.logger.info(f"✅ Comando '{cmd_info['name']}' aggiunto al panel")
-
-        except Exception as e:
-            self.logger.error(f"❌ Errore aggiunta comandi: {str(e)}")
+            self.logger.error(f"❌ Errore creazione panel: {str(e)}")
             self.logger.error(traceback.format_exc())
 
+    def _create_commands(self):
+        """Crea definizioni comandi"""
+        try:
+            cmd_defs = self.ui.commandDefinitions
+
+            # Comandi MOBILI panel
+            commands_mobili = [
+                ('FurnitureAI_Wizard', 'Wizard Mobili', 'Crea mobile con procedura guidata'),
+                ('FurnitureAI_AILayout', 'Layout IA', 'Genera layout cucina con IA'),
+                ('FurnitureAI_BaseUnit', 'Mobile Base', 'Crea mobile base'),
+                ('FurnitureAI_WallUnit', 'Pensile', 'Crea pensile a muro'),
+                ('FurnitureAI_TallUnit', 'Colonna', 'Crea mobile colonna'),
+            ]
+
+            # Comandi ANTE E CASSETTI panel
+            commands_ante = [
+                ('FurnitureAI_DoorDesigner', 'Designer Ante', 'Design personalizzato ante'),
+                ('FurnitureAI_DoorFlat', 'Anta Piatta', 'Crea anta liscia'),
+                ('FurnitureAI_DoorShaker', 'Anta Shaker', 'Crea anta stile Shaker'),
+                ('FurnitureAI_DoorRaised', 'Anta Bugna', 'Crea anta con pannello rialzato'),
+                ('FurnitureAI_Drawer', 'Cassetto', 'Crea cassetto'),
+            ]
+
+            # Comandi MATERIALI panel
+            commands_materiali = [
+                ('FurnitureAI_Materials', 'Gestione Materiali', 'Libreria materiali'),
+                ('FurnitureAI_ApplyMaterial', 'Applica Materiale', 'Applica materiale a selezione'),
+                ('FurnitureAI_MaterialFromPhoto', 'Da Foto', 'Estrai materiale da foto'),
+                ('FurnitureAI_DownloadCatalog', 'Cataloghi Online', 'Scarica cataloghi Egger/Cleaf'),
+            ]
+
+            # Comandi PRODUZIONE panel
+            commands_produzione = [
+                ('FurnitureAI_Cutlist', 'Lista Taglio', 'Genera lista taglio'),
+                ('FurnitureAI_Nesting', 'Ottimizza Taglio', 'Ottimizza layout pannelli'),
+                ('FurnitureAI_Drawing', 'Disegni Tecnici', 'Genera disegni 2D'),
+                ('FurnitureAI_Export', 'Esporta CNC', 'Esporta per macchine CNC'),
+            ]
+
+            # Comandi CONFIGURA panel
+            commands_config = [
+                ('FurnitureAI_Config', 'Impostazioni IA', 'Configura endpoint IA'),
+                ('FurnitureAI_Hardware', 'Catalogo Ferramenta', 'Gestione ferramenta'),
+                ('FurnitureAI_System32', 'Sistema 32mm', 'Configura sistema 32mm'),
+            ]
+
+            # Crea tutti i comandi
+            all_commands = {
+                'FurnitureAI_MobiliPanel': commands_mobili,
+                'FurnitureAI_AntePanel': commands_ante,
+                'FurnitureAI_MaterialiPanel': commands_materiali,
+                'FurnitureAI_ProduzionePanel': commands_produzione,
+                'FurnitureAI_ConfigPanel': commands_config,
+            }
+
+            for panel_id, commands in all_commands.items():
+                for cmd_id, cmd_name, cmd_tooltip in commands:
+                    # Rimuovi esistente
+                    existing = cmd_defs.itemById(cmd_id)
+                    if existing:
+                        existing.deleteMe()
+
+                    # Crea comando
+                    cmd_def = cmd_defs.addButtonDefinition(
+                        cmd_id,
+                        cmd_name,
+                        cmd_tooltip
+                    )
+
+                    # Aggiungi handler
+                    handler = CommandCreatedHandler(cmd_name, self.logger)
+                    cmd_def.commandCreated.add(handler)
+                    self.handlers.append(handler)
+
+                    self.command_defs.append((panel_id, cmd_def))
+
+            self.logger.info(f"✅ {len(self.command_defs)} comandi creati")
+
+        except Exception as e:
+            self.logger.error(f"❌ Errore creazione comandi: {str(e)}")
+            self.logger.error(traceback.format_exc())
+
+    def _populate_panels(self):
+        """Aggiunge comandi ai panel"""
+        try:
+            for panel_id, cmd_def in self.command_defs:
+                # Trova panel
+                panel = self.workspace.toolbarPanels.itemById(panel_id)
+                if panel:
+                    # Aggiungi comando
+                    panel.controls.addCommand(cmd_def)
+
+            self.logger.info("✅ Comandi aggiunti ai panel")
+
+        except Exception as e:
+            self.logger.error(f"❌ Errore popolazione panel: {str(e)}")
+
+    def _copy_create_panel(self):
+        """
+        Copia panel CREA da workspace SOLIDO (AVANZATO - opzionale)
+        """
+        try:
+            # Trova workspace SOLIDO
+            solid_ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
+            if not solid_ws:
+                return
+
+            # Trova panel CREA
+            create_panel = solid_ws.toolbarPanels.itemById('SolidCreatePanel')
+            if not create_panel:
+                return
+
+            # Crea panel CREA nel workspace FURNITURE
+            furniture_create = self.workspace.toolbarPanels.add(
+                'FurnitureAI_CreatePanel',
+                'CREA',
+                '',
+                False
+            )
+
+            # Copia comandi (solo riferimenti, non duplicati)
+            # NOTA: Questo è complesso, per ora meglio lasciare accesso a workspace SOLIDO
+            self.logger.info("⚠️ Copia panel CREA non implementata (usa workspace SOLIDO per sketch/estrusioni)")
+
+        except Exception as e:
+            self.logger.error(f"⚠️ Errore copia panel CREA: {str(e)}")
+
     def cleanup(self):
-        """Rimuove panel e comandi"""
+        """Rimuove workspace"""
         try:
             self.logger.info("Pulizia UI...")
 
-            # Rimuovi panel
-            if self.panel and self.panel.isValid:
-                self.panel.deleteMe()
+            # Rimuovi workspace
+            if self.workspace and self.workspace.isValid:
+                self.workspace.deleteMe()
 
             # Rimuovi command definitions
-            for cmd_def in self.command_defs:
+            for panel_id, cmd_def in self.command_defs:
                 if cmd_def and cmd_def.isValid:
                     cmd_def.deleteMe()
 
@@ -184,7 +270,7 @@ class UIManager:
 
 
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
-    """Handler creazione comando - QUESTO MANCAVA!"""
+    """Handler creazione comando"""
     
     def __init__(self, command_name, logger):
         super().__init__()
@@ -192,28 +278,19 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         self.logger = logger
     
     def notify(self, args):
-        """Chiamato quando comando viene richiesto"""
         try:
             self.logger.info(f"Comando '{self.command_name}' attivato")
             
-            # Ottieni comando
             cmd = args.command
-            
-            # IMPORTANTE: Aggiungi handler EXECUTE
             on_execute = CommandExecuteHandler(self.command_name, self.logger)
             cmd.execute.add(on_execute)
             
-            # IMPORTANTE: Aggiungi handler DESTROY
-            on_destroy = CommandDestroyHandler(self.command_name, self.logger)
-            cmd.destroy.add(on_destroy)
-            
         except Exception as e:
-            self.logger.error(f"❌ Errore handler creazione: {str(e)}")
-            self.logger.error(traceback.format_exc())
+            self.logger.error(f"❌ Errore handler: {str(e)}")
 
 
 class CommandExecuteHandler(adsk.core.CommandEventHandler):
-    """Handler esecuzione comando - QUESTO ESEGUE L'AZIONE!"""
+    """Handler esecuzione comando"""
     
     def __init__(self, command_name, logger):
         super().__init__()
@@ -221,35 +298,16 @@ class CommandExecuteHandler(adsk.core.CommandEventHandler):
         self.logger = logger
     
     def notify(self, args):
-        """Chiamato quando utente clicca OK nel comando"""
         try:
-            self.logger.info(f"Esecuzione comando '{self.command_name}'")
+            self.logger.info(f"Esecuzione '{self.command_name}'")
             
-            # Mostra messagebox placeholder
             ui = adsk.core.Application.get().userInterface
             ui.messageBox(
-                f'🚧 Comando: {self.command_name}\n\n'
+                f'🚧 {self.command_name}\n\n'
                 f'Implementazione in sviluppo.\n\n'
-                f'Funzionalità completa disponibile prossimamente.\n\n'
                 f'FurnitureAI Professional v3.0',
-                'FurnitureAI - Placeholder'
+                'FurnitureAI'
             )
             
         except Exception as e:
-            self.logger.error(f"❌ Errore esecuzione: {str(e)}")
-
-
-class CommandDestroyHandler(adsk.core.CommandEventHandler):
-    """Handler distruzione comando"""
-    
-    def __init__(self, command_name, logger):
-        super().__init__()
-        self.command_name = command_name
-        self.logger = logger
-    
-    def notify(self, args):
-        """Chiamato quando comando viene chiuso"""
-        try:
-            self.logger.info(f"Comando '{self.command_name}' chiuso")
-        except:
-            pass
+            self.logger.error(f"❌ Errore: {str(e)}")
