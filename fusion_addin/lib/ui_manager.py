@@ -32,12 +32,12 @@ class UIManager:
                 existing_ws.deleteMe()
                 self.logger.info("Workspace esistente rimosso")
 
-            # CREA WORKSPACE PERSONALIZZATO
-            self.workspace = workspaces.add(
-                'FurnitureAI_Workspace',  # ID univoco
-                'FURNITURE',              # Nome visibile
-                ''                        # resourceFolder
-            )
+            # Metodo più sicuro: passa i parametri esplicitamente
+            # ID univoco, Nome visibile, Percorso risorse (stringa vuota)
+            self.workspace = workspaces.add('FurnitureAI_Workspace', 'FURNITURE', '')
+            
+            # Se il comando sopra fallisce ancora, prova la sintassi alternativa:
+            # self.workspace = workspaces.add('FurnitureAI_Workspace', 'FURNITURE', './resources')
             
             self.logger.info("✅ Workspace FURNITURE creato")
 
@@ -56,7 +56,7 @@ class UIManager:
             # ATTIVA workspace per renderlo visibile
             self.workspace.activate()
 
-            self.logger.info(f"✅ Workspace attivato con {len(self.tabs)} tabs e {len(self.panels)} panel")
+            self.logger.info(f"✅ Workspace attivato")
 
         except Exception as e:
             self.logger.error(f"❌ Errore creazione workspace: {str(e)}")
