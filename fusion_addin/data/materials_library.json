@@ -1,0 +1,45 @@
+{
+  "panels": {
+    "melamine_white": {
+      "name": "Melamina Bianco",
+      "manufacturer": "Egger",
+      "code": "W1100 ST9",
+      "color": "Bianco",
+      "finish": "Opaco",
+      "thickness_available": [18, 19, 25],
+      "price_per_m2": 25
+    },
+    "oak_natural": {
+      "name": "Rovere Naturale",
+      "manufacturer": "Egger",
+      "code": "H1318 ST10",
+      "color": "Rovere",
+      "finish": "Strutturato",
+      "thickness_available": [18, 19],
+      "price_per_m2": 32
+    },
+    "walnut": {
+      "name": "Noce Canaletto",
+      "manufacturer": "Cleaf",
+      "code": "YOSEMITE S104",
+      "color": "Noce",
+      "finish": "Opaco",
+      "thickness_available": [18],
+      "price_per_m2": 45
+    }
+  },
+  "edge_bands": {
+    "pvc_white": {
+      "name": "Listarella PVC Bianco",
+      "thickness": 0.5,
+      "width": 23,
+      "price_per_meter": 0.35
+    },
+    "abs_oak": {
+      "name": "Listarella ABS Rovere",
+      "thickness": 1.0,
+      "width": 23,
+      "price_per_meter": 0.55
+    }
+  }
+}

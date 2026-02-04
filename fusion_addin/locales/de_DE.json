@@ -1,0 +1,20 @@
+{
+  "wizard": {
+    "title": "Schrank Erstellungs-Assistent",
+    "group_type": "Schranktyp",
+    "group_dimensions": "Abmessungen",
+    "group_config": "Konfiguration",
+    "cabinet_type": "Typ",
+    "type_base": "Unterschrank",
+    "type_wall": "Oberschrank",
+    "type_tall": "Hochschrank",
+    "width": "Breite",
+    "height": "Höhe",
+    "depth": "Tiefe"
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Abbrechen",
+    "save": "Speichern"
+  }
+}
