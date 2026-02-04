@@ -1,89 +1,274 @@
 """
-UI Manager - Workspace esistente + Tab personalizzata + Pannelli e comandi
+Gestore UI per FurnitureAI - Tab personalizzata con pannelli e comandi raggruppati.
+Include:
+- Pannelli nativi: Crea, Modifica (shortcut ai comandi di Fusion)
+- Pannelli Furniture: Mobili, Ante/Cassetti, Materiali, Produzione, Configura
+- Icone custom da cartella temporanea (con fallback se mancanti)
+- Debug logging esteso
 """
+
 import adsk.core
 import adsk.fusion
 import traceback
+import os
+import tempfile
+import shutil
 
 class UIManager:
     def __init__(self, logger, ui):
         self.logger = logger
         self.ui = ui
         self.app = adsk.core.Application.get()
-        self.main_tab = None
+        self.tab = None
         self.handlers = []
         self.command_defs = []
+        self.temp_icon_dir = None
 
     def create_ui(self):
         try:
-            # Workspace: prova SOLIDO, altrimenti quello attivo
-            ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
-            if not ws:
-                ws = self.ui.activeWorkspace
+            self.logger.info("=== INIZIO CREATE_UI ===")
+            
+            ws = self.ui.workspaces.itemById('FusionSolidEnvironment') or self.ui.activeWorkspace
             if not ws:
                 self.logger.error("Nessun workspace trovato.")
                 return
+            
+            self.logger.info(f"Workspace attivo: {ws.name} (ID: {ws.id})")
 
-            # Pulisci eventuale tab pre-esistente
-            all_tabs = ws.toolbarTabs
-            for existing_tab in all_tabs:
-                if existing_tab.id == 'FurnitureAI_MainTab' or existing_tab.name == 'Furniture AI':
-                    existing_tab.deleteMe()
+            # PULIZIA COMPLETA: tab precedente
+            self.logger.info("Pulizia tab esistenti...")
+            tabs_rimossi = 0
+            for t in list(ws.toolbarTabs):  # list() per evitare problemi iterazione
+                if t.id == 'FurnitureAI_Tab':
+                    self.logger.info(f"  Rimozione tab ID: {t.id}, Nome: {t.name}")
+                    t.deleteMe()
+                    tabs_rimossi += 1
+            self.logger.info(f"Tab rimossi: {tabs_rimossi}")
 
-            # Crea Tab
-            self.main_tab = all_tabs.add('FurnitureAI_MainTab', 'Furniture AI')
+            # Pulizia comandi custom esistenti
+            self.logger.info("Pulizia comandi custom...")
+            cmd_defs = self.ui.commandDefinitions
+            custom_cmd_ids = [
+                'FAI_Wizard', 'FAI_LayoutIA', 'FAI_MobileBase', 'FAI_Pensile', 'FAI_Colonna',
+                'FAI_DesignerAnte', 'FAI_AntaPiatta', 'FAI_AntaShaker', 'FAI_Cassetto',
+                'FAI_Materiali', 'FAI_ApplicaMateriale', 'FAI_Cataloghi',
+                'FAI_ListaTaglio', 'FAI_Nesting', 'FAI_Disegni2D', 'FAI_Esporta',
+                'FAI_ConfiguraIA', 'FAI_Ferramenta', 'FAI_Sistema32mm'
+            ]
+            cmd_rimossi = 0
+            for cmd_id in custom_cmd_ids:
+                existing = cmd_defs.itemById(cmd_id)
+                if existing:
+                    self.logger.info(f"  Rimozione comando: {cmd_id}")
+                    existing.deleteMe()
+                    cmd_rimossi += 1
+            self.logger.info(f"Comandi rimossi: {cmd_rimossi}")
 
-            # Pannello 1: CREA RAPIDO (comandi nativi: schizzo + estrusione)
-            p_crea = self.main_tab.toolbarPanels.add('FAI_CreaPanel', 'Crea rapido')
-            self._add_native_command(p_crea, 'SketchCreateCommand')   # Crea schizzo
-            self._add_native_command(p_crea, 'PressPullCommand')      # Estrusione/PressPull
+            # Prepara cartella icone in temp
+            self.logger.info("Setup cartella icone...")
+            self._setup_icon_folder()
 
-            # Pannello 2: IA & WIZARD (comando custom placeholder)
-            p_ia = self.main_tab.toolbarPanels.add('FAI_IAPanel', 'IA & Wizard')
-            self._add_custom_button(p_ia, 'FAI_Wizard_Btn', 'Wizard Mobili', 'Avvia wizard')
+            # Crea tab
+            self.logger.info("Creazione tab 'Furniture AI'...")
+            self.tab = ws.toolbarTabs.add('FurnitureAI_Tab', 'Furniture AI')
+            self.logger.info(f"  Tab creata: {self.tab.name} (ID: {self.tab.id})")
 
-            # Attiva la tab
-            self.main_tab.isVisible = True
-            self.main_tab.activate()
+            # Pannelli
+            self.logger.info("Creazione pannelli...")
+            p_crea      = self.tab.toolbarPanels.add('FAI_Panel_Create',     'Crea')
+            self.logger.info(f"  Panel Crea: {p_crea.id}")
+            p_modifica  = self.tab.toolbarPanels.add('FAI_Panel_Modify',     'Modifica')
+            self.logger.info(f"  Panel Modifica: {p_modifica.id}")
+            p_mobili    = self.tab.toolbarPanels.add('FAI_Panel_Mobili',     'Mobili')
+            self.logger.info(f"  Panel Mobili: {p_mobili.id}")
+            p_ante      = self.tab.toolbarPanels.add('FAI_Panel_Ante',       'Ante/Cassetti')
+            self.logger.info(f"  Panel Ante: {p_ante.id}")
+            p_materiali = self.tab.toolbarPanels.add('FAI_Panel_Materiali',  'Materiali')
+            self.logger.info(f"  Panel Materiali: {p_materiali.id}")
+            p_prod      = self.tab.toolbarPanels.add('FAI_Panel_Produzione', 'Produzione')
+            self.logger.info(f"  Panel Produzione: {p_prod.id}")
+            p_config    = self.tab.toolbarPanels.add('FAI_Panel_Config',     'Configura')
+            self.logger.info(f"  Panel Configura: {p_config.id}")
 
+            # Comandi nativi
+            self.logger.info("Aggiunta comandi nativi...")
+            native_create = [
+                'SketchCreateCommand',
+                'ExtrudeCommand',
+                'PressPullCommand',
+                'RevolveCommand',
+                'SweepCommand',
+                'LoftCommand',
+                'HoleCommand',
+            ]
+            native_modify = [
+                'FilletCommand',
+                'ChamferCommand',
+                'ShellCommand',
+                'RectPatternCommand',
+                'CircPatternCommand',
+                'PatternOnPathCommand',
+                'CombineCommand',
+                'SplitBodyCommand',
+                'DraftCommand',
+            ]
+
+            for cmd_id in native_create:
+                self._add_native_command(p_crea, cmd_id)
+            for cmd_id in native_modify:
+                self._add_native_command(p_modifica, cmd_id)
+
+            # Comandi Furniture (custom con icone)
+            self.logger.info("Creazione comandi custom Furniture...")
+            self._add_custom(p_mobili,    'FAI_Wizard',        'Wizard Mobili',      'Procedura guidata')
+            self._add_custom(p_mobili,    'FAI_LayoutIA',      'Layout IA',          'Genera layout con IA')
+            self._add_custom(p_mobili,    'FAI_MobileBase',    'Mobile Base',        'Crea mobile base')
+            self._add_custom(p_mobili,    'FAI_Pensile',       'Pensile',            'Crea pensile')
+            self._add_custom(p_mobili,    'FAI_Colonna',       'Colonna',            'Crea colonna')
+
+            self._add_custom(p_ante,      'FAI_DesignerAnte',  'Designer Ante',      'Design ante')
+            self._add_custom(p_ante,      'FAI_AntaPiatta',    'Anta Piatta',        'Anta liscia')
+            self._add_custom(p_ante,      'FAI_AntaShaker',    'Anta Shaker',        'Anta shaker')
+            self._add_custom(p_ante,      'FAI_Cassetto',      'Cassetto',           'Crea cassetto')
+
+            self._add_custom(p_materiali, 'FAI_Materiali',     'Libreria Materiali', 'Gestione materiali')
+            self._add_custom(p_materiali, 'FAI_ApplicaMateriale', 'Applica Materiale',  'Applica materiale')
+            self._add_custom(p_materiali, 'FAI_Cataloghi',     'Cataloghi',          'Download cataloghi')
+
+            self._add_custom(p_prod,      'FAI_ListaTaglio',   'Lista Taglio',       'Genera lista taglio')
+            self._add_custom(p_prod,      'FAI_Nesting',       'Nesting',            'Ottimizza pannelli')
+            self._add_custom(p_prod,      'FAI_Disegni2D',     'Disegni 2D',         'Genera disegni 2D')
+            self._add_custom(p_prod,      'FAI_Esporta',       'Esporta',            'Export CNC/CAM')
+
+            self._add_custom(p_config,    'FAI_ConfiguraIA',   'Configura IA',       'Impostazioni IA')
+            self._add_custom(p_config,    'FAI_Ferramenta',    'Ferramenta',         'Catalogo ferramenta')
+            self._add_custom(p_config,    'FAI_Sistema32mm',   'Sistema 32mm',       'Config sistema 32mm')
+
+            # Attiva tab
+            self.logger.info("Attivazione tab...")
+            self.tab.isVisible = True
+            self.tab.activate()
+
+            self.logger.info("=== UI CREATA CON SUCCESSO ===")
             self.app.log(f"FurnitureAI: UI creata su workspace {ws.name}")
+            if self.temp_icon_dir:
+                self.app.log(f"FurnitureAI: Icone temp in {self.temp_icon_dir}")
 
         except Exception as e:
+            self.logger.error(f"=== ERRORE CREATE_UI ===")
+            self.logger.error(f"Errore: {str(e)}")
+            self.logger.error(traceback.format_exc())
             if self.ui:
                 self.ui.messageBox(f"Errore UI:\n{str(e)}\n\n{traceback.format_exc()}")
 
-    def cleanup(self):
+    def _setup_icon_folder(self):
+        """Crea cartella temporanea per icone e copia da addon"""
         try:
-            if self.main_tab and self.main_tab.isValid:
-                self.main_tab.deleteMe()
-        except:
-            pass
+            # Crea cartella temp
+            self.temp_icon_dir = os.path.join(tempfile.gettempdir(), 'FurnitureAI_Icons')
+            os.makedirs(self.temp_icon_dir, exist_ok=True)
+            self.logger.info(f"  Cartella temp icone: {self.temp_icon_dir}")
+
+            # Path sorgente icone nell'addon
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            source_icons = os.path.join(addon_path, 'resources', 'icons')
+            self.logger.info(f"  Cartella sorgente icone: {source_icons}")
+
+            # Copia icone se esistono
+            if os.path.exists(source_icons):
+                copied = 0
+                for filename in os.listdir(source_icons):
+                    if filename.endswith('.png'):
+                        src = os.path.join(source_icons, filename)
+                        dst = os.path.join(self.temp_icon_dir, filename)
+                        shutil.copy2(src, dst)
+                        copied += 1
+                if copied > 0:
+                    self.logger.info(f"  Copiate {copied} icone")
+                else:
+                    self.logger.warning(f"  Nessuna icona PNG trovata")
+                    self.temp_icon_dir = None
+            else:
+                self.logger.warning(f"  Cartella sorgente non esiste")
+                self.temp_icon_dir = None
+
+        except Exception as e:
+            self.logger.error(f"  Errore setup icone: {str(e)}")
+            self.temp_icon_dir = None
+
+    def cleanup(self):
+        """Pulizia completa UI"""
+        try:
+            self.logger.info("=== INIZIO CLEANUP ===")
+            
+            # Rimuovi tab (elimina automaticamente pannelli)
+            if self.tab and self.tab.isValid:
+                self.logger.info(f"Rimozione tab: {self.tab.id}")
+                self.tab.deleteMe()
+            
+            # Rimuovi comandi custom
+            cmd_defs = self.ui.commandDefinitions
+            custom_cmd_ids = [
+                'FAI_Wizard', 'FAI_LayoutIA', 'FAI_MobileBase', 'FAI_Pensile', 'FAI_Colonna',
+                'FAI_DesignerAnte', 'FAI_AntaPiatta', 'FAI_AntaShaker', 'FAI_Cassetto',
+                'FAI_Materiali', 'FAI_ApplicaMateriale', 'FAI_Cataloghi',
+                'FAI_ListaTaglio', 'FAI_Nesting', 'FAI_Disegni2D', 'FAI_Esporta',
+                'FAI_ConfiguraIA', 'FAI_Ferramenta', 'FAI_Sistema32mm'
+            ]
+            cmd_rimossi = 0
+            for cmd_id in custom_cmd_ids:
+                existing = cmd_defs.itemById(cmd_id)
+                if existing:
+                    self.logger.info(f"  Rimozione comando: {cmd_id}")
+                    existing.deleteMe()
+                    cmd_rimossi += 1
+            
+            self.logger.info(f"Comandi rimossi: {cmd_rimossi}")
+            self.logger.info("=== CLEANUP COMPLETATO ===")
+            
+        except Exception as e:
+            self.logger.error(f"Errore cleanup: {str(e)}")
+            self.logger.error(traceback.format_exc())
 
     # --- Helpers -------------------------------------------------
 
     def _add_native_command(self, panel, command_id):
-        """
-        Aggiunge un comando nativo Fusion (commandDefinition già esistente)
-        al pannello indicato.
-        """
+        """Aggiunge comando nativo Fusion al panel"""
         cmd_defs = self.ui.commandDefinitions
         cmd_def = cmd_defs.itemById(command_id)
-        if not cmd_def:
-            if self.logger:
-                self.logger.error(f"Comando nativo non trovato: {command_id}")
-            return
-        panel.controls.addCommand(cmd_def)
+        if cmd_def:
+            panel.controls.addCommand(cmd_def)
+            self.logger.info(f"    Aggiunto comando nativo: {command_id}")
+        else:
+            self.logger.warning(f"    Comando nativo NON TROVATO: {command_id}")
 
-    def _add_custom_button(self, panel, cmd_id, name, tooltip):
-        """
-        Crea un comando custom semplice (placeholder) e lo aggiunge al pannello.
-        """
+    def _add_custom(self, panel, cmd_id, name, tooltip):
+        """Crea comando custom con icone da temp (fallback se mancanti)"""
         cmd_defs = self.ui.commandDefinitions
-        existing_cmd = cmd_defs.itemById(cmd_id)
-        if existing_cmd:
-            existing_cmd.deleteMe()
-
-        btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip)
+        
+        btn = None
+        
+        # Verifica se esistono icone in temp
+        if self.temp_icon_dir:
+            icon_path = os.path.join(self.temp_icon_dir, cmd_id)
+            icon_16 = icon_path + '_16.png'
+            icon_32 = icon_path + '_32.png'
+            
+            # Controlla che ENTRAMBE le icone esistano E che il path sia assoluto
+            if os.path.isabs(icon_path) and os.path.exists(icon_16) and os.path.exists(icon_32):
+                try:
+                    # Crea comando CON icone (usando path assoluto Windows)
+                    btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
+                    self.logger.info(f"    {cmd_id}: creato CON icone")
+                except Exception as e:
+                    self.logger.warning(f"    {cmd_id}: errore icone ({str(e)}), uso fallback")
+                    btn = None
+        
+        # Fallback: crea comando SENZA icone
+        if btn is None:
+            btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip)
+            self.logger.info(f"    {cmd_id}: creato SENZA icone")
+        
         handler = CommandCreatedHandler(name, self.logger)
         btn.commandCreated.add(handler)
         self.handlers.append(handler)
@@ -97,7 +282,6 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def notify(self, args):
         on_exec = CommandExecuteHandler(self.name, self.logger)
         args.command.execute.add(on_exec)
-        # setPythonOwner non è necessario qui
 
 class CommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self, name, logger):
@@ -105,5 +289,4 @@ class CommandExecuteHandler(adsk.core.CommandEventHandler):
         self.name = name
         self.logger = logger
     def notify(self, args):
-        ui = adsk.core.Application.get().userInterface
-        ui.messageBox(f"Esecuzione {self.name}")
+        adsk.core.Application.get().userInterface.messageBox(f"Esecuzione {self.name}")
