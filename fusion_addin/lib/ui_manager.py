@@ -19,39 +19,84 @@ class UIManager:
         self.command_defs = []
         self.handlers = []
 
-    def create_ui(self):
-        """Si aggancia al workspace attivo e aggiunge le tab"""
+   def create_ui(self):
+        """Crea una scheda unica 'Furniture AI' con pannelli custom e standard"""
         try:
-            self.logger.info("Ricerca workspace attivo...")
-
-            # Metodo infallibile: prendiamo il workspace in cui l'utente si trova ora
-            self.workspace = self.ui.activeWorkspace
-
-            if not self.workspace:
-                # Fallback estremo: cerchiamo l'ID standard del Design
-                self.workspace = self.ui.workspaces.itemById('FusionDesignWorkspace')
+            workspaces = self.ui.workspaces
+            self.workspace = self.ui.activeWorkspace or workspaces.itemById('FusionDesignWorkspace')
 
             if self.workspace:
-                self.logger.info(f"✅ Agganciato a workspace: {self.workspace.name} (ID: {self.workspace.id})")
-                
-                # Pulizia preventiva: se le tab esistono già (da un avvio precedente), rimuovile
-                existing_tab = self.workspace.toolbarTabs.itemById('FurnitureAI_DesignTab')
+                # 1. Rimuovi tab esistente per pulizia (evita duplicati al riavvio)
+                existing_tab = self.workspace.toolbarTabs.itemById('FurnitureAI_MainTab')
                 if existing_tab:
                     existing_tab.deleteMe()
 
-                # Ora creiamo le tue tab
-                self._create_tabs()
-                self._create_panels()
+                # 2. Crea l'UNICA scheda principale
+                self.main_tab = self.workspace.toolbarTabs.add('FurnitureAI_MainTab', 'Furniture AI')
+                
+                # 3. Importa il pannello CREA (Solid Create) di Fusion 360
+                # L'ID interno del pannello "Crea" in Solido è 'SolidCreatePanel'
+                design_tab = self.workspace.toolbarTabs.itemById('SolidTab')
+                if design_tab:
+                    create_panel = design_tab.toolbarPanels.itemById('SolidCreatePanel')
+                    if create_panel:
+                        # Lo aggiungiamo alla nostra tab (diventa un riferimento)
+                        self.main_tab.toolbarPanels.add(create_panel)
+
+                # 4. Crea i TUOI pannelli personalizzati
+                self._create_custom_panels()
+
+                # 5. Crea e aggiungi i comandi ai tuoi pannelli
                 self._create_commands()
                 self._populate_panels()
-                
-                self.logger.info("✅ Interfaccia FurnitureAI caricata")
-            else:
-                self.ui.messageBox("Errore critico: Impossibile identificare l'area di lavoro attiva.")
+
+                self.main_tab.activate()
+                self.logger.info("✅ Interfaccia Furniture AI (Scheda Unica) caricata")
 
         except Exception as e:
             self.logger.error(f"❌ Errore: {str(e)}")
-            self.logger.error(traceback.format_exc())
+
+    def _create_custom_panels(self):
+        """Definisce i pannelli specifici per Furniture AI"""
+        try:
+            # Pannello Mobili IA
+            p_ia = self.main_tab.toolbarPanels.add('FurnitureAI_IAPanel', 'IA & WIZARD')
+            self.panels.append(('FurnitureAI_IAPanel', p_ia))
+
+            # Pannello Produzione
+            p_prod = self.main_tab.toolbarPanels.add('FurnitureAI_ProdPanel', 'PRODUZIONE')
+            self.panels.append(('FurnitureAI_ProdPanel', p_prod))
+            
+        except Exception as e:
+            self.logger.error(f"Errore creazione pannelli: {str(e)}")
+
+    def _create_commands(self):
+        """Crea le definizioni dei comandi"""
+        cmd_defs = self.ui.commandDefinitions
+        
+        # Esempio di comandi raggruppati per i tuoi pannelli
+        config = {
+            'FurnitureAI_IAPanel': [
+                ('FAI_Wizard', 'Wizard Mobile', 'Crea mobile assistito'),
+                ('FAI_Gen', 'Generatore IA', 'AI Design'),
+            ],
+            'FurnitureAI_ProdPanel': [
+                ('FAI_Cut', 'Lista Taglio', 'Esporta nesting'),
+            ]
+        }
+
+        for p_id, cmds in config.items():
+            for c_id, name, desc in cmds:
+                # Pulizia comando esistente
+                existing = cmd_defs.itemById(c_id)
+                if existing: existing.deleteMe()
+                
+                # Creazione comando
+                btn = cmd_defs.addButtonDefinition(c_id, name, desc)
+                handler = CommandCreatedHandler(name, self.logger)
+                btn.commandCreated.add(handler)
+                self.handlers.append(handler)
+                self.command_defs.append((p_id, btn))
             
     def _create_tabs(self):
         """Crea tabs (schede) nel workspace"""
