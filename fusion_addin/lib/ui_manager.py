@@ -32,30 +32,23 @@ class UIManager:
                 existing_ws.deleteMe()
                 self.logger.info("Workspace esistente rimosso")
 
-            # Metodo più sicuro: passa i parametri esplicitamente
-            # ID univoco, Nome visibile, Percorso risorse (stringa vuota)
-            self.workspace = workspaces.add('FurnitureAI_Workspace', 'FURNITURE', '')
+            # USIAMO I NOMI DEI PARAMETRI PER EVITARE IL TYPEERROR
+            self.workspace = workspaces.add(
+                id='FurnitureAI_Workspace', 
+                name='FURNITURE', 
+                resourceFolder=''
+            )
             
-            # Se il comando sopra fallisce ancora, prova la sintassi alternativa:
-            # self.workspace = workspaces.add('FurnitureAI_Workspace', 'FURNITURE', './resources')
-            
-            self.logger.info("✅ Workspace FURNITURE creato")
+            self.logger.info("✅ Workspace FURNITURE creato con successo")
 
-            # Crea tabs (schede) nel workspace
+            # Procedi con la creazione degli elementi interni
             self._create_tabs()
-
-            # Crea panel dentro le tabs
             self._create_panels()
-
-            # Crea comandi
             self._create_commands()
-
-            # Popola panel con comandi
             self._populate_panels()
 
-            # ATTIVA workspace per renderlo visibile
+            # Attivazione finale
             self.workspace.activate()
-
             self.logger.info(f"✅ Workspace attivato")
 
         except Exception as e:
