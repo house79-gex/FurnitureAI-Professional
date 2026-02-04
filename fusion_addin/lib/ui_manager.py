@@ -22,148 +22,129 @@ class UIManager:
     def create_ui(self):
         """Crea la scheda unica 'Furniture AI'"""
         try:
-            workspaces = self.ui.workspaces
-            # Si aggancia al workspace attivo (Progettazione)
-            self.workspace = self.ui.activeWorkspace or workspaces.itemById('FusionDesignWorkspace')
+            self.logger.info("Inizio creazione interfaccia...")
+            
+            # --- RECUPERO WORKSPACE (PIÙ ROBUSTO) ---
+            # Cerchiamo specificamente il workspace di Progettazione per ID
+            all_ws = self.ui.workspaces
+            self.workspace = all_ws.itemById('FusionDesignWorkspace')
+            
+            if not self.workspace:
+                # Se non lo trova, prova quello attivo come ultima spiaggia
+                self.workspace = self.ui.activeWorkspace
 
             if not self.workspace:
-                self.logger.error("Impossibile trovare il workspace attivo")
+                self.logger.error("❌ Impossibile trovare un workspace valido")
                 return
 
-            # 1. Pulizia preventiva
-            existing_tab = self.workspace.toolbarTabs.itemById('FurnitureAI_MainTab')
-            if existing_tab:
-                existing_tab.deleteMe()
+            # --- PULIZIA TAB ESISTENTE ---
+            try:
+                existing_tab = self.workspace.toolbarTabs.itemById('FurnitureAI_MainTab')
+                if existing_tab:
+                    existing_tab.deleteMe()
+            except:
+                pass
 
-            # 2. Crea l'UNICA scheda principale
+            # --- CREAZIONE TAB Furniture AI ---
+            # Usiamo un blocco unico per essere sicuri che venga creata
             self.main_tab = self.workspace.toolbarTabs.add('FurnitureAI_MainTab', 'Furniture AI')
             
-            # 3. Importa il pannello CREA originale di Fusion
-            design_tab = self.workspace.toolbarTabs.itemById('SolidTab')
-            if design_tab:
-                create_panel = design_tab.toolbarPanels.itemById('SolidCreatePanel')
-                if create_panel:
-                    self.main_tab.toolbarPanels.add(create_panel)
+            # --- IMPORTA PANNELLO "CREA" ---
+            try:
+                # Cerchiamo la tab Solid (Solido) per prendere il pannello Crea
+                solid_tab = self.workspace.toolbarTabs.itemById('SolidTab')
+                if solid_tab:
+                    create_panel = solid_tab.toolbarPanels.itemById('SolidCreatePanel')
+                    if create_panel:
+                        self.main_tab.toolbarPanels.add(create_panel)
+            except Exception as e:
+                self.logger.error(f"Nota: Impossibile importare pannello Crea: {str(e)}")
 
-            # 4. Crea i tuoi pannelli personalizzati
+            # --- CREA I TUOI PANNELLI ---
             self._create_custom_panels()
 
-            # 5. Crea e aggiungi i tuoi comandi
+            # --- CREA E AGGIUNGI COMANDI ---
             self._create_commands()
             self._populate_panels()
 
-            # Attiva la scheda
+            # --- ATTIVAZIONE E VISIBILITÀ ---
             self.main_tab.activate()
-            self.logger.info("✅ Scheda 'Furniture AI' caricata con successo")
+            self.logger.info("✅ Scheda 'Furniture AI' visualizzata correttamente")
 
         except Exception as e:
-            self.logger.error(f"❌ Errore create_ui: {str(e)}")
+            self.ui.messageBox(f"Errore critico UI:\n{str(e)}")
+            self.logger.error(traceback.format_exc())
 
     def _create_custom_panels(self):
-        """Crea i pannelli specifici per i tuoi strumenti"""
+        """Crea i pannelli specifici"""
         try:
-            # Pannello 1: IA & Progettazione
+            # Pannello 1
             p_ia = self.main_tab.toolbarPanels.add('FurnitureAI_IAPanel', 'IA & PROGETTAZIONE')
             self.panels.append(('FurnitureAI_IAPanel', p_ia))
 
-            # Pannello 2: Produzione
+            # Pannello 2
             p_prod = self.main_tab.toolbarPanels.add('FurnitureAI_ProdPanel', 'PRODUZIONE')
             self.panels.append(('FurnitureAI_ProdPanel', p_prod))
-            
-            # Pannello 3: Impostazioni
-            p_set = self.main_tab.toolbarPanels.add('FurnitureAI_SettingsPanel', 'IMPOSTAZIONI')
-            self.panels.append(('FurnitureAI_SettingsPanel', p_set))
-
-        except Exception as e:
-            self.logger.error(f"Errore creazione pannelli: {str(e)}")
-
-    def _create_commands(self):
-        """Definisce i comandi per ogni pannello"""
-        try:
-            cmd_defs = self.ui.commandDefinitions
-            
-            # Mappa dei comandi: ID Pannello -> [ (ID, Nome, Descrizione) ]
-            config = {
-                'FurnitureAI_IAPanel': [
-                    ('FAI_Wizard', 'Wizard Mobili', 'Crea mobile assistito'),
-                    ('FAI_Gen', 'Generatore IA', 'AI Design'),
-                ],
-                'FurnitureAI_ProdPanel': [
-                    ('FAI_Cut', 'Lista Taglio', 'Genera nesting'),
-                    ('FAI_Label', 'Etichette', 'Stampa etichette'),
-                ],
-                'FurnitureAI_SettingsPanel': [
-                    ('FAI_Config', 'Configura', 'Impostazioni globali'),
-                ]
-            }
-
-            for p_id, cmds in config.items():
-                for c_id, name, desc in cmds:
-                    # Rimuovi se esiste già
-                    existing = cmd_defs.itemById(c_id)
-                    if existing: existing.deleteMe()
-                    
-                    # Crea nuova definizione
-                    btn = cmd_defs.addButtonDefinition(c_id, name, desc)
-                    
-                    # Collega l'handler per il click
-                    handler = CommandCreatedHandler(name, self.logger)
-                    btn.commandCreated.add(handler)
-                    self.handlers.append(handler)
-                    
-                    # Salva il riferimento per popolare i pannelli
-                    self.command_defs.append((p_id, btn))
-
-        except Exception as e:
-            self.logger.error(f"Errore creazione comandi: {str(e)}")
-
-    def _populate_panels(self):
-        """Distribuisce i comandi nei rispettivi pannelli"""
-        try:
-            for panel_target_id, cmd_def in self.command_defs:
-                for panel_id, panel_obj in self.panels:
-                    if panel_id == panel_target_id:
-                        panel_obj.controls.addCommand(cmd_def)
-        except Exception as e:
-            self.logger.error(f"Errore popolazione: {str(e)}")
-
-    def cleanup(self):
-        """Rimuove tutto all'arresto dell'Add-in"""
-        try:
-            if self.main_tab and self.main_tab.isValid:
-                self.main_tab.deleteMe()
-            
-            for _, cmd_def in self.command_defs:
-                if cmd_def and cmd_def.isValid:
-                    cmd_def.deleteMe()
-            self.logger.info("✅ UI FurnitureAI rimossa")
         except:
             pass
 
-# --- EVENT HANDLERS ---
+    def _create_commands(self):
+        """Definisce i comandi"""
+        cmd_defs = self.ui.commandDefinitions
+        
+        config = {
+            'FurnitureAI_IAPanel': [
+                ('FAI_Wizard', 'Wizard Mobili', 'Crea mobile assistito'),
+                ('FAI_Gen', 'Generatore IA', 'AI Design'),
+            ],
+            'FurnitureAI_ProdPanel': [
+                ('FAI_Cut', 'Lista Taglio', 'Genera nesting'),
+            ]
+        }
+
+        for p_id, cmds in config.items():
+            for c_id, name, desc in cmds:
+                existing = cmd_defs.itemById(c_id)
+                if existing: existing.deleteMe()
+                
+                btn = cmd_defs.addButtonDefinition(c_id, name, desc)
+                handler = CommandCreatedHandler(name, self.logger)
+                btn.commandCreated.add(handler)
+                self.handlers.append(handler)
+                self.command_defs.append((p_id, btn))
+
+    def _populate_panels(self):
+        """Aggiunge i comandi ai pannelli"""
+        for p_target_id, cmd_def in self.command_defs:
+            for p_id, p_obj in self.panels:
+                if p_id == p_target_id:
+                    p_obj.controls.addCommand(cmd_def)
+
+    def cleanup(self):
+        """Rimuove la UI"""
+        try:
+            if self.main_tab and self.main_tab.isValid:
+                self.main_tab.deleteMe()
+            for _, cmd_def in self.command_defs:
+                if cmd_def and cmd_def.isValid:
+                    cmd_def.deleteMe()
+        except:
+            pass
 
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self, command_name, logger):
         super().__init__()
         self.command_name = command_name
         self.logger = logger
-    
     def notify(self, args):
-        try:
-            cmd = args.command
-            on_execute = CommandExecuteHandler(self.command_name, self.logger)
-            cmd.execute.add(on_execute)
-            # Trucco per mantenere l'handler in memoria
-            args.command.setPythonOwner(on_execute) 
-        except:
-            pass
+        on_execute = CommandExecuteHandler(self.command_name, self.logger)
+        args.command.execute.add(on_execute)
+        self.logger._keep_alive = on_execute
 
 class CommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self, command_name, logger):
         super().__init__()
         self.command_name = command_name
         self.logger = logger
-    
     def notify(self, args):
-        ui = adsk.core.Application.get().userInterface
-        ui.messageBox(f'Azione: {self.command_name}\nStatus: In sviluppo', 'FurnitureAI')
+        adsk.core.Application.get().userInterface.messageBox(f'Azione: {self.command_name}')
