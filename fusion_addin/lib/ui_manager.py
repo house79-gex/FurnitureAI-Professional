@@ -26,17 +26,19 @@ class UIManager:
 
             workspaces = self.ui.workspaces
             
-            # Rimuovi workspace esistente se presente
+            # Rimuovi workspace esistente se presente per evitare conflitti
             existing_ws = workspaces.itemById('FurnitureAI_Workspace')
             if existing_ws:
                 existing_ws.deleteMe()
                 self.logger.info("Workspace esistente rimosso")
 
-            # USIAMO I NOMI DEI PARAMETRI PER EVITARE IL TYPEERROR
+            # CORREZIONE: Aggiunto 'DesignProductType' come quarto argomento
+            # Parametri: id, name, resourceFolder, productType
             self.workspace = workspaces.add(
-                id='FurnitureAI_Workspace', 
-                name='FURNITURE', 
-                resourceFolder=''
+                'FurnitureAI_Workspace', 
+                'FURNITURE', 
+                '', 
+                'DesignProductType'
             )
             
             self.logger.info("✅ Workspace FURNITURE creato con successo")
