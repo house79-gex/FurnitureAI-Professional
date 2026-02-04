@@ -26,19 +26,20 @@ class UIManager:
 
             workspaces = self.ui.workspaces
             
-            # Rimuovi workspace esistente se presente per evitare conflitti
+            # 1. Rimuovi workspace esistente se presente
             existing_ws = workspaces.itemById('FurnitureAI_Workspace')
             if existing_ws:
                 existing_ws.deleteMe()
                 self.logger.info("Workspace esistente rimosso")
 
-            # CORREZIONE: Aggiunto 'DesignProductType' come quarto argomento
-            # Parametri: id, name, resourceFolder, productType
+            # 2. CREAZIONE CON ORDINE PARAMETRI CORRETTO:
+            # Ordine richiesto: productType, id, name, resourceFolder
+            # Usiamo 'DesignProductType' (che è lo standard universale API, non dipende dalla lingua della UI)
             self.workspace = workspaces.add(
-                'FurnitureAI_Workspace', 
-                'FURNITURE', 
-                '', 
-                'DesignProductType'
+                'DesignProductType',      # 1. productType
+                'FurnitureAI_Workspace',  # 2. id
+                'FURNITURE',              # 3. name
+                ''                        # 4. resourceFolder
             )
             
             self.logger.info("✅ Workspace FURNITURE creato con successo")
@@ -49,7 +50,7 @@ class UIManager:
             self._create_commands()
             self._populate_panels()
 
-            # Attivazione finale
+            # 3. Attivazione
             self.workspace.activate()
             self.logger.info(f"✅ Workspace attivato")
 
@@ -57,7 +58,7 @@ class UIManager:
             self.logger.error(f"❌ Errore creazione workspace: {str(e)}")
             self.logger.error(traceback.format_exc())
             raise
-
+            
     def _create_tabs(self):
         """Crea tabs (schede) nel workspace"""
         try:
