@@ -1,0 +1,323 @@
+{
+  "catalog_version": "3.0.0",
+  "last_updated": "2024-01-15",
+  "currency": "EUR",
+  "categories": {
+    "hinges": {
+      "blum_clip_top_110": {
+        "manufacturer": "Blum",
+        "product_line": "Clip Top",
+        "model": "71T3550",
+        "name": "Clip Top Blumotion 110°",
+        "description": "Cerniera a scodellino con ammortizzatore integrato, apertura 110°",
+        "opening_angle": 110,
+        "cup_diameter": 35,
+        "cup_depth": 12,
+        "mounting_holes_distance": 48,
+        "overlay": 0,
+        "overlay_range": [-3, 3],
+        "weight_capacity_kg": 12,
+        "closing_mechanism": "soft_close",
+        "price_eur": 4.85,
+        "supplier_code": "71T3550",
+        "technical_specs": {
+          "material": "steel_zinc_plated",
+          "finish": "nickel",
+          "opening_force_n": 2.5,
+          "closing_force_n": 1.8,
+          "durability_cycles": 200000
+        },
+        "mounting": {
+          "cup_position_from_edge": 4.5,
+          "system_32_compatible": true,
+          "requires_mounting_plate": true,
+          "mounting_plate_code": "175H7100"
+        }
+      },
+      "blum_clip_top_95": {
+        "manufacturer": "Blum",
+        "product_line": "Clip Top",
+        "model": "71T9550",
+        "name": "Clip Top 95° Ante Angolo",
+        "description": "Cerniera per ante ad angolo, apertura 95°",
+        "opening_angle": 95,
+        "cup_diameter": 35,
+        "cup_depth": 12,
+        "mounting_holes_distance": 48,
+        "overlay": -5,
+        "weight_capacity_kg": 10,
+        "closing_mechanism": "standard",
+        "price_eur": 3.95,
+        "supplier_code": "71T9550"
+      },
+      "hettich_sensys_110": {
+        "manufacturer": "Hettich",
+        "product_line": "Sensys",
+        "model": "9071291",
+        "name": "Sensys 110° con Soft Close",
+        "description": "Cerniera premium con chiusura ammortizzata, apertura 110°",
+        "opening_angle": 110,
+        "cup_diameter": 35,
+        "cup_depth": 13,
+        "mounting_holes_distance": 48,
+        "overlay": 0,
+        "weight_capacity_kg": 14,
+        "closing_mechanism": "soft_close",
+        "price_eur": 5.20,
+        "supplier_code": "9071291",
+        "technical_specs": {
+          "material": "steel_stainless",
+          "finish": "nickel",
+          "opening_force_n": 2.8,
+          "durability_cycles": 250000
+        }
+      },
+      "salice_silentia_110": {
+        "manufacturer": "Salice",
+        "product_line": "Silentia",
+        "model": "200",
+        "name": "Silentia 110° Soft Close",
+        "description": "Cerniera con ammortizzatore integrato, sistema rapido",
+        "opening_angle": 110,
+        "cup_diameter": 35,
+        "cup_depth": 12,
+        "mounting_holes_distance": 48,
+        "overlay": 0,
+        "weight_capacity_kg": 12,
+        "closing_mechanism": "soft_close",
+        "price_eur": 4.50,
+        "supplier_code": "C200PA69"
+      }
+    },
+    "slides": {
+      "hettich_quadro_v6": {
+        "manufacturer": "Hettich",
+        "product_line": "Quadro V6",
+        "model": "9122865",
+        "name": "Quadro V6 Silent System 500mm",
+        "description": "Guida cassetti ad estrazione totale con silent system",
+        "length": 500,
+        "extension": "full",
+        "weight_capacity_kg": 50,
+        "closing_mechanism": "soft_close",
+        "price_eur": 12.80,
+        "supplier_code": "9122865",
+        "technical_specs": {
+          "material": "steel",
+          "finish": "zinc_plated",
+          "mounting_height": 92,
+          "cabinet_width_clearance": -26,
+          "drawer_clearance": 13,
+          "durability_cycles": 100000
+        },
+        "mounting": {
+          "system_32_compatible": true,
+          "requires_rear_bracket": true,
+          "adjustment_3d": true
+        }
+      },
+      "blum_tandem_550": {
+        "manufacturer": "Blum",
+        "product_line": "Tandem",
+        "model": "560H5500B",
+        "name": "Tandem Blumotion 550mm",
+        "description": "Guida cassetti ad estrazione totale con Blumotion, 65kg",
+        "length": 550,
+        "extension": "full",
+        "weight_capacity_kg": 65,
+        "closing_mechanism": "soft_close",
+        "price_eur": 15.50,
+        "supplier_code": "560H5500B",
+        "technical_specs": {
+          "material": "steel",
+          "finish": "zinc_plated",
+          "mounting_height": 83,
+          "cabinet_width_clearance": -23,
+          "drawer_clearance": 12,
+          "durability_cycles": 80000
+        }
+      },
+      "salice_air_500": {
+        "manufacturer": "Salice",
+        "product_line": "Air",
+        "model": "3695",
+        "name": "Air Soft Close 500mm",
+        "description": "Guida cassetti ad estrazione totale con soft close",
+        "length": 500,
+        "extension": "full",
+        "weight_capacity_kg": 40,
+        "closing_mechanism": "soft_close",
+        "price_eur": 10.90,
+        "supplier_code": "3695-500"
+      }
+    },
+    "handles": {
+      "gola_alu_silver": {
+        "manufacturer": "Generic",
+        "product_line": "Gola",
+        "model": "GOLA-C",
+        "name": "Gola C Alluminio Argento",
+        "description": "Maniglia a gola in alluminio, profilo C, finitura argento",
+        "type": "recessed",
+        "material": "aluminum",
+        "finish": "silver_anodized",
+        "length_available": [2500, 3000, 4000],
+        "profile_height": 18,
+        "profile_depth": 12,
+        "price_eur_per_meter": 8.50,
+        "supplier_code": "GOLA-C-SLV",
+        "mounting": {
+          "requires_groove": true,
+          "groove_depth": 13,
+          "groove_height": 19
+        }
+      },
+      "handle_bar_320": {
+        "manufacturer": "Generic",
+        "product_line": "Professional",
+        "model": "BAR-320",
+        "name": "Maniglia Barra 320mm Inox",
+        "description": "Maniglia a barra in acciaio inox, interasse 320mm",
+        "type": "bar",
+        "material": "stainless_steel",
+        "finish": "brushed",
+        "length": 340,
+        "interaxis": 320,
+        "diameter": 12,
+        "price_eur": 4.20,
+        "supplier_code": "BAR-320-SS",
+        "mounting": {
+          "holes_diameter": 5,
+          "requires_screws": true
+        }
+      },
+      "handle_knob_modern": {
+        "manufacturer": "Generic",
+        "product_line": "Modern",
+        "model": "KNO-30",
+        "name": "Pomello Moderno Ø30mm",
+        "description": "Pomello tondo design moderno, diametro 30mm",
+        "type": "knob",
+        "material": "zamak",
+        "finish": "chrome",
+        "diameter": 30,
+        "projection": 25,
+        "price_eur": 1.80,
+        "supplier_code": "KNO-30-CHR",
+        "mounting": {
+          "hole_diameter": 5,
+          "requires_screw": true
+        }
+      },
+      "push_to_open": {
+        "manufacturer": "Blum",
+        "product_line": "Tip-On",
+        "model": "956A1004",
+        "name": "Tip-On Blumotion",
+        "description": "Sistema apertura a pressione con ammortizzatore",
+        "type": "push_system",
+        "weight_capacity_kg": 3,
+        "price_eur": 8.50,
+        "supplier_code": "956A1004",
+        "mounting": {
+          "requires_magnet": true,
+          "magnet_included": true
+        }
+      }
+    },
+    "drawer_systems": {
+      "hettich_innotech_atira": {
+        "manufacturer": "Hettich",
+        "product_line": "InnoTech Atira",
+        "model": "9257322",
+        "name": "InnoTech Atira 470mm H70",
+        "description": "Sistema cassetto in metallo con spondina in vetro, altezza 70mm",
+        "drawer_type": "metal_system",
+        "height": 70,
+        "length": 470,
+        "weight_capacity_kg": 40,
+        "price_eur": 45.00,
+        "supplier_code": "9257322",
+        "components": {
+          "runners": "included",
+          "sides": "metal_gray",
+          "front_connector": "included",
+          "soft_close": true
+        }
+      },
+      "blum_legrabox_pure": {
+        "manufacturer": "Blum",
+        "product_line": "Legrabox Pure",
+        "model": "770C5002S",
+        "name": "Legrabox Pure 500mm H90",
+        "description": "Sistema cassetto premium in acciaio inox, altezza 90mm",
+        "drawer_type": "metal_system",
+        "height": 90,
+        "length": 500,
+        "weight_capacity_kg": 70,
+        "price_eur": 75.00,
+        "supplier_code": "770C5002S",
+        "components": {
+          "runners": "included",
+          "sides": "stainless_steel",
+          "front_connector": "included",
+          "soft_close": true
+        }
+      }
+    },
+    "lighting": {
+      "led_strip_warm": {
+        "manufacturer": "Generic",
+        "product_line": "LED Professional",
+        "model": "LED-24V-WW",
+        "name": "Striscia LED 24V 3000K",
+        "description": "Striscia LED luce calda 3000K, 14W/m, 24V",
+        "type": "led_strip",
+        "voltage": 24,
+        "power_per_meter": 14,
+        "color_temperature": 3000,
+        "lumens_per_meter": 1200,
+        "cri": 90,
+        "length_available": [5000],
+        "price_eur_per_meter": 12.50,
+        "supplier_code": "LED-24V-WW",
+        "mounting": {
+          "adhesive_back": true,
+          "aluminum_profile_recommended": true
+        }
+      }
+    },
+    "accessories": {
+      "adjustable_foot": {
+        "manufacturer": "Generic",
+        "product_line": "Standard",
+        "model": "FOOT-ADJ-120",
+        "name": "Piedino Regolabile H120mm",
+        "description": "Piedino regolabile in plastica, altezza 100-120mm",
+        "type": "adjustable_foot",
+        "material": "plastic_abs",
+        "height_min": 100,
+        "height_max": 120,
+        "thread": "M8",
+        "weight_capacity_kg": 100,
+        "price_eur": 0.85,
+        "supplier_code": "FOOT-ADJ-120"
+      },
+      "shelf_support_5mm": {
+        "manufacturer": "Generic",
+        "product_line": "Standard",
+        "model": "SUPP-5",
+        "name": "Supporto Ripiano Ø5mm",
+        "description": "Supporto ripiano in metallo nichelato, diametro 5mm",
+        "type": "shelf_support",
+        "material": "steel",
+        "finish": "nickel",
+        "diameter": 5,
+        "length": 16,
+        "weight_capacity_kg": 25,
+        "price_eur": 0.15,
+        "supplier_code": "SUPP-5-NI"
+      }
+    }
+  }
+}
