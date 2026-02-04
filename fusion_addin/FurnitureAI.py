@@ -9,8 +9,8 @@ import traceback
 import sys
 import os
 
-# Aggiungi il path della libreria
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
+# Aggiungi il path della libreria CORRETTO
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'fusion_addin', 'lib'))
 
 from lib.ui_manager import UIManager
 from lib.logging_utils import setup_logger
@@ -24,39 +24,39 @@ logger = None
 def run(context):
     """Entry point principale dell'addon"""
     global app, ui, ui_manager, logger
-    
+
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
         
-        # Inizializza il logger
-        logger = setup_logger('FurnitureAI')
-        logger.info("🚀 Avvio FurnitureAI Professional v3.0")
+        # Setup logger
+        logger = setup_logger()
+        logger.info("=== FurnitureAI Professional v3.0 - Avvio ===")
         
-        # Inizializza il gestore UI
-        ui_manager = UIManager(app, ui)
+        # Inizializza UI manager
+        ui_manager = UIManager(ui, logger)
         ui_manager.create_ui()
         
-        logger.info("✅ FurnitureAI caricato con successo")
+        logger.info("✅ FurnitureAI avviato con successo")
         
-    except:
+    except Exception as e:
         if ui:
-            ui.messageBox(f'❌ Errore inizializzazione FurnitureAI:\n{traceback.format_exc()}')
+            ui.messageBox(f'Errore avvio FurnitureAI:\n{str(e)}\n\n{traceback.format_exc()}')
 
 def stop(context):
-    """Pulizia alla disattivazione dell'addon"""
+    """Cleanup addon"""
     global ui_manager, logger
     
     try:
         if logger:
-            logger.info("🛑 Arresto FurnitureAI Professional")
+            logger.info("=== FurnitureAI Professional - Stop ===")
         
         if ui_manager:
             ui_manager.cleanup()
         
         if logger:
-            logger.info("✅ FurnitureAI disattivato correttamente")
+            logger.info("✅ FurnitureAI fermato correttamente")
             
-    except:
+    except Exception as e:
         if ui:
-            ui.messageBox(f'❌ Errore disattivazione FurnitureAI:\n{traceback.format_exc()}')
+            ui.messageBox(f'Errore stop addon:\n{str(e)}')
