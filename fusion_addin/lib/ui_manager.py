@@ -20,44 +20,39 @@ class UIManager:
         self.handlers = []
 
     def create_ui(self):
-        """Crea workspace FURNITURE completo"""
+        """Si aggancia al workspace PROGETTAZIONE e aggiunge le tab"""
         try:
-            self.logger.info("Creazione workspace FURNITURE...")
+            self.logger.info("Ricerca workspace Progettazione...")
 
+            # Cerchiamo il workspace 'FusionDesignWorkspace' 
+            # (è l'ID interno per "Progettazione", non cambia con la lingua)
             workspaces = self.ui.workspaces
-            
-            # 1. Rimuovi workspace esistente se presente
-            existing_ws = workspaces.itemById('FurnitureAI_Workspace')
-            if existing_ws:
-                existing_ws.deleteMe()
-                self.logger.info("Workspace esistente rimosso")
+            self.workspace = workspaces.itemById('FusionDesignWorkspace')
 
-            # 2. CREAZIONE CON ORDINE PARAMETRI CORRETTO:
-            # Ordine richiesto: productType, id, name, resourceFolder
-            # Usiamo 'DesignProductType' (che è lo standard universale API, non dipende dalla lingua della UI)
-            self.workspace = workspaces.add(
-                'DesignProductType',      # 1. productType
-                'FurnitureAI_Workspace',  # 2. id
-                'FURNITURE',              # 3. name
-                ''                        # 4. resourceFolder
-            )
-            
-            self.logger.info("✅ Workspace FURNITURE creato con successo")
+            if not self.workspace:
+                # Se non lo trova per ID, lo cerchiamo per nome (fallback)
+                for ws in workspaces:
+                    if ws.name == 'Progettazione' or ws.name == 'Design':
+                        self.workspace = ws
+                        break
 
-            # Procedi con la creazione degli elementi interni
-            self._create_tabs()
-            self._create_panels()
-            self._create_commands()
-            self._populate_panels()
-
-            # 3. Attivazione
-            self.workspace.activate()
-            self.logger.info(f"✅ Workspace attivato")
+            if self.workspace:
+                self.logger.info(f"✅ Agganciato a workspace: {self.workspace.name}")
+                
+                # Ora creiamo le TUE tab dentro Progettazione
+                self._create_tabs()
+                self._create_panels()
+                self._create_commands()
+                self._populate_panels()
+                
+                # Non serve attivare il workspace perché ci siamo già dentro
+                self.logger.info("✅ Interfaccia FurnitureAI caricata correttamente")
+            else:
+                self.ui.messageBox("Impossibile trovare il workspace di Progettazione")
 
         except Exception as e:
-            self.logger.error(f"❌ Errore creazione workspace: {str(e)}")
+            self.logger.error(f"❌ Errore: {str(e)}")
             self.logger.error(traceback.format_exc())
-            raise
             
     def _create_tabs(self):
         """Crea tabs (schede) nel workspace"""
