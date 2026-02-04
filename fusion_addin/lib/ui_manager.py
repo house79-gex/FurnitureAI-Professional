@@ -1,11 +1,10 @@
 """
-Gestore UI per FurnitureAI - Fix Caricamento all'avvio e Pannello Crea
+Gestore UI per FurnitureAI - Versione Stabile Anti-Errore Sessione
 """
 
 import adsk.core
 import adsk.fusion
 import traceback
-import time
 
 class UIManager:
     def __init__(self, logger, ui):
@@ -19,58 +18,60 @@ class UIManager:
         self.handlers = []
 
     def create_ui(self):
-        """Crea la scheda unica con gestione della sessione"""
+        """Crea la scheda Furniture AI con gestione errori robusta"""
         try:
-            # Attendiamo un istante che la sessione sia pronta se necessario
-            # Questo previene l'errore pCurrentSession
-            count = 0
-            while not self.app.activeProduct and count < 10:
-                time.sleep(0.5)
-                count += 1
-
+            # 1. Recupero Workspace sicuro
             workspaces = self.ui.workspaces
-            # Cerchiamo il workspace di Progettazione (Solido)
             self.workspace = workspaces.itemById('FusionDesignWorkspace')
-
+            
             if not self.workspace:
-                self.logger.error("Impossibile trovare il workspace di Progettazione")
+                self.logger.error("Workspace Progettazione non trovato.")
                 return
 
-            # PULIZIA
+            # 2. Pulizia preventiva (fondamentale per evitare duplicati o blocchi)
             try:
                 existing_tab = self.workspace.toolbarTabs.itemById('FurnitureAI_MainTab')
                 if existing_tab:
                     existing_tab.deleteMe()
-            except: pass
+            except:
+                pass
 
-            # CREA TAB Furniture AI
+            # 3. Creazione Tab Principale
+            # Usiamo un nome interno unico e un nome visibile chiaro
             self.main_tab = self.workspace.toolbarTabs.add('FurnitureAI_MainTab', 'Furniture AI')
             
-            # AGGIUNTA PANNELLO CREA (Standard di Fusion)
-            # Proviamo a prenderlo dalla Tab 'Solido' (SolidTab)
+            # 4. Importazione Pannelli Standard (Crea e Modifica)
+            # Avvolto in try/except per non bloccare tutto se Fusion non li espone subito
             try:
                 solid_tab = self.workspace.toolbarTabs.itemById('SolidTab')
                 if solid_tab:
-                    # ID standard del pannello Crea: 'SolidCreatePanel'
-                    create_panel = solid_tab.toolbarPanels.itemById('SolidCreatePanel')
-                    if create_panel:
-                        self.main_tab.toolbarPanels.add(create_panel)
+                    # Aggiungiamo CREA
+                    c_panel = solid_tab.toolbarPanels.itemById('SolidCreatePanel')
+                    if c_panel:
+                        self.main_tab.toolbarPanels.add(c_panel)
+                    # Aggiungiamo MODIFICA (molto utile per mobili)
+                    m_panel = solid_tab.toolbarPanels.itemById('SolidModifyPanel')
+                    if m_panel:
+                        self.main_tab.toolbarPanels.add(m_panel)
             except:
-                self.logger.info("Pannello CREA non trovato via ID, proseguo...")
+                self.logger.info("Impossibile integrare i pannelli standard in questo momento.")
 
-            # CREA I TUOI PANNELLI CUSTOM
+            # 5. Creazione Pannelli Personalizzati
             self._create_custom_panels()
             self._create_commands()
             self._populate_panels()
 
-            # ATTIVAZIONE
+            # 6. Attivazione forzata
             self.main_tab.activate()
-            self.logger.info("✅ Furniture AI caricata correttamente")
+            self.logger.info("✅ Interfaccia Furniture AI caricata.")
 
         except Exception as e:
-            # Se l'errore è pCurrentSession, non mostriamo il popup fastidioso
-            if "pCurrentSession" not in str(e):
-                self.ui.messageBox(f"Errore UI:\n{str(e)}")
+            # Se l'errore è pCurrentSession, il log ci avvisa ma non blocchiamo l'utente
+            err_msg = str(e)
+            if "pCurrentSession" in err_msg:
+                self.logger.error("Sessione non ancora pronta. Riavvia l'Add-in tra qualche secondo.")
+            else:
+                self.ui.messageBox(f"Errore caricamento UI:\n{err_msg}")
             self.logger.error(traceback.format_exc())
 
     def _create_custom_panels(self):
@@ -82,11 +83,12 @@ class UIManager:
             # Pannello PRODUZIONE
             p_prod = self.main_tab.toolbarPanels.add('FurnitureAI_ProdPanel', 'PRODUZIONE')
             self.panels.append(('FurnitureAI_ProdPanel', p_prod))
-        except: pass
+        except:
+            pass
 
     def _create_commands(self):
         cmd_defs = self.ui.commandDefinitions
-        # Definiamo i tuoi comandi
+        # Configurazione comandi
         config = {
             'FurnitureAI_IAPanel': [
                 ('FAI_Wizard', 'Wizard Mobili', 'Crea mobile'),
@@ -99,20 +101,26 @@ class UIManager:
 
         for p_id, cmds in config.items():
             for c_id, name, desc in cmds:
-                existing = cmd_defs.itemById(c_id)
-                if existing: existing.deleteMe()
-                
-                btn = cmd_defs.addButtonDefinition(c_id, name, desc)
-                handler = CommandCreatedHandler(name, self.logger)
-                btn.commandCreated.add(handler)
-                self.handlers.append(handler)
-                self.command_defs.append((p_id, btn))
+                try:
+                    existing = cmd_defs.itemById(c_id)
+                    if existing: existing.deleteMe()
+                    
+                    btn = cmd_defs.addButtonDefinition(c_id, name, desc)
+                    handler = CommandCreatedHandler(name, self.logger)
+                    btn.commandCreated.add(handler)
+                    self.handlers.append(handler)
+                    self.command_defs.append((p_id, btn))
+                except:
+                    continue
 
     def _populate_panels(self):
         for p_target_id, cmd_def in self.command_defs:
             for p_id, p_obj in self.panels:
                 if p_id == p_target_id:
-                    p_obj.controls.addCommand(cmd_def)
+                    try:
+                        p_obj.controls.addCommand(cmd_def)
+                    except:
+                        continue
 
     def cleanup(self):
         try:
@@ -121,7 +129,10 @@ class UIManager:
             for _, cmd_def in self.command_defs:
                 if cmd_def and cmd_def.isValid:
                     cmd_def.deleteMe()
-        except: pass
+        except:
+            pass
+
+# --- EVENT HANDLERS ---
 
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self, command_name, logger):
@@ -129,10 +140,13 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         self.command_name = command_name
         self.logger = logger
     def notify(self, args):
-        on_execute = CommandExecuteHandler(self.command_name, self.logger)
-        args.command.execute.add(on_execute)
-        # Mantiene in vita l'handler
-        args.command.setPythonOwner(on_execute)
+        try:
+            on_execute = CommandExecuteHandler(self.command_name, self.logger)
+            args.command.execute.add(on_execute)
+            # Manteniamo l'oggetto in vita
+            args.command.setPythonOwner(on_execute)
+        except:
+            pass
 
 class CommandExecuteHandler(adsk.core.CommandEventHandler):
     def __init__(self, command_name, logger):
@@ -140,4 +154,5 @@ class CommandExecuteHandler(adsk.core.CommandEventHandler):
         self.command_name = command_name
         self.logger = logger
     def notify(self, args):
-        adsk.core.Application.get().userInterface.messageBox(f'Azione: {self.command_name}')
+        ui = adsk.core.Application.get().userInterface
+        ui.messageBox(f'Comando: {self.command_name}\nStatus: Pronto per logica.')
