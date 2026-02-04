@@ -16,7 +16,7 @@ lib_path = os.path.join(addon_path, 'fusion_addin', 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
 
-# Import SENZA prefisso "lib." perché lib_path è già in sys.path
+# Import moduli
 from ui_manager import UIManager
 from logging_utils import setup_logger
 
@@ -38,8 +38,8 @@ def run(context):
         logger = setup_logger()
         logger.info("=== FurnitureAI Professional v3.0 - Avvio ===")
 
-        # Inizializza UI manager
-        ui_manager = UIManager(ui, logger)
+        # Inizializza UI manager - FIX: logger PRIMA, ui DOPO
+        ui_manager = UIManager(logger, ui)
         ui_manager.create_ui()
 
         logger.info("✅ FurnitureAI avviato con successo")
