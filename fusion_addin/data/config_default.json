@@ -1,0 +1,37 @@
+{
+  "ai": {
+    "llm_endpoint": "http://localhost:1234/v1/chat/completions",
+    "vision_endpoint": "http://localhost:11434/api/generate",
+    "speech_endpoint": "http://localhost:8000/v1/audio/transcriptions",
+    "llm_model": "llama-3.2-3b-instruct",
+    "vision_model": "llava:7b",
+    "speech_model": "whisper-large-v3",
+    "temperature": 0.7,
+    "max_tokens": 2048,
+    "timeout": 30
+  },
+  "geometry": {
+    "default_material_thickness": 18.0,
+    "back_panel_thickness": 3.0,
+    "edge_band_thickness": 0.5,
+    "system32_hole_diameter": 5.0,
+    "system32_hole_depth": 12.0,
+    "dowel_diameter": 8.0,
+    "dowel_depth": 35.0
+  },
+  "units": {
+    "length": "mm",
+    "weight": "kg",
+    "currency": "EUR"
+  },
+  "ui": {
+    "show_tooltips": true,
+    "auto_save": true,
+    "preview_quality": "medium"
+  },
+  "hardware": {
+    "default_hinge": "blum_clip_top_110",
+    "default_slide": "hettich_quadro_v6",
+    "catalog_update_interval": 30
+  }
+}

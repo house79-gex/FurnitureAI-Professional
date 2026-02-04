@@ -1,0 +1,35 @@
+{
+  "profiles": {
+    "flat": {
+      "name": "Anta Piatta",
+      "description": "Anta semplice piatta, moderna e minimalista",
+      "complexity": "bassa",
+      "cost_factor": 1.0,
+      "suitable_styles": ["moderno", "contemporaneo", "minimalista"]
+    },
+    "shaker": {
+      "name": "Anta Shaker",
+      "description": "Anta con telaio e pannello centrale incassato",
+      "complexity": "media",
+      "cost_factor": 1.3,
+      "suitable_styles": ["classico", "country", "transitional"],
+      "default_frame_width": 60,
+      "default_panel_recess": 4
+    },
+    "raised": {
+      "name": "Anta Boiserie",
+      "description": "Anta con pannello centrale rialzato",
+      "complexity": "alta",
+      "cost_factor": 1.6,
+      "suitable_styles": ["classico", "tradizionale", "lusso"]
+    },
+    "glass": {
+      "name": "Anta con Vetro",
+      "description": "Telaio legno con inserto vetro",
+      "complexity": "media",
+      "cost_factor": 1.4,
+      "suitable_styles": ["moderno", "classico", "espositivo"],
+      "glass_types": ["trasparente", "satinato", "bronzo"]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "wizard": {
+    "title": "Asistente de Creación de Muebles",
+    "group_type": "Tipo de Mueble",
+    "group_dimensions": "Dimensiones",
+    "cabinet_type": "Tipo",
+    "type_base": "Mueble Bajo",
+    "type_wall": "Mueble Alto",
+    "width": "Ancho",
+    "height": "Alto",
+    "depth": "Profundidad"
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  }
+}
