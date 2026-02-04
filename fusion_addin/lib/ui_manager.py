@@ -33,11 +33,12 @@ class UIManager:
                 self.logger.info("Workspace esistente rimosso")
 
             # CREA WORKSPACE PERSONALIZZATO
-            self.workspace = workspaces.add(
-                'FurnitureAI_Workspace',  # ID univoco
-                'FURNITURE',              # Nome visibile
-                ''                        # resourceFolder vuoto
-            )
+          self.workspace = workspaces.add(
+             adsk.core.ProductType.DesignProductType,  # Tipo workspace DESIGN
+            'FurnitureAI_Workspace',                  # ID univoco
+            'FURNITURE',                              # Nome visibile
+            ''                                        # resourceFolder vuoto
+)
             
             self.logger.info("✅ Workspace FURNITURE creato")
 
