@@ -1,5 +1,5 @@
 """
-Gestore UI per FurnitureAI - Panel multipli organizzati
+Gestore UI per FurnitureAI - Workspace personalizzato completo
 """
 
 import adsk.core
@@ -13,85 +13,155 @@ class UIManager:
         self.logger = logger
         self.ui = ui
         self.app = adsk.core.Application.get()
+        self.workspace = None
+        self.tabs = []
         self.panels = []
         self.command_defs = []
         self.handlers = []
 
     def create_ui(self):
-        """Crea panel multipli nel workspace SOLIDO"""
+        """Crea workspace FURNITURE completo"""
         try:
-            self.logger.info("Creazione UI FurnitureAI...")
+            self.logger.info("Creazione workspace FURNITURE...")
 
-            # Trova workspace DESIGN (SOLIDO)
-            design_workspace = self.ui.workspaces.itemById('FusionSolidEnvironment')
-            if not design_workspace:
-                raise Exception("Workspace Design non trovato")
+            workspaces = self.ui.workspaces
+            
+            # Rimuovi workspace esistente se presente
+            existing_ws = workspaces.itemById('FurnitureAI_Workspace')
+            if existing_ws:
+                existing_ws.deleteMe()
+                self.logger.info("Workspace esistente rimosso")
 
-            toolbar_panels = design_workspace.toolbarPanels
+            # CREA WORKSPACE PERSONALIZZATO
+            self.workspace = workspaces.add(
+                'FurnitureAI_Workspace',  # ID univoco
+                'FURNITURE',              # Nome visibile
+                ''                        # resourceFolder vuoto
+            )
+            
+            self.logger.info("✅ Workspace FURNITURE creato")
 
-            # Crea panel separati
-            self._create_panels(toolbar_panels)
+            # Crea tabs (schede) nel workspace
+            self._create_tabs()
+
+            # Crea panel dentro le tabs
+            self._create_panels()
 
             # Crea comandi
             self._create_commands()
 
-            # Popola panel
+            # Popola panel con comandi
             self._populate_panels()
 
-            self.logger.info(f"✅ UI creata: {len(self.panels)} panel con {len(self.command_defs)} comandi")
+            # ATTIVA workspace per renderlo visibile
+            self.workspace.activate()
+
+            self.logger.info(f"✅ Workspace attivato con {len(self.tabs)} tabs e {len(self.panels)} panel")
 
         except Exception as e:
-            self.logger.error(f"❌ Errore creazione UI: {str(e)}")
+            self.logger.error(f"❌ Errore creazione workspace: {str(e)}")
             self.logger.error(traceback.format_exc())
             raise
 
-    def _create_panels(self, toolbar_panels):
-        """Crea 5 panel separati"""
+    def _create_tabs(self):
+        """Crea tabs (schede) nel workspace"""
         try:
-            panels_config = [
-                {
-                    'id': 'FurnitureAI_MobiliPanel',
-                    'name': 'FURNITUREAI - MOBILI',
-                    'after': 'SolidScriptsAddinsPanel'  # Dopo panel SOLIDO
-                },
-                {
-                    'id': 'FurnitureAI_AntePanel',
-                    'name': 'FURNITUREAI - ANTE',
-                    'after': 'FurnitureAI_MobiliPanel'
-                },
-                {
-                    'id': 'FurnitureAI_MaterialiPanel',
-                    'name': 'FURNITUREAI - MATERIALI',
-                    'after': 'FurnitureAI_AntePanel'
-                },
-                {
-                    'id': 'FurnitureAI_ProduzionePanel',
-                    'name': 'FURNITUREAI - PRODUZIONE',
-                    'after': 'FurnitureAI_MaterialiPanel'
-                },
-                {
-                    'id': 'FurnitureAI_ConfigPanel',
-                    'name': 'FURNITUREAI - CONFIG',
-                    'after': 'FurnitureAI_ProduzionePanel'
-                }
-            ]
+            toolbar_tabs = self.workspace.toolbarTabs
 
-            for config in panels_config:
-                # Rimuovi esistente
-                existing = toolbar_panels.itemById(config['id'])
-                if existing:
-                    existing.deleteMe()
+            # Tab 1: PROGETTAZIONE (comandi design mobili)
+            tab_design = toolbar_tabs.add(
+                'FurnitureAI_DesignTab',
+                'PROGETTAZIONE'
+            )
+            self.tabs.append(tab_design)
+            self.logger.info("✅ Tab PROGETTAZIONE creata")
 
-                # Crea panel
-                panel = toolbar_panels.add(
-                    config['id'],
-                    config['name'],
-                    config['after'],
-                    False
+            # Tab 2: PRODUZIONE (cutlist, nesting, export)
+            tab_produzione = toolbar_tabs.add(
+                'FurnitureAI_ProduzioneTab',
+                'PRODUZIONE'
+            )
+            self.tabs.append(tab_produzione)
+            self.logger.info("✅ Tab PRODUZIONE creata")
+
+            # Tab 3: CONFIGURA (settings, IA, materiali)
+            tab_config = toolbar_tabs.add(
+                'FurnitureAI_ConfigTab',
+                'CONFIGURA'
+            )
+            self.tabs.append(tab_config)
+            self.logger.info("✅ Tab CONFIGURA creata")
+
+        except Exception as e:
+            self.logger.error(f"❌ Errore creazione tabs: {str(e)}")
+            self.logger.error(traceback.format_exc())
+
+    def _create_panels(self):
+        """Crea panel dentro le tabs"""
+        try:
+            # Tab PROGETTAZIONE
+            tab_design = self.workspace.toolbarTabs.itemById('FurnitureAI_DesignTab')
+            if tab_design:
+                # Panel: MOBILI
+                panel_mobili = tab_design.toolbarPanels.add(
+                    'FurnitureAI_MobiliPanel',
+                    'MOBILI'
                 )
-                
-                self.panels.append(panel)
-                self.logger.info(f"✅ Panel '{config['name']}' creato")
+                self.panels.append(('FurnitureAI_MobiliPanel', panel_mobili))
+
+                # Panel: ANTE E CASSETTI
+                panel_ante = tab_design.toolbarPanels.add(
+                    'FurnitureAI_AntePanel',
+                    'ANTE E CASSETTI'
+                )
+                self.panels.append(('FurnitureAI_AntePanel', panel_ante))
+
+                # Panel: SKETCH (da usare comandi Fusion nativi)
+                panel_sketch = tab_design.toolbarPanels.add(
+                    'FurnitureAI_SketchPanel',
+                    'DISEGNO'
+                )
+                self.panels.append(('FurnitureAI_SketchPanel', panel_sketch))
+
+                self.logger.info("✅ Panel PROGETTAZIONE creati")
+
+            # Tab PRODUZIONE
+            tab_produzione = self.workspace.toolbarTabs.itemById('FurnitureAI_ProduzioneTab')
+            if tab_produzione:
+                # Panel: LISTE TAGLIO
+                panel_cutlist = tab_produzione.toolbarPanels.add(
+                    'FurnitureAI_CutlistPanel',
+                    'LISTE TAGLIO'
+                )
+                self.panels.append(('FurnitureAI_CutlistPanel', panel_cutlist))
+
+                # Panel: DISEGNI
+                panel_drawing = tab_produzione.toolbarPanels.add(
+                    'FurnitureAI_DrawingPanel',
+                    'DISEGNI TECNICI'
+                )
+                self.panels.append(('FurnitureAI_DrawingPanel', panel_drawing))
+
+                self.logger.info("✅ Panel PRODUZIONE creati")
+
+            # Tab CONFIGURA
+            tab_config = self.workspace.toolbarTabs.itemById('FurnitureAI_ConfigTab')
+            if tab_config:
+                # Panel: MATERIALI
+                panel_materiali = tab_config.toolbarPanels.add(
+                    'FurnitureAI_MaterialiPanel',
+                    'MATERIALI'
+                )
+                self.panels.append(('FurnitureAI_MaterialiPanel', panel_materiali))
+
+                # Panel: IMPOSTAZIONI
+                panel_settings = tab_config.toolbarPanels.add(
+                    'FurnitureAI_SettingsPanel',
+                    'IMPOSTAZIONI'
+                )
+                self.panels.append(('FurnitureAI_SettingsPanel', panel_settings))
+
+                self.logger.info("✅ Panel CONFIGURA creati")
 
         except Exception as e:
             self.logger.error(f"❌ Errore creazione panel: {str(e)}")
@@ -102,69 +172,68 @@ class UIManager:
         try:
             cmd_defs = self.ui.commandDefinitions
 
-            # Definizione comandi per ogni panel
+            # Comandi per ogni panel
             commands_config = {
                 'FurnitureAI_MobiliPanel': [
-                    ('FurnitureAI_Wizard', 'Wizard Mobili', 'Crea mobile guidato'),
-                    ('FurnitureAI_AILayout', 'Layout IA', 'Genera layout con IA'),
-                    ('FurnitureAI_BaseUnit', 'Mobile Base', 'Crea mobile base'),
+                    ('FurnitureAI_Wizard', 'Wizard Mobili', 'Procedura guidata'),
+                    ('FurnitureAI_AILayout', 'Layout IA', 'Genera con IA'),
+                    ('FurnitureAI_BaseUnit', 'Mobile Base', 'Crea base'),
                     ('FurnitureAI_WallUnit', 'Pensile', 'Crea pensile'),
-                    ('FurnitureAI_TallUnit', 'Colonna', 'Crea mobile colonna'),
+                    ('FurnitureAI_TallUnit', 'Colonna', 'Crea colonna'),
                 ],
                 'FurnitureAI_AntePanel': [
-                    ('FurnitureAI_DoorDesigner', 'Designer Ante', 'Design ante personalizzate'),
-                    ('FurnitureAI_DoorFlat', 'Anta Piatta', 'Crea anta liscia'),
-                    ('FurnitureAI_DoorShaker', 'Anta Shaker', 'Crea anta Shaker'),
-                    ('FurnitureAI_DoorRaised', 'Anta Bugna', 'Crea anta con bugna'),
+                    ('FurnitureAI_DoorDesigner', 'Designer Ante', 'Design ante'),
+                    ('FurnitureAI_DoorFlat', 'Anta Piatta', 'Anta liscia'),
+                    ('FurnitureAI_DoorShaker', 'Anta Shaker', 'Anta Shaker'),
                     ('FurnitureAI_Drawer', 'Cassetto', 'Crea cassetto'),
                 ],
+                'FurnitureAI_SketchPanel': [
+                    # Qui aggiungeremo riferimenti a comandi Fusion nativi (sketch, estrusione)
+                ],
+                'FurnitureAI_CutlistPanel': [
+                    ('FurnitureAI_Cutlist', 'Lista Taglio', 'Genera lista'),
+                    ('FurnitureAI_Nesting', 'Ottimizza Taglio', 'Ottimizza'),
+                    ('FurnitureAI_Export', 'Esporta', 'Export formati'),
+                ],
+                'FurnitureAI_DrawingPanel': [
+                    ('FurnitureAI_Drawing', 'Disegni 2D', 'Genera disegni'),
+                    ('FurnitureAI_BOM', 'Distinta Base', 'Genera BOM'),
+                ],
                 'FurnitureAI_MaterialiPanel': [
-                    ('FurnitureAI_Materials', 'Libreria Materiali', 'Gestione materiali'),
-                    ('FurnitureAI_ApplyMaterial', 'Applica Materiale', 'Applica materiale'),
-                    ('FurnitureAI_MaterialPhoto', 'Da Foto', 'Estrai da foto'),
-                    ('FurnitureAI_Catalog', 'Cataloghi Online', 'Scarica cataloghi'),
+                    ('FurnitureAI_Materials', 'Libreria', 'Gestione materiali'),
+                    ('FurnitureAI_ApplyMaterial', 'Applica', 'Applica materiale'),
+                    ('FurnitureAI_Catalog', 'Cataloghi', 'Download cataloghi'),
                 ],
-                'FurnitureAI_ProduzionePanel': [
-                    ('FurnitureAI_Cutlist', 'Lista Taglio', 'Genera lista taglio'),
-                    ('FurnitureAI_Nesting', 'Ottimizza Taglio', 'Ottimizza pannelli'),
-                    ('FurnitureAI_Drawing', 'Disegni Tecnici', 'Genera disegni 2D'),
-                    ('FurnitureAI_ExportCNC', 'Esporta CNC', 'Esporta per CNC'),
-                ],
-                'FurnitureAI_ConfigPanel': [
-                    ('FurnitureAI_Config', 'Impostazioni IA', 'Configura IA'),
+                'FurnitureAI_SettingsPanel': [
+                    ('FurnitureAI_ConfigAI', 'Configura IA', 'Settings IA'),
                     ('FurnitureAI_Hardware', 'Ferramenta', 'Catalogo ferramenta'),
-                    ('FurnitureAI_System32', 'Sistema 32mm', 'Config sistema 32mm'),
+                    ('FurnitureAI_System32', 'Sistema 32mm', 'Config 32mm'),
                 ]
             }
 
             # Crea comandi
             for panel_id, commands in commands_config.items():
                 for cmd_id, cmd_name, cmd_tooltip in commands:
-                    # Rimuovi esistente
                     existing = cmd_defs.itemById(cmd_id)
                     if existing:
                         existing.deleteMe()
 
-                    # Crea comando
                     cmd_def = cmd_defs.addButtonDefinition(
                         cmd_id,
                         cmd_name,
                         cmd_tooltip
                     )
 
-                    # Handler
                     handler = CommandCreatedHandler(cmd_name, self.logger)
                     cmd_def.commandCreated.add(handler)
                     self.handlers.append(handler)
 
-                    # Salva associazione panel-comando
                     self.command_defs.append((panel_id, cmd_def))
 
             self.logger.info(f"✅ {len(self.command_defs)} comandi creati")
 
         except Exception as e:
             self.logger.error(f"❌ Errore comandi: {str(e)}")
-            self.logger.error(traceback.format_exc())
 
     def _populate_panels(self):
         """Aggiunge comandi ai panel"""
@@ -172,8 +241,8 @@ class UIManager:
             for panel_id, cmd_def in self.command_defs:
                 # Trova panel
                 panel = None
-                for p in self.panels:
-                    if p.id == panel_id:
+                for pid, p in self.panels:
+                    if pid == panel_id:
                         panel = p
                         break
 
@@ -186,16 +255,15 @@ class UIManager:
             self.logger.error(f"❌ Errore popolazione: {str(e)}")
 
     def cleanup(self):
-        """Rimuove panel e comandi"""
+        """Rimuove workspace"""
         try:
             self.logger.info("Pulizia UI...")
 
-            # Rimuovi panel
-            for panel in self.panels:
-                if panel and panel.isValid:
-                    panel.deleteMe()
+            # Rimuovi workspace (rimuove automaticamente tabs/panel/comandi)
+            if self.workspace and self.workspace.isValid:
+                self.workspace.deleteMe()
 
-            # Rimuovi comandi
+            # Rimuovi command definitions
             for panel_id, cmd_def in self.command_defs:
                 if cmd_def and cmd_def.isValid:
                     cmd_def.deleteMe()
