@@ -47,7 +47,7 @@ def check_files():
         'FurnitureAI.manifest',
         'README.md',
         'data/config_default.json',
-        'data/hardware_catalog.json',
+        'lib/hardware/data/hardware_catalog.json',
         'locales/it_IT.json',
         'locales/en_US.json'
     ]
