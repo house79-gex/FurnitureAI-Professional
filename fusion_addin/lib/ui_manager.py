@@ -33,12 +33,13 @@ class UIManager:
                 self.logger.info("Workspace esistente rimosso")
 
             # CREA WORKSPACE PERSONALIZZATO
-          self.workspace = workspaces.add(
-             adsk.core.ProductType.DesignProductType,  # Tipo workspace DESIGN
-            'FurnitureAI_Workspace',                  # ID univoco
-            'FURNITURE',                              # Nome visibile
-            ''                                        # resourceFolder vuoto
-)
+            # add(productType, id, name, resourceFolder)
+            self.workspace = workspaces.add(
+                adsk.core.ProductType.DesignProductType,  # Tipo workspace
+                'FurnitureAI_Workspace',                  # ID univoco
+                'FURNITURE',                              # Nome visibile
+                ''                                        # resourceFolder vuoto
+            )
             
             self.logger.info("✅ Workspace FURNITURE creato")
 
@@ -69,7 +70,7 @@ class UIManager:
         try:
             toolbar_tabs = self.workspace.toolbarTabs
 
-            # Tab 1: PROGETTAZIONE (comandi design mobili)
+            # Tab 1: PROGETTAZIONE
             tab_design = toolbar_tabs.add(
                 'FurnitureAI_DesignTab',
                 'PROGETTAZIONE'
@@ -77,7 +78,7 @@ class UIManager:
             self.tabs.append(tab_design)
             self.logger.info("✅ Tab PROGETTAZIONE creata")
 
-            # Tab 2: PRODUZIONE (cutlist, nesting, export)
+            # Tab 2: PRODUZIONE
             tab_produzione = toolbar_tabs.add(
                 'FurnitureAI_ProduzioneTab',
                 'PRODUZIONE'
@@ -85,7 +86,7 @@ class UIManager:
             self.tabs.append(tab_produzione)
             self.logger.info("✅ Tab PRODUZIONE creata")
 
-            # Tab 3: CONFIGURA (settings, IA, materiali)
+            # Tab 3: CONFIGURA
             tab_config = toolbar_tabs.add(
                 'FurnitureAI_ConfigTab',
                 'CONFIGURA'
@@ -117,7 +118,7 @@ class UIManager:
                 )
                 self.panels.append(('FurnitureAI_AntePanel', panel_ante))
 
-                # Panel: SKETCH (da usare comandi Fusion nativi)
+                # Panel: DISEGNO
                 panel_sketch = tab_design.toolbarPanels.add(
                     'FurnitureAI_SketchPanel',
                     'DISEGNO'
@@ -173,7 +174,6 @@ class UIManager:
         try:
             cmd_defs = self.ui.commandDefinitions
 
-            # Comandi per ogni panel
             commands_config = {
                 'FurnitureAI_MobiliPanel': [
                     ('FurnitureAI_Wizard', 'Wizard Mobili', 'Procedura guidata'),
@@ -187,9 +187,6 @@ class UIManager:
                     ('FurnitureAI_DoorFlat', 'Anta Piatta', 'Anta liscia'),
                     ('FurnitureAI_DoorShaker', 'Anta Shaker', 'Anta Shaker'),
                     ('FurnitureAI_Drawer', 'Cassetto', 'Crea cassetto'),
-                ],
-                'FurnitureAI_SketchPanel': [
-                    # Qui aggiungeremo riferimenti a comandi Fusion nativi (sketch, estrusione)
                 ],
                 'FurnitureAI_CutlistPanel': [
                     ('FurnitureAI_Cutlist', 'Lista Taglio', 'Genera lista'),
@@ -212,7 +209,6 @@ class UIManager:
                 ]
             }
 
-            # Crea comandi
             for panel_id, commands in commands_config.items():
                 for cmd_id, cmd_name, cmd_tooltip in commands:
                     existing = cmd_defs.itemById(cmd_id)
@@ -240,7 +236,6 @@ class UIManager:
         """Aggiunge comandi ai panel"""
         try:
             for panel_id, cmd_def in self.command_defs:
-                # Trova panel
                 panel = None
                 for pid, p in self.panels:
                     if pid == panel_id:
@@ -260,11 +255,9 @@ class UIManager:
         try:
             self.logger.info("Pulizia UI...")
 
-            # Rimuovi workspace (rimuove automaticamente tabs/panel/comandi)
             if self.workspace and self.workspace.isValid:
                 self.workspace.deleteMe()
 
-            # Rimuovi command definitions
             for panel_id, cmd_def in self.command_defs:
                 if cmd_def and cmd_def.isValid:
                     cmd_def.deleteMe()
