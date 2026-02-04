@@ -1,0 +1,14 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "addin",
+  "id": "com.furnitureai.professional",
+  "author": "FurnitureAI Team",
+  "description": {
+    "": "Professional furniture design addon with multimodal AI capabilities - Complete solution for cabinetry, doors, hardware, and materials"
+  },
+  "version": "3.0.0",
+  "runOnStartup": false,
+  "supportedOS": "windows|mac|linux",
+  "editEnabled": true,
+  "supportedLanguages": ["it-IT", "en-US", "de-DE", "fr-FR", "es-ES"]
+}
