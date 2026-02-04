@@ -20,35 +20,34 @@ class UIManager:
         self.handlers = []
 
     def create_ui(self):
-        """Si aggancia al workspace PROGETTAZIONE e aggiunge le tab"""
+        """Si aggancia al workspace attivo e aggiunge le tab"""
         try:
-            self.logger.info("Ricerca workspace Progettazione...")
+            self.logger.info("Ricerca workspace attivo...")
 
-            # Cerchiamo il workspace 'FusionDesignWorkspace' 
-            # (è l'ID interno per "Progettazione", non cambia con la lingua)
-            workspaces = self.ui.workspaces
-            self.workspace = workspaces.itemById('FusionDesignWorkspace')
+            # Metodo infallibile: prendiamo il workspace in cui l'utente si trova ora
+            self.workspace = self.ui.activeWorkspace
 
             if not self.workspace:
-                # Se non lo trova per ID, lo cerchiamo per nome (fallback)
-                for ws in workspaces:
-                    if ws.name == 'Progettazione' or ws.name == 'Design':
-                        self.workspace = ws
-                        break
+                # Fallback estremo: cerchiamo l'ID standard del Design
+                self.workspace = self.ui.workspaces.itemById('FusionDesignWorkspace')
 
             if self.workspace:
-                self.logger.info(f"✅ Agganciato a workspace: {self.workspace.name}")
+                self.logger.info(f"✅ Agganciato a workspace: {self.workspace.name} (ID: {self.workspace.id})")
                 
-                # Ora creiamo le TUE tab dentro Progettazione
+                # Pulizia preventiva: se le tab esistono già (da un avvio precedente), rimuovile
+                existing_tab = self.workspace.toolbarTabs.itemById('FurnitureAI_DesignTab')
+                if existing_tab:
+                    existing_tab.deleteMe()
+
+                # Ora creiamo le tue tab
                 self._create_tabs()
                 self._create_panels()
                 self._create_commands()
                 self._populate_panels()
                 
-                # Non serve attivare il workspace perché ci siamo già dentro
-                self.logger.info("✅ Interfaccia FurnitureAI caricata correttamente")
+                self.logger.info("✅ Interfaccia FurnitureAI caricata")
             else:
-                self.ui.messageBox("Impossibile trovare il workspace di Progettazione")
+                self.ui.messageBox("Errore critico: Impossibile identificare l'area di lavoro attiva.")
 
         except Exception as e:
             self.logger.error(f"❌ Errore: {str(e)}")
