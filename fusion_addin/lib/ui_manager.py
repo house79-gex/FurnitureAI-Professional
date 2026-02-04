@@ -19,51 +19,49 @@ class UIManager:
         self.command_defs = []
         self.handlers = []
 
-    def create_ui(self):
-        """Crea workspace FURNITURE completo"""
-        try:
-            self.logger.info("Creazione workspace FURNITURE...")
+def create_ui(self):
+    """Crea workspace FURNITURE completo"""
+    try:
+        self.logger.info("Creazione workspace FURNITURE...")
 
-            workspaces = self.ui.workspaces
-            
-            # Rimuovi workspace esistente se presente
-            existing_ws = workspaces.itemById('FurnitureAI_Workspace')
-            if existing_ws:
-                existing_ws.deleteMe()
-                self.logger.info("Workspace esistente rimosso")
+        workspaces = self.ui.workspaces
+        
+        # Rimuovi workspace esistente se presente
+        existing_ws = workspaces.itemById('FurnitureAI_Workspace')
+        if existing_ws:
+            existing_ws.deleteMe()
+            self.logger.info("Workspace esistente rimosso")
 
-            # CREA WORKSPACE PERSONALIZZATO
-            # add(productType, id, name, resourceFolder)
-            self.workspace = workspaces.add(
-                adsk.core.ProductType.DesignProductType,  # Tipo workspace
-                'FurnitureAI_Workspace',                  # ID univoco
-                'FURNITURE',                              # Nome visibile
-                ''                                        # resourceFolder vuoto
-            )
-            
-            self.logger.info("✅ Workspace FURNITURE creato")
+        # CREA WORKSPACE PERSONALIZZATO (3 parametri: id, name, resourceFolder)
+        self.workspace = workspaces.add(
+            'FurnitureAI_Workspace',  # ID univoco
+            'FURNITURE',              # Nome visibile
+            ''                        # resourceFolder vuoto
+        )
+        
+        self.logger.info("✅ Workspace FURNITURE creato")
 
-            # Crea tabs (schede) nel workspace
-            self._create_tabs()
+        # Crea tabs (schede) nel workspace
+        self._create_tabs()
 
-            # Crea panel dentro le tabs
-            self._create_panels()
+        # Crea panel dentro le tabs
+        self._create_panels()
 
-            # Crea comandi
-            self._create_commands()
+        # Crea comandi
+        self._create_commands()
 
-            # Popola panel con comandi
-            self._populate_panels()
+        # Popola panel con comandi
+        self._populate_panels()
 
-            # ATTIVA workspace per renderlo visibile
-            self.workspace.activate()
+        # ATTIVA workspace per renderlo visibile
+        self.workspace.activate()
 
-            self.logger.info(f"✅ Workspace attivato con {len(self.tabs)} tabs e {len(self.panels)} panel")
+        self.logger.info(f"✅ Workspace attivato con {len(self.tabs)} tabs e {len(self.panels)} panel")
 
-        except Exception as e:
-            self.logger.error(f"❌ Errore creazione workspace: {str(e)}")
-            self.logger.error(traceback.format_exc())
-            raise
+    except Exception as e:
+        self.logger.error(f"❌ Errore creazione workspace: {str(e)}")
+        self.logger.error(traceback.format_exc())
+        raise
 
     def _create_tabs(self):
         """Crea tabs (schede) nel workspace"""
