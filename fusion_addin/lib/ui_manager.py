@@ -1,5 +1,8 @@
 """
-Gestore UI per FurnitureAI - CON CLEANUP PANNELLI ESPLICITO
+Gestore UI per FurnitureAI - VERSIONE ESTESA
+- Tab Ferramenta dedicata (scorporata da Config)
+- Tab Lavorazioni con Giunzioni e Forature
+- Comandi estesi per cataloghi e tutorial IA
 """
 
 import adsk.core
@@ -17,7 +20,6 @@ class UIManager:
         self.handlers = []
         self.icon_folder = None
         self.addon_path = None
-        # SALVA RIFERIMENTI AI PANNELLI
         self.panels = []
 
     def create_ui(self):
@@ -37,114 +39,84 @@ class UIManager:
             self.tab = ws.toolbarTabs.add('FurnitureAI_Tab', 'Furniture AI')
             self.app.log(f"UIManager: tab creata {self.tab.id}")
 
-            # Pannelli - SALVA I RIFERIMENTI
-            p_crea      = self.tab.toolbarPanels.add('FAI_Panel_Create',     'Crea')
-            p_modifica  = self.tab.toolbarPanels.add('FAI_Panel_Modify',     'Modifica')
-            p_mobili    = self.tab.toolbarPanels.add('FAI_Panel_Mobili',     'Mobili')
-            p_ante      = self.tab.toolbarPanels.add('FAI_Panel_Ante',       'Ante/Cassetti')
-            p_materiali = self.tab.toolbarPanels.add('FAI_Panel_Materiali',  'Materiali')
-            p_prod      = self.tab.toolbarPanels.add('FAI_Panel_Produzione', 'Produzione')
-            p_config    = self.tab.toolbarPanels.add('FAI_Panel_Config',     'Configura')
+            # ========== PANNELLI ==========
+            p_crea       = self.tab.toolbarPanels.add('FAI_Panel_Create',      'Crea')
+            p_modifica   = self.tab.toolbarPanels.add('FAI_Panel_Modify',      'Modifica')
+            p_mobili     = self.tab.toolbarPanels.add('FAI_Panel_Mobili',      'Mobili')
+            p_ante       = self.tab.toolbarPanels.add('FAI_Panel_Ante',        'Ante/Cassetti')
+            p_materiali  = self.tab.toolbarPanels.add('FAI_Panel_Materiali',   'Materiali')
+            p_ferramenta = self.tab.toolbarPanels.add('FAI_Panel_Ferramenta',  'Ferramenta')      # NUOVO
+            p_lavorazioni= self.tab.toolbarPanels.add('FAI_Panel_Lavorazioni', 'Lavorazioni')     # NUOVO
+            p_prod       = self.tab.toolbarPanels.add('FAI_Panel_Produzione',  'Produzione')
+            p_config     = self.tab.toolbarPanels.add('FAI_Panel_Config',      'Configura')
             
             # MEMORIZZA PANNELLI per cleanup
-            self.panels = [p_crea, p_modifica, p_mobili, p_ante, p_materiali, p_prod, p_config]
+            self.panels = [p_crea, p_modifica, p_mobili, p_ante, p_materiali, 
+                          p_ferramenta, p_lavorazioni, p_prod, p_config]
             
             self.app.log("UIManager: pannelli creati")
 
-            # Comandi nativi Fusion
+            # ========== COMANDI NATIVI FUSION ==========
             self.app.log("UIManager: aggiunta comandi nativi Crea...")
-            added_create = 0
-            for cmd_id in ['SketchCreate', 'CreateSketch', 'SketchCreateCommand']:
-                if self._add_native(p_crea, cmd_id):
-                    added_create += 1
-                    break
-            
-            for cmd_id in ['Extrude', 'ExtrudeCommand', 'FusionExtrudeCommand']:
-                if self._add_native(p_crea, cmd_id):
-                    added_create += 1
-                    break
-                    
-            for cmd_id in ['Revolve', 'RevolveCommand']:
-                if self._add_native(p_crea, cmd_id):
-                    added_create += 1
-                    break
-                    
-            for cmd_id in ['Sweep', 'SweepCommand']:
-                if self._add_native(p_crea, cmd_id):
-                    added_create += 1
-                    break
-                    
-            for cmd_id in ['Loft', 'LoftCommand']:
-                if self._add_native(p_crea, cmd_id):
-                    added_create += 1
-                    break
-                    
-            for cmd_id in ['Hole', 'HoleCommand']:
-                if self._add_native(p_crea, cmd_id):
-                    added_create += 1
-                    break
-            
-            self.app.log(f"UIManager: aggiunti {added_create} comandi Crea")
+            self._add_native_create(p_crea)
             
             self.app.log("UIManager: aggiunta comandi nativi Modifica...")
-            added_modify = 0
-            for cmd_id in ['Fillet', 'FilletCommand']:
-                if self._add_native(p_modifica, cmd_id):
-                    added_modify += 1
-                    break
-                    
-            for cmd_id in ['Chamfer', 'ChamferCommand', 'FusionChamferCommand']:
-                if self._add_native(p_modifica, cmd_id):
-                    added_modify += 1
-                    break
-                    
-            for cmd_id in ['Shell', 'ShellCommand']:
-                if self._add_native(p_modifica, cmd_id):
-                    added_modify += 1
-                    break
-                    
-            for cmd_id in ['RectangularPattern', 'RectPattern']:
-                if self._add_native(p_modifica, cmd_id):
-                    added_modify += 1
-                    break
-                    
-            for cmd_id in ['CircularPattern', 'CircPattern']:
-                if self._add_native(p_modifica, cmd_id):
-                    added_modify += 1
-                    break
-                    
-            for cmd_id in ['Mirror', 'MirrorCommand']:
-                if self._add_native(p_modifica, cmd_id):
-                    added_modify += 1
-                    break
-            
-            self.app.log(f"UIManager: aggiunti {added_modify} comandi Modifica")
+            self._add_native_modify(p_modifica)
 
-            # Comandi custom Furniture
-            self.app.log("UIManager: creazione comandi custom...")
-            self._add_custom(p_mobili,    'FAI_Wizard',           'Wizard Mobili',      'Procedura guidata')
-            self._add_custom(p_mobili,    'FAI_LayoutIA',         'Layout IA',          'Genera layout con IA')
-            self._add_custom(p_mobili,    'FAI_MobileBase',       'Mobile Base',        'Crea mobile base')
-            self._add_custom(p_mobili,    'FAI_Pensile',          'Pensile',            'Crea pensile')
-            self._add_custom(p_mobili,    'FAI_Colonna',          'Colonna',            'Crea colonna')
+            # ========== TAB MOBILI ==========
+            self.app.log("UIManager: creazione comandi Mobili...")
+            self._add_custom(p_mobili, 'FAI_Wizard',      'Wizard Mobili',   'Procedura guidata design mobili')
+            self._add_custom(p_mobili, 'FAI_LayoutIA',    'Layout IA',       'Genera layout cucina/bagno con IA')
+            self._add_custom(p_mobili, 'FAI_MobileBase',  'Mobile Base',     'Crea mobile base parametrico')
+            self._add_custom(p_mobili, 'FAI_Pensile',     'Pensile',         'Crea pensile parametrico')
+            self._add_custom(p_mobili, 'FAI_Colonna',     'Colonna',         'Crea colonna parametrica')
 
-            self._add_custom(p_ante,      'FAI_DesignerAnte',     'Designer Ante',      'Design ante')
-            self._add_custom(p_ante,      'FAI_AntaPiatta',       'Anta Piatta',        'Anta liscia')
-            self._add_custom(p_ante,      'FAI_AntaShaker',       'Anta Shaker',        'Anta shaker')
-            self._add_custom(p_ante,      'FAI_Cassetto',         'Cassetto',           'Crea cassetto')
+            # ========== TAB ANTE/CASSETTI ==========
+            self.app.log("UIManager: creazione comandi Ante/Cassetti...")
+            self._add_custom(p_ante, 'FAI_DesignerAnte', 'Designer Ante',   'Wizard design ante personalizzate')
+            self._add_custom(p_ante, 'FAI_AntaPiatta',   'Anta Piatta',     'Anta liscia standard')
+            self._add_custom(p_ante, 'FAI_AntaShaker',   'Anta Shaker',     'Anta stile shaker')
+            self._add_custom(p_ante, 'FAI_Cassetto',     'Cassetto',        'Crea cassetto completo')
 
-            self._add_custom(p_materiali, 'FAI_Materiali',        'Libreria Materiali', 'Gestione materiali')
-            self._add_custom(p_materiali, 'FAI_ApplicaMateriale', 'Applica Materiale',  'Applica materiale')
-            self._add_custom(p_materiali, 'FAI_Cataloghi',        'Cataloghi',          'Download cataloghi')
+            # ========== TAB MATERIALI ==========
+            self.app.log("UIManager: creazione comandi Materiali...")
+            self._add_custom(p_materiali, 'FAI_Materiali',        'Libreria Materiali', 'Gestione libreria materiali')
+            self._add_custom(p_materiali, 'FAI_ApplicaMateriale', 'Applica Materiale',  'Applica materiale a componenti')
+            self._add_custom(p_materiali, 'FAI_Cataloghi',        'Cataloghi Materiali','Download cataloghi produttori')
 
-            self._add_custom(p_prod,      'FAI_ListaTaglio',      'Lista Taglio',       'Genera lista taglio')
-            self._add_custom(p_prod,      'FAI_Nesting',          'Nesting',            'Ottimizza pannelli')
-            self._add_custom(p_prod,      'FAI_Disegni2D',        'Disegni 2D',         'Genera disegni 2D')
-            self._add_custom(p_prod,      'FAI_Esporta',          'Esporta',            'Export CNC/CAM')
+            # ========== TAB FERRAMENTA (NUOVA) ==========
+            self.app.log("UIManager: creazione comandi Ferramenta...")
+            self._add_custom(p_ferramenta, 'FAI_Ferramenta',           'Libreria Ferramenta',    'Libreria completa ferramenta')
+            self._add_custom(p_ferramenta, 'FAI_DownloadCatalogo',     'Download Cataloghi',     'Scarica cataloghi ferramenta (Blum, Salice, etc.)')
+            self._add_custom(p_ferramenta, 'FAI_VisualizzaCatalogo',   'Visualizza Cataloghi',   'Sfoglia cataloghi scaricati')
+            self._add_custom(p_ferramenta, 'FAI_TutorialIA',           'Tutorial IA',            'Cerca tutorial video con IA (es. montaggio Blum)')
+            self._add_custom(p_ferramenta, 'FAI_DiagrammaMontaggio',   'Diagramma Montaggio',    'Stampa diagramma da catalogo')
+            self._add_custom(p_ferramenta, 'FAI_InserisciFerramenta',  'Inserisci Ferramenta',   'Inserisci ferramenta nel progetto')
 
-            self._add_custom(p_config,    'FAI_ConfiguraIA',      'Configura IA',       'Impostazioni IA')
-            self._add_custom(p_config,    'FAI_Ferramenta',       'Ferramenta',         'Catalogo ferramenta')
-            self._add_custom(p_config,    'FAI_Sistema32mm',      'Sistema 32mm',       'Config sistema 32mm')
+            # ========== TAB LAVORAZIONI (NUOVA) ==========
+            self.app.log("UIManager: creazione comandi Lavorazioni...")
+            self._add_custom(p_lavorazioni, 'FAI_Giunzioni',     'Giunzioni',          'Crea giunzioni (tenone/mortasa, tasca, etc.)')
+            self._add_custom(p_lavorazioni, 'FAI_Forature',      'Forature',           'Forature parametriche (sistema 32mm, cerniere)')
+            self._add_custom(p_lavorazioni, 'FAI_ForaturaCerniere', 'Foratura Cerniere', 'Forature automatiche per cerniere')
+            self._add_custom(p_lavorazioni, 'FAI_ForaturaGuide', 'Foratura Guide',     'Forature per guide cassetti')
+            self._add_custom(p_lavorazioni, 'FAI_Scanalature',   'Scanalature',        'Scanalature per schienali/fondi')
+            # Comandi futuri espandibili
+            # self._add_custom(p_lavorazioni, 'FAI_Incisioni',   'Incisioni',   'Incisioni decorative CNC')
+            # self._add_custom(p_lavorazioni, 'FAI_Intagli',     'Intagli',     'Intagli 3D')
+
+            # ========== TAB PRODUZIONE ==========
+            self.app.log("UIManager: creazione comandi Produzione...")
+            self._add_custom(p_prod, 'FAI_ListaTaglio',   'Lista Taglio',   'Genera lista taglio ottimizzata')
+            self._add_custom(p_prod, 'FAI_Nesting',       'Nesting',        'Ottimizzazione nesting pannelli')
+            self._add_custom(p_prod, 'FAI_Disegni2D',     'Disegni 2D',     'Genera disegni tecnici 2D')
+            self._add_custom(p_prod, 'FAI_Esporta',       'Esporta',        'Export per CNC/CAM')
+            self._add_custom(p_prod, 'FAI_Etichette',     'Etichette',      'Genera etichette componenti')
+
+            # ========== TAB CONFIGURA ==========
+            self.app.log("UIManager: creazione comandi Configura...")
+            self._add_custom(p_config, 'FAI_ConfiguraIA',   'Configura IA',   'Impostazioni IA e API keys')
+            self._add_custom(p_config, 'FAI_Sistema32mm',   'Sistema 32mm',   'Configurazione sistema 32mm')
+            self._add_custom(p_config, 'FAI_Preferenze',    'Preferenze',     'Preferenze generali addon')
 
             # Attiva tab
             self.tab.activate()
@@ -153,6 +125,76 @@ class UIManager:
         except Exception as e:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
             raise
+
+    def _add_native_create(self, panel):
+        """Aggiunge comandi nativi Fusion al pannello Crea"""
+        added = 0
+        for cmd_id in ['SketchCreate', 'CreateSketch', 'SketchCreateCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+        
+        for cmd_id in ['Extrude', 'ExtrudeCommand', 'FusionExtrudeCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Revolve', 'RevolveCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Sweep', 'SweepCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Loft', 'LoftCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Hole', 'HoleCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+        
+        self.app.log(f"UIManager: aggiunti {added} comandi Crea")
+
+    def _add_native_modify(self, panel):
+        """Aggiunge comandi nativi Fusion al pannello Modifica"""
+        added = 0
+        for cmd_id in ['Fillet', 'FilletCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Chamfer', 'ChamferCommand', 'FusionChamferCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Shell', 'ShellCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['RectangularPattern', 'RectPattern']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['CircularPattern', 'CircPattern']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+                
+        for cmd_id in ['Mirror', 'MirrorCommand']:
+            if self._add_native(panel, cmd_id):
+                added += 1
+                break
+        
+        self.app.log(f"UIManager: aggiunti {added} comandi Modifica")
 
     def _setup_paths(self):
         """Setup path base addon e icone"""
@@ -200,7 +242,6 @@ class UIManager:
                 self.app.log(f"  Icone copiate (generiche): {cmd_id}")
                 return cmd_icon_folder
             
-            self.app.log(f"  Nessuna icona trovata per: {cmd_id}")
             return None
             
         except Exception as e:
@@ -212,7 +253,7 @@ class UIManager:
         try:
             self.app.log("UIManager: cleanup inizio")
             
-            # 1. ELIMINA PANNELLI ESPLICITAMENTE (PRIMA della tab)
+            # 1. ELIMINA PANNELLI ESPLICITAMENTE
             panels_removed = 0
             for panel in self.panels:
                 if panel and panel.isValid:
@@ -224,7 +265,7 @@ class UIManager:
             self.app.log(f"UIManager: pannelli eliminati = {panels_removed}")
             self.panels = []
             
-            # 2. ELIMINA TAB (ora vuota)
+            # 2. ELIMINA TAB
             if self.tab and self.tab.isValid:
                 self.tab.deleteMe()
                 self.app.log("UIManager: tab eliminata")
@@ -232,11 +273,22 @@ class UIManager:
             # 3. ELIMINA COMANDI CUSTOM
             cmd_defs = self.ui.commandDefinitions
             custom_ids = [
+                # Mobili
                 'FAI_Wizard', 'FAI_LayoutIA', 'FAI_MobileBase', 'FAI_Pensile', 'FAI_Colonna',
+                # Ante/Cassetti
                 'FAI_DesignerAnte', 'FAI_AntaPiatta', 'FAI_AntaShaker', 'FAI_Cassetto',
+                # Materiali
                 'FAI_Materiali', 'FAI_ApplicaMateriale', 'FAI_Cataloghi',
-                'FAI_ListaTaglio', 'FAI_Nesting', 'FAI_Disegni2D', 'FAI_Esporta',
-                'FAI_ConfiguraIA', 'FAI_Ferramenta', 'FAI_Sistema32mm'
+                # Ferramenta (NUOVI)
+                'FAI_Ferramenta', 'FAI_DownloadCatalogo', 'FAI_VisualizzaCatalogo',
+                'FAI_TutorialIA', 'FAI_DiagrammaMontaggio', 'FAI_InserisciFerramenta',
+                # Lavorazioni (NUOVI)
+                'FAI_Giunzioni', 'FAI_Forature', 'FAI_ForaturaCerniere', 
+                'FAI_ForaturaGuide', 'FAI_Scanalature',
+                # Produzione
+                'FAI_ListaTaglio', 'FAI_Nesting', 'FAI_Disegni2D', 'FAI_Esporta', 'FAI_Etichette',
+                # Config
+                'FAI_ConfiguraIA', 'FAI_Sistema32mm', 'FAI_Preferenze'
             ]
             removed = 0
             for cmd_id in custom_ids:
@@ -281,7 +333,7 @@ class UIManager:
                 btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
                 self.app.log(f"  Custom CON icone: {cmd_id} ✓")
             except Exception as e:
-                self.app.log(f"  Custom errore: {cmd_id} - {str(e)}")
+                self.app.log(f"  Custom errore icone: {cmd_id} - {str(e)}")
                 btn = None
         
         if btn is None:
