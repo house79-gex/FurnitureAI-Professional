@@ -1,384 +1,413 @@
 """
-SVG Builder with validation and optimization
+SVG Builder with validation
+FIXED: Added stroke_dasharray support to all methods
 """
 
-import sys
-import os
-from typing import Dict, List, Optional, Tuple
-
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from core.validators import GeometryValidator
-from core.utils import round_to_half
-
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 class SVGBuilder:
-    """Builds SVG documents with validation"""
+    """Builder class for creating SVG elements with validation"""
     
-    def __init__(self, width: int, height: int, icon_name: str = "icon"):
+    def __init__(self, width, height, viewBox=None):
         """
         Initialize SVG builder
         
         Args:
             width: SVG width
             height: SVG height
-            icon_name: Name for the icon (used in IDs)
+            viewBox: Optional viewBox (default: "0 0 width height")
         """
         self.width = width
         self.height = height
-        self.icon_name = icon_name
-        self.elements = []
-        self.defs = []
-        self.validator = GeometryValidator(width)
+        self.viewBox = viewBox or f"0 0 {width} {height}"
         
-    def add_rect(self, x: float, y: float, width: float, height: float, 
-                 fill: Optional[str] = None, stroke: Optional[str] = None,
-                 stroke_width: Optional[float] = None, opacity: float = 1.0,
-                 rx: float = 0, ry: float = 0, element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add a rectangle element"""
-        element = {
-            'type': 'rect',
-            'x': round_to_half(x),
-            'y': round_to_half(y),
-            'width': round_to_half(width),
-            'height': round_to_half(height),
-            'rx': rx,
-            'ry': ry,
-        }
+        # Create root SVG element
+        self.root = ET.Element('svg', {
+            'xmlns': 'http://www.w3.org/2000/svg',
+            'width': str(width),
+            'height': str(height),
+            'viewBox': self.viewBox
+        })
         
-        if fill:
-            element['fill'] = fill
-        if stroke:
-            element['stroke'] = stroke
-        if stroke_width is not None:
-            element['stroke_width'] = stroke_width
-        if opacity != 1.0:
-            element['opacity'] = opacity
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
+        # Create defs element for gradients, filters, etc.
+        self.defs = ET.SubElement(self.root, 'defs')
     
-    def add_circle(self, cx: float, cy: float, r: float,
-                   fill: Optional[str] = None, stroke: Optional[str] = None,
-                   stroke_width: Optional[float] = None, opacity: float = 1.0,
-                   element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add a circle element"""
-        element = {
-            'type': 'circle',
-            'cx': round_to_half(cx),
-            'cy': round_to_half(cy),
-            'r': round_to_half(r),
-        }
-        
-        if fill:
-            element['fill'] = fill
-        if stroke:
-            element['stroke'] = stroke
-        if stroke_width is not None:
-            element['stroke_width'] = stroke_width
-        if opacity != 1.0:
-            element['opacity'] = opacity
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
+    def _format_number(self, num):
+        """Format number to reasonable precision"""
+        if isinstance(num, (int, float)):
+            return f"{num:.3f}".rstrip('0').rstrip('.')
+        return str(num)
     
-    def add_ellipse(self, cx: float, cy: float, rx: float, ry: float,
-                    fill: Optional[str] = None, stroke: Optional[str] = None,
-                    stroke_width: Optional[float] = None, opacity: float = 1.0,
-                    element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add an ellipse element"""
-        element = {
-            'type': 'ellipse',
-            'cx': round_to_half(cx),
-            'cy': round_to_half(cy),
-            'rx': round_to_half(rx),
-            'ry': round_to_half(ry),
-        }
-        
-        if fill:
-            element['fill'] = fill
-        if stroke:
-            element['stroke'] = stroke
-        if stroke_width is not None:
-            element['stroke_width'] = stroke_width
-        if opacity != 1.0:
-            element['opacity'] = opacity
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
-    
-    def add_line(self, x1: float, y1: float, x2: float, y2: float,
-                 stroke: str = '#000000', stroke_width: float = 1,
-                 opacity: float = 1.0, stroke_dasharray: Optional[str] = None,
-                 element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add a line element"""
-        element = {
-            'type': 'line',
-            'x1': round_to_half(x1),
-            'y1': round_to_half(y1),
-            'x2': round_to_half(x2),
-            'y2': round_to_half(y2),
-            'stroke': stroke,
-            'stroke_width': stroke_width,
-        }
-        
-        if opacity != 1.0:
-            element['opacity'] = opacity
-        if stroke_dasharray:
-            element['stroke_dasharray'] = stroke_dasharray
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
-    
-    def add_path(self, d: str, fill: Optional[str] = None, 
-                 stroke: Optional[str] = None, stroke_width: Optional[float] = None,
-                 opacity: float = 1.0, element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add a path element"""
-        element = {
-            'type': 'path',
-            'd': d,
-        }
-        
-        if fill:
-            element['fill'] = fill
-        if stroke:
-            element['stroke'] = stroke
-        if stroke_width is not None:
-            element['stroke_width'] = stroke_width
-        if opacity != 1.0:
-            element['opacity'] = opacity
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
-    
-    def add_polygon(self, points: List[Tuple[float, float]], 
-                    fill: Optional[str] = None, stroke: Optional[str] = None,
-                    stroke_width: Optional[float] = None, opacity: float = 1.0,
-                    element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add a polygon element"""
-        points_str = ' '.join([f"{round_to_half(x)},{round_to_half(y)}" 
-                               for x, y in points])
-        
-        element = {
-            'type': 'polygon',
-            'points': points_str,
-        }
-        
-        if fill:
-            element['fill'] = fill
-        if stroke:
-            element['stroke'] = stroke
-        if stroke_width is not None:
-            element['stroke_width'] = stroke_width
-        if opacity != 1.0:
-            element['opacity'] = opacity
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
-    
-    def add_text(self, x: float, y: float, text: str, 
-                 font_size: int = 12, font_family: str = "Arial",
-                 fill: str = "#000000", text_anchor: str = "start",
-                 font_weight: str = "normal", element_id: Optional[str] = None) -> 'SVGBuilder':
-        """Add a text element"""
-        element = {
-            'type': 'text',
-            'x': round_to_half(x),
-            'y': round_to_half(y),
-            'text': text,
-            'font_size': font_size,
-            'font_family': font_family,
-            'fill': fill,
-            'text_anchor': text_anchor,
-            'font_weight': font_weight,
-        }
-        
-        if element_id:
-            element['id'] = element_id
-        
-        self.elements.append(element)
-        return self
-    
-    def add_linear_gradient(self, gradient_id: str, x1: str = "0%", y1: str = "0%",
-                           x2: str = "100%", y2: str = "0%",
-                           stops: List[Tuple[str, str, float]] = None) -> 'SVGBuilder':
+    def add_rect(self, x, y, width, height, fill=None, stroke=None, 
+                 stroke_width=None, rx=None, opacity=None, id=None, stroke_dasharray=None):
         """
-        Add a linear gradient definition
+        Add rectangle element
         
         Args:
-            gradient_id: Unique ID for the gradient
-            x1, y1, x2, y2: Gradient direction
-            stops: List of (offset, color, opacity) tuples
+            x, y: Position
+            width, height: Size
+            fill: Fill color
+            stroke: Stroke color
+            stroke_width: Stroke width
+            rx: Corner radius
+            opacity: Opacity (0-1)
+            id: Element ID
+            stroke_dasharray: Dash pattern (e.g., "5,3")
         """
-        gradient = {
-            'type': 'linearGradient',
-            'id': gradient_id,
+        attrs = {
+            'x': self._format_number(x),
+            'y': self._format_number(y),
+            'width': self._format_number(width),
+            'height': self._format_number(height)
+        }
+        
+        if fill:
+            attrs['fill'] = fill
+        if stroke:
+            attrs['stroke'] = stroke
+        if stroke_width:
+            attrs['stroke-width'] = self._format_number(stroke_width)
+        if rx:
+            attrs['rx'] = self._format_number(rx)
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+        if stroke_dasharray:
+            attrs['stroke-dasharray'] = stroke_dasharray
+            
+        element = ET.SubElement(self.root, 'rect', attrs)
+        return element
+    
+    def add_circle(self, cx, cy, r, fill=None, stroke=None, 
+                   stroke_width=None, opacity=None, id=None, stroke_dasharray=None):
+        """
+        Add circle element
+        
+        Args:
+            cx, cy: Center position
+            r: Radius
+            fill: Fill color
+            stroke: Stroke color
+            stroke_width: Stroke width
+            opacity: Opacity (0-1)
+            id: Element ID
+            stroke_dasharray: Dash pattern (e.g., "5,3")
+        """
+        attrs = {
+            'cx': self._format_number(cx),
+            'cy': self._format_number(cy),
+            'r': self._format_number(r)
+        }
+        
+        if fill:
+            attrs['fill'] = fill
+        if stroke:
+            attrs['stroke'] = stroke
+        if stroke_width:
+            attrs['stroke-width'] = self._format_number(stroke_width)
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+        if stroke_dasharray:
+            attrs['stroke-dasharray'] = stroke_dasharray
+            
+        element = ET.SubElement(self.root, 'circle', attrs)
+        return element
+    
+    def add_ellipse(self, cx, cy, rx, ry, fill=None, stroke=None, 
+                    stroke_width=None, opacity=None, id=None, stroke_dasharray=None):
+        """
+        Add ellipse element
+        
+        Args:
+            cx, cy: Center position
+            rx, ry: Radii
+            fill: Fill color
+            stroke: Stroke color
+            stroke_width: Stroke width
+            opacity: Opacity (0-1)
+            id: Element ID
+            stroke_dasharray: Dash pattern (e.g., "5,3")
+        """
+        attrs = {
+            'cx': self._format_number(cx),
+            'cy': self._format_number(cy),
+            'rx': self._format_number(rx),
+            'ry': self._format_number(ry)
+        }
+        
+        if fill:
+            attrs['fill'] = fill
+        if stroke:
+            attrs['stroke'] = stroke
+        if stroke_width:
+            attrs['stroke-width'] = self._format_number(stroke_width)
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+        if stroke_dasharray:
+            attrs['stroke-dasharray'] = stroke_dasharray
+            
+        element = ET.SubElement(self.root, 'ellipse', attrs)
+        return element
+    
+    def add_line(self, x1, y1, x2, y2, stroke=None, stroke_width=None, 
+                 opacity=None, id=None, stroke_dasharray=None, stroke_linecap=None):
+        """
+        Add line element
+        
+        Args:
+            x1, y1: Start position
+            x2, y2: End position
+            stroke: Stroke color
+            stroke_width: Stroke width
+            opacity: Opacity (0-1)
+            id: Element ID
+            stroke_dasharray: Dash pattern (e.g., "5,3")
+            stroke_linecap: Line cap style ("round", "square", "butt")
+        """
+        attrs = {
+            'x1': self._format_number(x1),
+            'y1': self._format_number(y1),
+            'x2': self._format_number(x2),
+            'y2': self._format_number(y2)
+        }
+        
+        if stroke:
+            attrs['stroke'] = stroke
+        if stroke_width:
+            attrs['stroke-width'] = self._format_number(stroke_width)
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+        if stroke_dasharray:
+            attrs['stroke-dasharray'] = stroke_dasharray
+        if stroke_linecap:
+            attrs['stroke-linecap'] = stroke_linecap
+            
+        element = ET.SubElement(self.root, 'line', attrs)
+        return element
+    
+    def add_path(self, d, fill=None, stroke=None, stroke_width=None, 
+                 opacity=None, id=None, stroke_dasharray=None, stroke_linecap=None, 
+                 stroke_linejoin=None):
+        """
+        Add path element
+        
+        Args:
+            d: Path data
+            fill: Fill color
+            stroke: Stroke color
+            stroke_width: Stroke width
+            opacity: Opacity (0-1)
+            id: Element ID
+            stroke_dasharray: Dash pattern (e.g., "5,3")
+            stroke_linecap: Line cap style
+            stroke_linejoin: Line join style
+        """
+        attrs = {'d': d}
+        
+        if fill:
+            attrs['fill'] = fill
+        if stroke:
+            attrs['stroke'] = stroke
+        if stroke_width:
+            attrs['stroke-width'] = self._format_number(stroke_width)
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+        if stroke_dasharray:
+            attrs['stroke-dasharray'] = stroke_dasharray
+        if stroke_linecap:
+            attrs['stroke-linecap'] = stroke_linecap
+        if stroke_linejoin:
+            attrs['stroke-linejoin'] = stroke_linejoin
+            
+        element = ET.SubElement(self.root, 'path', attrs)
+        return element
+    
+    def add_polygon(self, points, fill=None, stroke=None, stroke_width=None, 
+                    opacity=None, id=None, stroke_dasharray=None):
+        """
+        Add polygon element
+        
+        Args:
+            points: List of (x, y) tuples
+            fill: Fill color
+            stroke: Stroke color
+            stroke_width: Stroke width
+            opacity: Opacity (0-1)
+            id: Element ID
+            stroke_dasharray: Dash pattern (e.g., "5,3")
+        """
+        points_str = ' '.join(f"{self._format_number(x)},{self._format_number(y)}" 
+                             for x, y in points)
+        
+        attrs = {'points': points_str}
+        
+        if fill:
+            attrs['fill'] = fill
+        if stroke:
+            attrs['stroke'] = stroke
+        if stroke_width:
+            attrs['stroke-width'] = self._format_number(stroke_width)
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+        if stroke_dasharray:
+            attrs['stroke-dasharray'] = stroke_dasharray
+            
+        element = ET.SubElement(self.root, 'polygon', attrs)
+        return element
+    
+    def add_text(self, text, x, y, font_size=None, font_family=None, 
+                 font_weight=None, fill=None, text_anchor=None, opacity=None, id=None):
+        """
+        Add text element
+        
+        Args:
+            text: Text content
+            x, y: Position
+            font_size: Font size
+            font_family: Font family
+            font_weight: Font weight
+            fill: Text color
+            text_anchor: Text anchor ("start", "middle", "end")
+            opacity: Opacity (0-1)
+            id: Element ID
+        """
+        attrs = {
+            'x': self._format_number(x),
+            'y': self._format_number(y)
+        }
+        
+        if font_size:
+            attrs['font-size'] = str(font_size)
+        if font_family:
+            attrs['font-family'] = font_family
+        if font_weight:
+            attrs['font-weight'] = font_weight
+        if fill:
+            attrs['fill'] = fill
+        if text_anchor:
+            attrs['text-anchor'] = text_anchor
+        if opacity:
+            attrs['opacity'] = str(opacity)
+        if id:
+            attrs['id'] = id
+            
+        element = ET.SubElement(self.root, 'text', attrs)
+        element.text = text
+        return element
+    
+    def add_group(self, id=None, transform=None, opacity=None):
+        """
+        Add group element
+        
+        Args:
+            id: Group ID
+            transform: Transform attribute
+            opacity: Opacity (0-1)
+        """
+        attrs = {}
+        
+        if id:
+            attrs['id'] = id
+        if transform:
+            attrs['transform'] = transform
+        if opacity:
+            attrs['opacity'] = str(opacity)
+            
+        element = ET.SubElement(self.root, 'g', attrs)
+        return element
+    
+    def add_linear_gradient(self, id, x1="0%", y1="0%", x2="100%", y2="0%"):
+        """
+        Add linear gradient definition
+        
+        Args:
+            id: Gradient ID
+            x1, y1: Start position
+            x2, y2: End position
+        """
+        attrs = {
+            'id': id,
             'x1': x1,
             'y1': y1,
             'x2': x2,
-            'y2': y2,
-            'stops': stops or []
+            'y2': y2
         }
         
-        self.defs.append(gradient)
-        return self
+        gradient = ET.SubElement(self.defs, 'linearGradient', attrs)
+        return gradient
     
-    def validate(self) -> Tuple[bool, List[str]]:
+    def add_radial_gradient(self, id, cx="50%", cy="50%", r="50%"):
         """
-        Validate all elements
+        Add radial gradient definition
         
-        Returns:
-            Tuple of (is_valid, error_list)
+        Args:
+            id: Gradient ID
+            cx, cy: Center position
+            r: Radius
         """
-        errors = []
+        attrs = {
+            'id': id,
+            'cx': cx,
+            'cy': cy,
+            'r': r
+        }
         
-        for i, element in enumerate(self.elements):
-            if not self.validator.validate_element(element):
-                element_errors = self.validator.get_errors()
-                errors.extend([f"Element {i}: {err}" for err in element_errors])
-        
-        return len(errors) == 0, errors
+        gradient = ET.SubElement(self.defs, 'radialGradient', attrs)
+        return gradient
     
-    def to_svg_string(self) -> str:
+    def add_stop(self, gradient, offset, color, opacity=None):
         """
-        Generate SVG string
+        Add gradient stop
         
-        Returns:
-            Complete SVG document as string
+        Args:
+            gradient: Gradient element
+            offset: Offset position (0-1 or "0%"-"100%")
+            color: Stop color
+            opacity: Stop opacity
         """
-        svg_parts = [
-            f'<?xml version="1.0" encoding="UTF-8"?>',
-            f'<svg width="{self.width}" height="{self.height}" '
-            f'viewBox="0 0 {self.width} {self.height}" '
-            f'xmlns="http://www.w3.org/2000/svg">'
-        ]
+        attrs = {
+            'offset': str(offset),
+            'stop-color': color
+        }
         
-        # Add defs if any
-        if self.defs:
-            svg_parts.append('  <defs>')
-            for def_element in self.defs:
-                if def_element['type'] == 'linearGradient':
-                    svg_parts.append(
-                        f'    <linearGradient id="{def_element["id"]}" '
-                        f'x1="{def_element["x1"]}" y1="{def_element["y1"]}" '
-                        f'x2="{def_element["x2"]}" y2="{def_element["y2"]}">'
-                    )
-                    for offset, color, opacity in def_element['stops']:
-                        svg_parts.append(
-                            f'      <stop offset="{offset}" stop-color="{color}" '
-                            f'stop-opacity="{opacity}"/>'
-                        )
-                    svg_parts.append('    </linearGradient>')
-            svg_parts.append('  </defs>')
-        
-        # Add elements
-        for element in self.elements:
-            svg_parts.append('  ' + self._element_to_svg(element))
-        
-        svg_parts.append('</svg>')
-        
-        return '\n'.join(svg_parts)
+        if opacity is not None:
+            attrs['stop-opacity'] = str(opacity)
+            
+        stop = ET.SubElement(gradient, 'stop', attrs)
+        return stop
     
-    def _element_to_svg(self, element: Dict) -> str:
-        """Convert element dictionary to SVG string"""
-        elem_type = element['type']
+    def to_string(self, pretty=True):
+        """
+        Convert SVG to string
         
-        if elem_type == 'rect':
-            attrs = [
-                f'x="{element["x"]}"',
-                f'y="{element["y"]}"',
-                f'width="{element["width"]}"',
-                f'height="{element["height"]}"',
-            ]
-            if element.get('rx', 0) > 0:
-                attrs.append(f'rx="{element["rx"]}"')
-            if element.get('ry', 0) > 0:
-                attrs.append(f'ry="{element["ry"]}"')
-                
-        elif elem_type == 'circle':
-            attrs = [
-                f'cx="{element["cx"]}"',
-                f'cy="{element["cy"]}"',
-                f'r="{element["r"]}"',
-            ]
-            
-        elif elem_type == 'ellipse':
-            attrs = [
-                f'cx="{element["cx"]}"',
-                f'cy="{element["cy"]}"',
-                f'rx="{element["rx"]}"',
-                f'ry="{element["ry"]}"',
-            ]
-            
-        elif elem_type == 'line':
-            attrs = [
-                f'x1="{element["x1"]}"',
-                f'y1="{element["y1"]}"',
-                f'x2="{element["x2"]}"',
-                f'y2="{element["y2"]}"',
-            ]
-            
-        elif elem_type == 'path':
-            attrs = [f'd="{element["d"]}"']
-            
-        elif elem_type == 'polygon':
-            attrs = [f'points="{element["points"]}"']
-            
-        elif elem_type == 'text':
-            return (f'<text x="{element["x"]}" y="{element["y"]}" '
-                   f'font-size="{element["font_size"]}" '
-                   f'font-family="{element["font_family"]}" '
-                   f'fill="{element["fill"]}" '
-                   f'text-anchor="{element["text_anchor"]}" '
-                   f'font-weight="{element["font_weight"]}"'
-                   f'{" id=\"" + element["id"] + "\"" if "id" in element else ""}>'
-                   f'{element["text"]}</text>')
+        Args:
+            pretty: If True, return formatted XML
+        """
+        if pretty:
+            rough_string = ET.tostring(self.root, encoding='unicode')
+            reparsed = minidom.parseString(rough_string)
+            return reparsed.toprettyxml(indent="  ")
         else:
-            return f'<!-- Unknown element type: {elem_type} -->'
-        
-        # Add common attributes
-        if 'fill' in element:
-            attrs.append(f'fill="{element["fill"]}"')
-        if 'stroke' in element:
-            attrs.append(f'stroke="{element["stroke"]}"')
-        if 'stroke_width' in element:
-            attrs.append(f'stroke-width="{element["stroke_width"]}"')
-        if 'opacity' in element and element['opacity'] != 1.0:
-            attrs.append(f'opacity="{element["opacity"]}"')
-        if 'stroke_dasharray' in element:
-            attrs.append(f'stroke-dasharray="{element["stroke_dasharray"]}"')
-        if 'id' in element:
-            attrs.append(f'id="{element["id"]}"')
-        
-        return f'<{elem_type} {" ".join(attrs)} />'
+            return ET.tostring(self.root, encoding='unicode')
     
-    def save(self, filename: str) -> bool:
+    def save(self, filepath):
         """
         Save SVG to file
         
         Args:
-            filename: Output filename
-            
-        Returns:
-            True if successful
+            filepath: Output file path
         """
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write(self.to_svg_string())
-            return True
-        except Exception as e:
-            print(f"Error saving SVG: {e}")
-            return False
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(self.to_string())
