@@ -504,6 +504,34 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
         self.ia_enabled = ia_enabled
         
     def notify(self, args):
+        # Import specific command handlers
+        from commands.ai_config_command import AIConfigCommand
+        from commands.ai_genera_command import AIGeneraCommand
+        from commands.wizard_command import WizardCommand
+        
+        # Route to appropriate handler
+        if self.cmd_id == 'FAI_ConfiguraIA':
+            handler = AIConfigCommand()
+            handler.notify(args)
+            return
+        
+        if self.cmd_id == 'FAI_GeneraIA':
+            if self.ia_required and not self.ia_enabled:
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
+                    'IA Non Configurata'
+                )
+                return
+            handler = AIGeneraCommand()
+            handler.notify(args)
+            return
+        
+        if self.cmd_id == 'FAI_Wizard':
+            handler = WizardCommand()
+            handler.notify(args)
+            return
+        
+        # Default handler for other commands
         if self.ia_required and not self.ia_enabled:
             self.app.userInterface.messageBox(
                 f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
