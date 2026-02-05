@@ -11,7 +11,7 @@ import math
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -653,11 +653,89 @@ class FAI_ListiniPrezzi(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class ImpostazioniGenerator(IconGenerator):
+    """Generator for Impostazioni Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_ConfiguraIA': self._generate_configura_ia,
+            'FAI_Preferenze': self._generate_preferenze,
+            'FAI_LibreriaMateriali': self._generate_libreria_materiali,
+            'FAI_CataloghiMateriali': self._generate_cataloghi_materiali,
+            'FAI_ListiniPrezzi': self._generate_listini_prezzi,
+        }
+    
+    def _generate_configura_ia(self, generator, size):
+        icon = FAI_ConfiguraIA()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_preferenze(self, generator, size):
+        icon = FAI_Preferenze()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_libreria_materiali(self, generator, size):
+        icon = FAI_LibreriaMateriali()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_cataloghi_materiali(self, generator, size):
+        icon = FAI_CataloghiMateriali()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_listini_prezzi(self, generator, size):
+        icon = FAI_ListiniPrezzi()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+
+
+# Export all classes
 __all__ = [
     'FAI_ConfiguraIA',
     'FAI_Preferenze',
     'FAI_LibreriaMateriali',
     'FAI_CataloghiMateriali',
-    'FAI_ListiniPrezzi'
+    'FAI_ListiniPrezzi',
+    'ImpostazioniGenerator'
 ]

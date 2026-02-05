@@ -11,7 +11,7 @@ import math
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -767,7 +767,110 @@ class FAI_About(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class GuidaGenerator(IconGenerator):
+    """Generator for Guida & Info Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_GuidaRapida': self._generate_guida_rapida,
+            'FAI_TutorialVideo': self._generate_tutorial_video,
+            'FAI_EsempiProgetti': self._generate_esempi_progetti,
+            'FAI_DocumentazioneAPI': self._generate_documentazione_api,
+            'FAI_Community': self._generate_community,
+            'FAI_CheckUpdate': self._generate_check_update,
+            'FAI_About': self._generate_about,
+        }
+    
+    def _generate_guida_rapida(self, generator, size):
+        icon = FAI_GuidaRapida()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_tutorial_video(self, generator, size):
+        icon = FAI_TutorialVideo()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_esempi_progetti(self, generator, size):
+        icon = FAI_EsempiProgetti()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_documentazione_api(self, generator, size):
+        icon = FAI_DocumentazioneAPI()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_community(self, generator, size):
+        icon = FAI_Community()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_check_update(self, generator, size):
+        icon = FAI_CheckUpdate()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_about(self, generator, size):
+        icon = FAI_About()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+
+
+# Export all classes
 __all__ = [
     'FAI_GuidaRapida',
     'FAI_TutorialVideo',
@@ -775,5 +878,6 @@ __all__ = [
     'FAI_DocumentazioneAPI',
     'FAI_Community',
     'FAI_CheckUpdate',
-    'FAI_About'
+    'FAI_About',
+    'GuidaGenerator'
 ]

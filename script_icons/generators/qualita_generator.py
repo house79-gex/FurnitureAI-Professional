@@ -10,7 +10,7 @@ import math
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -366,9 +366,61 @@ class FAI_Viewer(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class QualitaGenerator(IconGenerator):
+    """Generator for Qualità Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_Verifica': self._generate_verifica,
+            'FAI_Render': self._generate_render,
+            'FAI_Viewer': self._generate_viewer,
+        }
+    
+    def _generate_verifica(self, generator, size):
+        icon = FAI_Verifica()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_render(self, generator, size):
+        icon = FAI_Render()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+    
+    def _generate_viewer(self, generator, size):
+        icon = FAI_Viewer()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).to_string()
+        elif size == 32:
+            return icon.generate_32px(builder).to_string()
+        elif size == 64:
+            return icon.generate_64px(builder).to_string()
+        else:
+            return icon.generate_128px(builder).to_string()
+
+
+# Export all classes
 __all__ = [
     'FAI_Verifica',
     'FAI_Render',
-    'FAI_Viewer'
+    'FAI_Viewer',
+    'QualitaGenerator'
 ]

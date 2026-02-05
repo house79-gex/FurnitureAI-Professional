@@ -37,7 +37,7 @@ script_icons/
 └── README.md            # Questa documentazione
 ```
 
-## 🚀 Installazione
+## 🚀 Installazione e Utilizzo
 
 ### 1. Installare le dipendenze
 
@@ -46,17 +46,57 @@ cd script_icons
 pip install -r requirements.txt
 ```
 
+**Nota**: Le dipendenze includono `svglib` e `reportlab` per la conversione PNG compatibile con Windows (non richiede Cairo DLL).
+
 ### 2. Generare le icone
 
+#### Metodo Semplice (Raccomandato)
+```bash
+python generate_all_simple.py
+```
+
+Il sistema genererà:
+- ✅ 188 file SVG (47 icone × 4 risoluzioni) in `output/svg/`
+- ✅ 188 file PNG (se svglib/reportlab sono installati) in `output/png/`
+- ✅ Metadata JSON completo in `output/metadata.json`
+- ✅ Preview HTML interattivo in `output/preview.html`
+
+**Output:**
+```
+============================================================
+🎨 FurnitureAI Icon Generator
+============================================================
+
+📂 Design Panel (4 icons)
+  ✓ FAI_LayoutIA (4/4 sizes)
+  ✓ FAI_GeneraIA (4/4 sizes)
+  ✓ FAI_Wizard (4/4 sizes)
+  ✓ FAI_Template (4/4 sizes)
+
+... (all panels)
+
+============================================================
+✅ Generation Complete!
+============================================================
+SVG files: 188
+PNG files: 188
+Time: 0.2 seconds
+Output: output/svg/ and output/png/
+============================================================
+```
+
+#### Metodo Avanzato
 ```bash
 python main.py
 ```
 
-Il sistema genererà:
-- 47 icone SVG vettoriali
-- 188 file SVG (47 × 4 risoluzioni)
-- Metadata JSON
-- Preview HTML interattivo
+### 3. Visualizzare le icone
+
+Apri `output/preview.html` nel browser per vedere tutte le icone con:
+- Anteprima interattiva a tutte le risoluzioni
+- Ricerca per nome
+- Selettore di dimensione
+- Statistiche di generazione
 
 ## 📊 Pannelli e Icone
 
@@ -102,6 +142,39 @@ Il sistema genererà:
 ### 9. Impostazioni (5 icone)
 - FAI_ConfiguraIA, FAI_Preferenze, FAI_LibreriaMateriali
 - FAI_CataloghiMateriali, FAI_ListiniPrezzi
+
+## 📁 Struttura File Output
+
+Tutti i file vengono salvati con una struttura flat (piatta) per facilità d'uso:
+
+```
+output/
+├── svg/
+│   ├── FAI_LayoutIA_16.svg
+│   ├── FAI_LayoutIA_32.svg
+│   ├── FAI_LayoutIA_64.svg
+│   ├── FAI_LayoutIA_128.svg
+│   ├── FAI_GeneraIA_16.svg
+│   └── ... (tutti 188 file SVG)
+│
+├── png/
+│   ├── FAI_LayoutIA_16.png
+│   ├── FAI_LayoutIA_32.png
+│   ├── FAI_LayoutIA_64.png
+│   ├── FAI_LayoutIA_128.png
+│   └── ... (tutti 188 file PNG)
+│
+├── preview.html       # Preview interattivo
+└── metadata.json      # Metadata completo
+```
+
+**Convenzione di naming**: `IconName_SIZE.{svg|png}`
+
+Esempio:
+- `FAI_LayoutIA_16.svg` - Icona LayoutIA a 16×16px
+- `FAI_LayoutIA_32.svg` - Icona LayoutIA a 32×32px
+- `FAI_LayoutIA_64.svg` - Icona LayoutIA a 64×64px
+- `FAI_LayoutIA_128.svg` - Icona LayoutIA a 128×128px
 
 ## 🎯 Sistema di Scaling Adattivo
 
