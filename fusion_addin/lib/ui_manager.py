@@ -1,16 +1,11 @@
 """
-Gestore UI per FurnitureAI - VERSIONE DEFINITIVA
-- Path icone Windows-style corretto
-- ID comandi nativi corretti
-- Fallback robusto
+Gestore UI per FurnitureAI - VERSIONE CON ICONE FUNZIONANTI
 """
 
 import adsk.core
 import adsk.fusion
 import traceback
 import os
-import tempfile
-import shutil
 
 class UIManager:
     def __init__(self, logger, ui):
@@ -19,7 +14,7 @@ class UIManager:
         self.app = adsk.core.Application.get()
         self.tab = None
         self.handlers = []
-        self.temp_icon_dir = None
+        self.icon_folder = None
 
     def create_ui(self):
         try:
@@ -31,8 +26,8 @@ class UIManager:
             
             self.app.log(f"UIManager: workspace = {ws.name}")
 
-            # Setup icone PRIMA di creare UI
-            self._setup_icon_folder()
+            # Setup path icone (RELATIVO all'addon)
+            self._setup_icon_path()
 
             # Crea tab
             self.tab = ws.toolbarTabs.add('FurnitureAI_Tab', 'Furniture AI')
@@ -49,9 +44,8 @@ class UIManager:
             
             self.app.log("UIManager: pannelli creati")
 
-            # Comandi nativi Fusion - PROVATI UNO PER UNO
+            # Comandi nativi Fusion
             self.app.log("UIManager: aggiunta comandi nativi Crea...")
-            # Tentativo con ID alternativi
             added_create = 0
             for cmd_id in ['SketchCreate', 'CreateSketch', 'SketchCreateCommand']:
                 if self._add_native(p_crea, cmd_id):
@@ -74,6 +68,11 @@ class UIManager:
                     break
                     
             for cmd_id in ['Loft', 'LoftCommand']:
+                if self._add_native(p_crea, cmd_id):
+                    added_create += 1
+                    break
+                    
+            for cmd_id in ['Hole', 'HoleCommand']:
                 if self._add_native(p_crea, cmd_id):
                     added_create += 1
                     break
@@ -103,6 +102,11 @@ class UIManager:
                     break
                     
             for cmd_id in ['CircularPattern', 'CircPattern']:
+                if self._add_native(p_modifica, cmd_id):
+                    added_modify += 1
+                    break
+                    
+            for cmd_id in ['Mirror', 'MirrorCommand']:
                 if self._add_native(p_modifica, cmd_id):
                     added_modify += 1
                     break
@@ -143,34 +147,26 @@ class UIManager:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
             raise
 
-    def _setup_icon_folder(self):
-        """Setup cartella icone in temp con path Windows-style"""
+    def _setup_icon_path(self):
+        """Setup path icone RELATIVO alla root dell'addon"""
         try:
-            # Cartella temp
-            self.temp_icon_dir = os.path.join(tempfile.gettempdir(), 'FurnitureAI_Icons')
-            os.makedirs(self.temp_icon_dir, exist_ok=True)
+            # Path relativo che Fusion accetta: ./resources/icons
+            self.icon_folder = './resources/icons'
             
-            # Path sorgente (addon)
+            # Verifica che la cartella esista (path assoluto per check)
             addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            source_icons = os.path.join(addon_path, 'resources', 'icons')
+            full_path = os.path.join(addon_path, 'resources', 'icons')
             
-            self.app.log(f"Icone: temp={self.temp_icon_dir}")
-            self.app.log(f"Icone: source={source_icons}")
-            
-            if os.path.exists(source_icons):
-                copied = 0
-                for f in os.listdir(source_icons):
-                    if f.endswith('.png'):
-                        shutil.copy2(os.path.join(source_icons, f), os.path.join(self.temp_icon_dir, f))
-                        copied += 1
-                self.app.log(f"Icone: copiate {copied} icone")
+            if os.path.exists(full_path):
+                icon_count = len([f for f in os.listdir(full_path) if f.endswith('.png')])
+                self.app.log(f"Icone: trovate {icon_count} icone in {self.icon_folder}")
             else:
-                self.app.log(f"Icone: cartella source non esiste, icone disabilitate")
-                self.temp_icon_dir = None
+                self.app.log(f"Icone: cartella non trovata, icone disabilitate")
+                self.icon_folder = None
                 
         except Exception as e:
             self.app.log(f"Icone: errore setup - {str(e)}")
-            self.temp_icon_dir = None
+            self.icon_folder = None
 
     def cleanup(self):
         """Cleanup UI"""
@@ -212,25 +208,15 @@ class UIManager:
         return False
 
     def _add_custom(self, panel, cmd_id, name, tooltip):
-        """Crea comando custom con icone - CON FALLBACK"""
+        """Crea comando custom con icone"""
         cmd_defs = self.ui.commandDefinitions
         
-        # Verifica icone e prepara path CORRETTO per Fusion
-        icon_path = None
-        if self.temp_icon_dir:
-            # Converti path Windows con backslash
-            base_path = os.path.join(self.temp_icon_dir, cmd_id).replace('/', '\\')
-            icon_16 = base_path + '_16.png'
-            icon_32 = base_path + '_32.png'
-            
-            if os.path.exists(icon_16) and os.path.exists(icon_32):
-                icon_path = base_path
-                self.app.log(f"  Test icone per {cmd_id}: 16={os.path.exists(icon_16)}, 32={os.path.exists(icon_32)}")
-                self.app.log(f"  Path icone: {icon_path}")
-        
-        # PROVA con icone, se fallisce usa fallback
+        # Prova CON icone se disponibili
         btn = None
-        if icon_path:
+        if self.icon_folder:
+            # Path relativo: ./resources/icons/FAI_Wizard
+            icon_path = f'{self.icon_folder}/{cmd_id}'
+            
             try:
                 btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
                 self.app.log(f"  Custom CON icone: {cmd_id} ✓")
