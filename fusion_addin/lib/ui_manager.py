@@ -1,9 +1,8 @@
 """
-Gestore UI per FurnitureAI - VERSIONE FINALE CON TOOLTIP AVANZATI
-- Tooltip stile Fusion con descrizione estesa e preview
-- Sistema help integrato con scorciatoie
-- Pannello Guida dedicato
-- Palette colori Fusion (azzurro, grigio, nero, verde)
+Gestore UI per FurnitureAI - VERSIONE FINALE CON MULTI-RISOLUZIONE ICONE
+- Supporto icone 16x16, 32x32, 64x64, 128x128
+- Sistema tooltip avanzato stile Fusion
+- Help integrato con F1
 """
 
 import adsk.core
@@ -50,7 +49,7 @@ class UIManager:
             p_lavorazioni = self.tab.toolbarPanels.add('FAI_Panel_Lavorazioni', 'Lavorazioni')
             p_qualita     = self.tab.toolbarPanels.add('FAI_Panel_Qualita',     'Qualità')
             p_produzione  = self.tab.toolbarPanels.add('FAI_Panel_Produzione',  'Produzione')
-            p_guida       = self.tab.toolbarPanels.add('FAI_Panel_Guida',       'Guida & Info')  # NUOVO
+            p_guida       = self.tab.toolbarPanels.add('FAI_Panel_Guida',       'Guida & Info')
             p_config      = self.tab.toolbarPanels.add('FAI_Panel_Config',      'Impostazioni')
             
             self.panels = [p_design, p_elementi, p_edita, p_hardware, p_lavorazioni, 
@@ -238,7 +237,7 @@ class UIManager:
                            tooltip_extended='Export per produzione CNC: DXF (lavorazioni 2D), file CNC (forature parametriche), G-Code (pantografi). Compatibile maggiori software CAM.\n\nF1: Formati supportati')
 
             # ========================================================
-            # TAB 8: GUIDA & INFO (NUOVO)
+            # TAB 8: GUIDA & INFO
             # ========================================================
             self.app.log("UIManager: creazione comandi Guida...")
             
@@ -341,7 +340,11 @@ class UIManager:
             self.icon_folder = None
 
     def _prepare_command_icons(self, cmd_id):
-        """Prepara icone"""
+        """
+        Prepara icone MULTI-RISOLUZIONE (16x16, 32x32, 64x64, 128x128)
+        Fusion toolbar usa 16x16 e 32x32
+        Wizard dialogs useranno 64x64 e 128x128
+        """
         if not self.icon_folder:
             return None
             
@@ -349,20 +352,56 @@ class UIManager:
             cmd_icon_folder = os.path.join(self.icon_folder, cmd_id)
             os.makedirs(cmd_icon_folder, exist_ok=True)
             
-            dest16 = os.path.join(cmd_icon_folder, '16x16.png')
-            dest32 = os.path.join(cmd_icon_folder, '32x32.png')
+            # Mapping risoluzioni richieste
+            resolutions = {
+                '16x16.png': f'{cmd_id}_16.png',
+                '32x32.png': f'{cmd_id}_32.png',
+                '64x64.png': f'{cmd_id}_64.png',     # NUOVO per wizard
+                '128x128.png': f'{cmd_id}_128.png'   # NUOVO per wizard
+            }
             
-            src16 = os.path.join(self.icon_folder, f'{cmd_id}_16.png')
-            src32 = os.path.join(self.icon_folder, f'{cmd_id}_32.png')
+            copied_count = 0
+            for dest_name, src_name in resolutions.items():
+                dest_path = os.path.join(cmd_icon_folder, dest_name)
+                src_path = os.path.join(self.icon_folder, src_name)
+                
+                if os.path.exists(src_path):
+                    shutil.copyfile(src_path, dest_path)
+                    copied_count += 1
             
-            if os.path.exists(src16) and os.path.exists(src32):
-                shutil.copyfile(src16, dest16)
-                shutil.copyfile(src32, dest32)
+            # Fusion richiede almeno 16x16 e 32x32 per toolbar
+            if copied_count >= 2:
+                self.app.log(f"  Icone copiate per {cmd_id}: {copied_count}/4 risoluzioni")
                 return cmd_icon_folder
+            else:
+                self.app.log(f"  Icone insufficienti per {cmd_id}: {copied_count}/4")
+                return None
             
+        except Exception as e:
+            self.app.log(f"  Errore preparazione icone {cmd_id}: {str(e)}")
             return None
-        except:
+
+    def get_icon_path(self, cmd_id, size='32x32'):
+        """
+        Helper per ottenere path icona specifica risoluzione
+        Uso: per wizard che necessitano icone 64x64 o 128x128
+        
+        Args:
+            cmd_id: ID comando
+            size: '16x16', '32x32', '64x64', '128x128'
+        
+        Returns:
+            Path assoluto icona o None
+        """
+        if not self.icon_folder:
             return None
+        
+        icon_path = os.path.join(self.icon_folder, cmd_id, f'{size}.png')
+        
+        if os.path.exists(icon_path):
+            return icon_path
+        
+        return None
 
     def cleanup(self):
         """Cleanup UI"""
@@ -412,6 +451,7 @@ class UIManager:
                 if cmd:
                     cmd.deleteMe()
             
+            # Cleanup cartelle icone temp (include tutte le risoluzioni)
             if self.icon_folder:
                 for cmd_id in custom_ids:
                     cmd_folder = os.path.join(self.icon_folder, cmd_id)
@@ -426,18 +466,11 @@ class UIManager:
             self.app.log(f"UIManager: errore cleanup - {str(e)}")
 
     def _add_custom(self, panel, cmd_id, name, tooltip='', tooltip_extended='', ia_required=False):
-        """
-        Aggiungi comando custom con tooltip avanzato stile Fusion
-        
-        Args:
-            tooltip: Descrizione breve (hover normale)
-            tooltip_extended: Descrizione estesa con esempi (tooltip avanzato)
-        """
+        """Aggiungi comando custom con tooltip avanzato"""
         cmd_defs = self.ui.commandDefinitions
         
         icon_path = self._prepare_command_icons(cmd_id)
         
-        # Crea comando
         btn = None
         if icon_path:
             try:
@@ -448,11 +481,10 @@ class UIManager:
         if btn is None:
             btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip)
         
-        # Imposta tooltip esteso (se supportato da API Fusion)
+        # Tooltip esteso
         if tooltip_extended and hasattr(btn, 'tooltipDescription'):
             btn.tooltipDescription = tooltip_extended
         
-        # Disabilita se IA richiesta ma non disponibile
         if ia_required and not self.ia_enabled:
             btn.isEnabled = False
             self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
@@ -472,7 +504,6 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
         self.ia_enabled = ia_enabled
         
     def notify(self, args):
-        # Verifica IA se richiesta
         if self.ia_required and not self.ia_enabled:
             self.app.userInterface.messageBox(
                 f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
@@ -480,14 +511,11 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             )
             return
         
-        # Aggiungi event handler per catturare F1 (help)
         cmd = args.command
         
-        # Handler execute
         exec_handler = ExecHandler(self.name, self.cmd_id, self.app)
         cmd.execute.add(exec_handler)
         
-        # Handler keydown per F1
         keydown_handler = KeyDownHandler(self.cmd_id, self.app)
         cmd.keyDown.add(keydown_handler)
 
@@ -511,7 +539,6 @@ class KeyDownHandler(adsk.core.KeyboardEventHandler):
         self.app = app
         
     def notify(self, args):
-        # Cattura F1 per aprire guida
         if args.keyCode == 112:  # F1
             self._open_help()
             args.isHandled = True
@@ -520,7 +547,6 @@ class KeyDownHandler(adsk.core.KeyboardEventHandler):
         """Apri guida specifica comando"""
         import webbrowser
         
-        # URL guida online (da personalizzare)
         help_base_url = "https://docs.furnitureai.com/commands/"
         help_url = f"{help_base_url}{self.cmd_id.lower()}"
         
