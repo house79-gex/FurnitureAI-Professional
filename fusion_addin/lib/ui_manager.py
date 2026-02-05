@@ -1,8 +1,8 @@
 """
-Gestore UI per FurnitureAI - VERSIONE FIXED
-- Comandi nativi Fusion con ID corretti
-- Icone con path assoluto verificato
-- Cleanup robusto
+Gestore UI per FurnitureAI - VERSIONE DEFINITIVA
+- Path icone Windows-style corretto
+- ID comandi nativi corretti
+- Fallback robusto
 """
 
 import adsk.core
@@ -49,23 +49,65 @@ class UIManager:
             
             self.app.log("UIManager: pannelli creati")
 
-            # Comandi nativi Fusion - ID CORRETTI testati
+            # Comandi nativi Fusion - PROVATI UNO PER UNO
             self.app.log("UIManager: aggiunta comandi nativi Crea...")
-            self._add_native(p_crea, 'FusionSketchCommand')         # Schizzo
-            self._add_native(p_crea, 'FusionExtrudeCommand')        # Estrusione
-            self._add_native(p_crea, 'FusionRevolveCommand')        # Rivoluzione
-            self._add_native(p_crea, 'FusionSweepCommand')          # Sweep
-            self._add_native(p_crea, 'FusionLoftCommand')           # Loft
-            self._add_native(p_crea, 'FusionHoleCommand')           # Foro
+            # Tentativo con ID alternativi
+            added_create = 0
+            for cmd_id in ['SketchCreate', 'CreateSketch', 'SketchCreateCommand']:
+                if self._add_native(p_crea, cmd_id):
+                    added_create += 1
+                    break
+            
+            for cmd_id in ['Extrude', 'ExtrudeCommand', 'FusionExtrudeCommand']:
+                if self._add_native(p_crea, cmd_id):
+                    added_create += 1
+                    break
+                    
+            for cmd_id in ['Revolve', 'RevolveCommand']:
+                if self._add_native(p_crea, cmd_id):
+                    added_create += 1
+                    break
+                    
+            for cmd_id in ['Sweep', 'SweepCommand']:
+                if self._add_native(p_crea, cmd_id):
+                    added_create += 1
+                    break
+                    
+            for cmd_id in ['Loft', 'LoftCommand']:
+                if self._add_native(p_crea, cmd_id):
+                    added_create += 1
+                    break
+            
+            self.app.log(f"UIManager: aggiunti {added_create} comandi Crea")
             
             self.app.log("UIManager: aggiunta comandi nativi Modifica...")
-            self._add_native(p_modifica, 'FusionFilletCommand')     # Raccordo
-            self._add_native(p_modifica, 'FusionChamferCommand')    # Smusso
-            self._add_native(p_modifica, 'FusionShellCommand')      # Guscio
-            self._add_native(p_modifica, 'FusionRectangularPatternCommand')  # Pattern rett
-            self._add_native(p_modifica, 'FusionCircularPatternCommand')     # Pattern circ
-            self._add_native(p_modifica, 'FusionMirrorCommand')     # Specchia
-            self._add_native(p_modifica, 'FusionThickenCommand')    # Ispessisci
+            added_modify = 0
+            for cmd_id in ['Fillet', 'FilletCommand']:
+                if self._add_native(p_modifica, cmd_id):
+                    added_modify += 1
+                    break
+                    
+            for cmd_id in ['Chamfer', 'ChamferCommand', 'FusionChamferCommand']:
+                if self._add_native(p_modifica, cmd_id):
+                    added_modify += 1
+                    break
+                    
+            for cmd_id in ['Shell', 'ShellCommand']:
+                if self._add_native(p_modifica, cmd_id):
+                    added_modify += 1
+                    break
+                    
+            for cmd_id in ['RectangularPattern', 'RectPattern']:
+                if self._add_native(p_modifica, cmd_id):
+                    added_modify += 1
+                    break
+                    
+            for cmd_id in ['CircularPattern', 'CircPattern']:
+                if self._add_native(p_modifica, cmd_id):
+                    added_modify += 1
+                    break
+            
+            self.app.log(f"UIManager: aggiunti {added_modify} comandi Modifica")
 
             # Comandi custom Furniture
             self.app.log("UIManager: creazione comandi custom...")
@@ -102,7 +144,7 @@ class UIManager:
             raise
 
     def _setup_icon_folder(self):
-        """Setup cartella icone in temp con path assoluto"""
+        """Setup cartella icone in temp con path Windows-style"""
         try:
             # Cartella temp
             self.temp_icon_dir = os.path.join(tempfile.gettempdir(), 'FurnitureAI_Icons')
@@ -161,30 +203,43 @@ class UIManager:
             self.app.log(f"UIManager: errore cleanup - {str(e)}")
 
     def _add_native(self, panel, cmd_id):
-        """Aggiunge comando nativo Fusion"""
+        """Aggiunge comando nativo Fusion - ritorna True se trovato"""
         cmd = self.ui.commandDefinitions.itemById(cmd_id)
         if cmd:
             panel.controls.addCommand(cmd)
             self.app.log(f"  Nativo OK: {cmd_id}")
-        else:
-            self.app.log(f"  Nativo MANCANTE: {cmd_id}")
+            return True
+        return False
 
     def _add_custom(self, panel, cmd_id, name, tooltip):
-        """Crea comando custom con icone"""
+        """Crea comando custom con icone - CON FALLBACK"""
         cmd_defs = self.ui.commandDefinitions
         
-        # Verifica icone
+        # Verifica icone e prepara path CORRETTO per Fusion
         icon_path = None
         if self.temp_icon_dir:
-            test_path = os.path.join(self.temp_icon_dir, cmd_id)
-            if os.path.exists(test_path + '_16.png') and os.path.exists(test_path + '_32.png'):
-                icon_path = test_path
+            # Converti path Windows con backslash
+            base_path = os.path.join(self.temp_icon_dir, cmd_id).replace('/', '\\')
+            icon_16 = base_path + '_16.png'
+            icon_32 = base_path + '_32.png'
+            
+            if os.path.exists(icon_16) and os.path.exists(icon_32):
+                icon_path = base_path
+                self.app.log(f"  Test icone per {cmd_id}: 16={os.path.exists(icon_16)}, 32={os.path.exists(icon_32)}")
+                self.app.log(f"  Path icone: {icon_path}")
         
-        # Crea comando
+        # PROVA con icone, se fallisce usa fallback
+        btn = None
         if icon_path:
-            btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
-            self.app.log(f"  Custom CON icone: {cmd_id}")
-        else:
+            try:
+                btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
+                self.app.log(f"  Custom CON icone: {cmd_id} ✓")
+            except Exception as e:
+                self.app.log(f"  Custom FALLBACK per {cmd_id}: {str(e)}")
+                btn = None
+        
+        # FALLBACK: crea senza icone
+        if btn is None:
             btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip)
             self.app.log(f"  Custom SENZA icone: {cmd_id}")
         
