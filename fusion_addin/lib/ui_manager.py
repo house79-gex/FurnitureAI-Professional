@@ -1,11 +1,13 @@
 """
-Gestore UI per FurnitureAI - VERSIONE CON ICONE FUNZIONANTI (CORRETTA)
+Gestore UI per FurnitureAI - CON COPIA DINAMICA ICONE
+Usa lo stesso sistema dell'altro add-in: copia le icone in sottocartelle
 """
 
 import adsk.core
 import adsk.fusion
 import traceback
 import os
+import shutil
 
 class UIManager:
     def __init__(self, logger, ui):
@@ -15,6 +17,7 @@ class UIManager:
         self.tab = None
         self.handlers = []
         self.icon_folder = None
+        self.addon_path = None
 
     def create_ui(self):
         try:
@@ -26,8 +29,8 @@ class UIManager:
             
             self.app.log(f"UIManager: workspace = {ws.name}")
 
-            # Setup path icone (ASSOLUTO)
-            self._setup_icon_path()
+            # Setup path icone
+            self._setup_paths()
 
             # Crea tab
             self.tab = ws.toolbarTabs.add('FurnitureAI_Tab', 'Furniture AI')
@@ -147,21 +150,15 @@ class UIManager:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
             raise
 
-    def _setup_icon_path(self):
-        """Setup path icone ASSOLUTO - FUSION RICHIEDE PATH ASSOLUTI"""
+    def _setup_paths(self):
+        """Setup path base addon e icone"""
         try:
-            # Ottieni il path assoluto dell'addon
-            # __file__ è in: AddIns/FurnitureAI/src/ui/UIManager.py
-            # Dobbiamo risalire di 3 livelli per arrivare alla root dell'addon
-            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            # Path assoluto dell'addon
+            self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            self.icon_folder = os.path.join(self.addon_path, 'resources', 'icons')
             
-            # Path ASSOLUTO alla cartella icone
-            self.icon_folder = os.path.join(addon_path, 'resources', 'icons')
-            
-            # Verifica che la cartella esista
             if os.path.exists(self.icon_folder):
-                icon_count = len([f for f in os.listdir(self.icon_folder) if f.endswith('.png')])
-                self.app.log(f"Icone: trovate {icon_count} icone in {self.icon_folder}")
+                self.app.log(f"Icone: cartella trovata in {self.icon_folder}")
             else:
                 self.app.log(f"Icone: cartella non trovata - {self.icon_folder}")
                 self.icon_folder = None
@@ -169,6 +166,57 @@ class UIManager:
         except Exception as e:
             self.app.log(f"Icone: errore setup - {str(e)}")
             self.icon_folder = None
+
+    def _prepare_command_icons(self, cmd_id):
+        """
+        Prepara le icone per un comando - COPIA DINAMICA come l'altro add-in
+        
+        Struttura source (una delle due):
+        1. resources/icons/FAI_Wizard_16.png + FAI_Wizard_32.png
+        2. resources/icons/16x16.png + 32x32.png (icona generica)
+        
+        Struttura destinazione (creata dinamicamente):
+        resources/icons/FAI_Wizard/16x16.png + 32x32.png
+        """
+        if not self.icon_folder:
+            return None
+            
+        try:
+            # Crea cartella temporanea per questo comando
+            cmd_icon_folder = os.path.join(self.icon_folder, cmd_id)
+            os.makedirs(cmd_icon_folder, exist_ok=True)
+            
+            # File destinazione (naming standard)
+            dest16 = os.path.join(cmd_icon_folder, '16x16.png')
+            dest32 = os.path.join(cmd_icon_folder, '32x32.png')
+            
+            # Prova 1: Icone specifiche del comando (FAI_Wizard_16.png)
+            src16_specific = os.path.join(self.icon_folder, f'{cmd_id}_16.png')
+            src32_specific = os.path.join(self.icon_folder, f'{cmd_id}_32.png')
+            
+            if os.path.exists(src16_specific) and os.path.exists(src32_specific):
+                shutil.copyfile(src16_specific, dest16)
+                shutil.copyfile(src32_specific, dest32)
+                self.app.log(f"  Icone copiate (specifiche): {cmd_id}")
+                return cmd_icon_folder
+            
+            # Prova 2: Icone generiche (16x16.png fallback)
+            src16_generic = os.path.join(self.icon_folder, '16x16.png')
+            src32_generic = os.path.join(self.icon_folder, '32x32.png')
+            
+            if os.path.exists(src16_generic) and os.path.exists(src32_generic):
+                shutil.copyfile(src16_generic, dest16)
+                shutil.copyfile(src32_generic, dest32)
+                self.app.log(f"  Icone copiate (generiche): {cmd_id}")
+                return cmd_icon_folder
+            
+            # Nessuna icona trovata
+            self.app.log(f"  Nessuna icona trovata per: {cmd_id}")
+            return None
+            
+        except Exception as e:
+            self.app.log(f"  Errore preparazione icone {cmd_id}: {str(e)}")
+            return None
 
     def cleanup(self):
         """Cleanup UI"""
@@ -195,13 +243,23 @@ class UIManager:
                     cmd.deleteMe()
                     removed += 1
             
+            # Cleanup cartelle icone temporanee
+            if self.icon_folder and os.path.exists(self.icon_folder):
+                for cmd_id in custom_ids:
+                    cmd_folder = os.path.join(self.icon_folder, cmd_id)
+                    if os.path.exists(cmd_folder) and os.path.isdir(cmd_folder):
+                        try:
+                            shutil.rmtree(cmd_folder)
+                        except:
+                            pass
+            
             self.app.log(f"UIManager: cleanup completato, {removed} comandi rimossi")
             
         except Exception as e:
             self.app.log(f"UIManager: errore cleanup - {str(e)}")
 
     def _add_native(self, panel, cmd_id):
-        """Aggiunge comando nativo Fusion - ritorna True se trovato"""
+        """Aggiunge comando nativo Fusion"""
         cmd = self.ui.commandDefinitions.itemById(cmd_id)
         if cmd:
             panel.controls.addCommand(cmd)
@@ -210,24 +268,23 @@ class UIManager:
         return False
 
     def _add_custom(self, panel, cmd_id, name, tooltip):
-        """Crea comando custom con icone - USA PATH ASSOLUTO"""
+        """Crea comando custom con icone - COPIA DINAMICA"""
         cmd_defs = self.ui.commandDefinitions
         
-        # Prova CON icone se disponibili
+        # Prepara icone (copia in sottocartella)
+        icon_path = self._prepare_command_icons(cmd_id)
+        
+        # Crea comando
         btn = None
-        if self.icon_folder:
-            # Path ASSOLUTO completo all'icona (SENZA estensione .png)
-            # Fusion aggiunge automaticamente _16.png e _32.png
-            icon_path = os.path.join(self.icon_folder, cmd_id)
-            
+        if icon_path:
             try:
                 btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
-                self.app.log(f"  Custom CON icone: {cmd_id} -> {icon_path}")
+                self.app.log(f"  Custom CON icone: {cmd_id} ✓")
             except Exception as e:
-                self.app.log(f"  Custom FALLBACK per {cmd_id}: {str(e)}")
+                self.app.log(f"  Custom errore: {cmd_id} - {str(e)}")
                 btn = None
         
-        # FALLBACK: crea senza icone
+        # FALLBACK: senza icone
         if btn is None:
             btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip)
             self.app.log(f"  Custom SENZA icone: {cmd_id}")
