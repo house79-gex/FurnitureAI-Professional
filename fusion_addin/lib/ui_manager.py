@@ -22,6 +22,7 @@ class UIManager:
         self.addon_path = None
         self.panels = []
         self.ia_enabled = False
+        self.config_manager = None  # Will be initialized in create_ui
 
     def create_ui(self):
         try:
@@ -35,6 +36,12 @@ class UIManager:
 
             # Setup
             self._setup_paths()
+            
+            # Initialize config_manager
+            from .config_manager import get_config
+            self.config_manager = get_config()
+            self.app.log("UIManager: ConfigManager inizializzato")
+            
             self._check_ia_availability()
 
             # Crea tab
@@ -307,19 +314,48 @@ class UIManager:
             raise
 
     def _check_ia_availability(self):
-        """Verifica configurazione IA"""
+        """Verifica configurazione IA usando ConfigManager"""
         try:
+            # Check global toggle first
+            if not self.config_manager.is_ai_enabled():
+                self.ia_enabled = False
+                self.app.log("❌ IA DISABILITATA: Global toggle OFF (ai_features_enabled=False)")
+                return
+            
+            # Global toggle is ON, now check if any provider is configured
             config_file = os.path.join(self.addon_path, 'config', 'api_keys.json')
             
             if os.path.exists(config_file):
                 import json
                 with open(config_file, 'r') as f:
                     config = json.load(f)
-                    self.ia_enabled = bool(config.get('openai_api_key') or config.get('anthropic_api_key'))
+                    
+                    # Check if any provider has credentials or is enabled
+                    has_cloud_api = bool(config.get('cloud', {}).get('openai', {}).get('api_key') or 
+                                       config.get('cloud', {}).get('anthropic', {}).get('api_key'))
+                    has_local_enabled = (config.get('local_lan', {}).get('lmstudio', {}).get('enabled', False) or
+                                       config.get('local_lan', {}).get('ollama', {}).get('enabled', False))
+                    has_remote_enabled = config.get('remote_wan', {}).get('custom_server', {}).get('enabled', False)
+                    
+                    self.ia_enabled = has_cloud_api or has_local_enabled or has_remote_enabled
             else:
-                self.ia_enabled = False
+                # Fallback to old ai_config.json
+                old_config = os.path.join(self.addon_path, 'config', 'ai_config.json')
+                if os.path.exists(old_config):
+                    import json
+                    with open(old_config, 'r') as f:
+                        config = json.load(f)
+                        # Check if any provider is enabled
+                        providers = config.get('providers', {})
+                        for provider_config in providers.values():
+                            if provider_config.get('enabled', False):
+                                self.ia_enabled = True
+                                break
+                else:
+                    self.ia_enabled = False
             
-            self.app.log(f"IA disponibile: {self.ia_enabled}")
+            status_msg = "✓ DISPONIBILE" if self.ia_enabled else "⚠️ NON CONFIGURATA"
+            self.app.log(f"IA status: {status_msg} (global_toggle=ON, provider_configured={self.ia_enabled})")
             
         except Exception as e:
             self.app.log(f"Errore verifica IA: {str(e)}")
@@ -485,23 +521,36 @@ class UIManager:
         if tooltip_extended and hasattr(btn, 'tooltipDescription'):
             btn.tooltipDescription = tooltip_extended
         
-        if ia_required and not self.ia_enabled:
-            btn.isEnabled = False
-            self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
+        # CRITICAL FIX: FAI_ConfiguraIA must ALWAYS be enabled (entry point to configure AI)
+        if cmd_id == 'FAI_ConfiguraIA':
+            btn.isEnabled = True
+            self.app.log(f"  ✓ {cmd_id} SEMPRE ABILITATO (comando configurazione)")
+        elif ia_required:
+            # Check both global toggle AND provider availability
+            if not self.config_manager.is_ai_enabled():
+                btn.isEnabled = False
+                self.app.log(f"  >>> {cmd_id} DISABILITATO (IA disabilitata dall'utente)")
+            elif not self.ia_enabled:
+                btn.isEnabled = False
+                self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
+            else:
+                btn.isEnabled = True
+                self.app.log(f"  ✓ {cmd_id} ABILITATO (IA configurata e abilitata)")
         
-        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled)
+        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled, self.config_manager)
         btn.commandCreated.add(handler)
         self.handlers.append(handler)
         panel.controls.addCommand(btn)
 
 class CommandHandler(adsk.core.CommandCreatedEventHandler):
-    def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False):
+    def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False, config_manager=None):
         super().__init__()
         self.name = name
         self.cmd_id = cmd_id
         self.app = app
         self.ia_required = ia_required
         self.ia_enabled = ia_enabled
+        self.config_manager = config_manager
         
     def notify(self, args):
         # Import specific command handlers
@@ -516,6 +565,14 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             return
         
         if self.cmd_id == 'FAI_GeneraIA':
+            # Check global toggle first
+            if self.config_manager and not self.config_manager.is_ai_enabled():
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Funzionalità IA disabilitate\n\nAbilita IA da: Impostazioni → Configura IA',
+                    'IA Disabilitata'
+                )
+                return
+            
             if self.ia_required and not self.ia_enabled:
                 self.app.userInterface.messageBox(
                     f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
@@ -531,13 +588,22 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             handler.notify(args)
             return
         
-        # Default handler for other commands
-        if self.ia_required and not self.ia_enabled:
-            self.app.userInterface.messageBox(
-                f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
-                'IA Non Configurata'
-            )
-            return
+        # Default handler for other commands with ia_required
+        if self.ia_required:
+            # Check global toggle first
+            if self.config_manager and not self.config_manager.is_ai_enabled():
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Funzionalità IA disabilitate\n\nAbilita IA da: Impostazioni → Configura IA',
+                    'IA Disabilitata'
+                )
+                return
+            
+            if not self.ia_enabled:
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
+                    'IA Non Configurata'
+                )
+                return
         
         cmd = args.command
         

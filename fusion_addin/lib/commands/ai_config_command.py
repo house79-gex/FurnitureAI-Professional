@@ -31,6 +31,29 @@ class AIConfigCommand(adsk.core.CommandCreatedEventHandler):
             # Create UI inputs
             inputs = cmd.commandInputs
             
+            # ========================================
+            # NEW: Global AI Features Toggle Section
+            # ========================================
+            global_group = inputs.addGroupCommandInput('global_ai_toggle', '🔌 Funzionalità IA')
+            global_inputs = global_group.children
+            
+            # Get current toggle state
+            ai_enabled = self.config_manager.is_ai_enabled()
+            
+            # Add toggle switch
+            ai_toggle = global_inputs.addBoolValueInput('ai_features_enabled', 'Abilita Funzionalità IA', True, '', ai_enabled)
+            
+            # Add help text
+            help_text = (
+                '<b>Toggle globale per funzionalità IA:</b><br>'
+                '✓ <b>Abilitato</b>: I comandi IA sono disponibili (se provider configurato)<br>'
+                '✗ <b>Disabilitato</b>: Lavora completamente offline, nessuna chiamata IA<br><br>'
+                '<i>Nota: Riavviare l\'addon dopo aver modificato questa impostazione</i>'
+            )
+            global_inputs.addTextBoxCommandInput('ai_toggle_help', '', help_text, 4, True)
+            
+            global_group.isExpanded = True
+            
             # Tab group for different providers
             tab_group = inputs.addTabCommandInput('ai_config_tabs', 'AI Providers')
             tabs = tab_group.children
@@ -269,6 +292,15 @@ class AIConfigCommandExecuteHandler(adsk.core.CommandEventHandler):
                 self._test_connection(inputs)
                 return
             
+            # ========================================
+            # NEW: Save global AI toggle
+            # ========================================
+            ai_toggle_input = inputs.itemById('ai_features_enabled')
+            if ai_toggle_input:
+                ai_enabled = ai_toggle_input.value
+                self.config_manager.set_ai_enabled(ai_enabled)
+                self.logger.info(f"✓ Global AI toggle saved: {ai_enabled}")
+            
             # Save active provider
             provider_input = inputs.itemById('active_provider')
             if provider_input:
@@ -299,7 +331,12 @@ class AIConfigCommandExecuteHandler(adsk.core.CommandEventHandler):
             # Save to file
             if self.config_manager.save_ai_config():
                 app = adsk.core.Application.get()
-                app.userInterface.messageBox('AI configuration saved successfully!', 'Configuration Saved')
+                app.userInterface.messageBox(
+                    'AI configuration saved successfully!\n\n'
+                    '⚠️ Riavviare l\'addon per applicare le modifiche:\n'
+                    'Scripts and Add-Ins → FurnitureAI → Stop → Run',
+                    'Configuration Saved'
+                )
             else:
                 app = adsk.core.Application.get()
                 app.userInterface.messageBox('Error saving configuration', 'Error')
