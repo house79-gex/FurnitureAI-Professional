@@ -1,6 +1,5 @@
 """
-Gestore UI per FurnitureAI - CON COPIA DINAMICA ICONE
-Usa lo stesso sistema dell'altro add-in: copia le icone in sottocartelle
+Gestore UI per FurnitureAI - CON CLEANUP PANNELLI ESPLICITO
 """
 
 import adsk.core
@@ -18,6 +17,8 @@ class UIManager:
         self.handlers = []
         self.icon_folder = None
         self.addon_path = None
+        # SALVA RIFERIMENTI AI PANNELLI
+        self.panels = []
 
     def create_ui(self):
         try:
@@ -36,7 +37,7 @@ class UIManager:
             self.tab = ws.toolbarTabs.add('FurnitureAI_Tab', 'Furniture AI')
             self.app.log(f"UIManager: tab creata {self.tab.id}")
 
-            # Pannelli
+            # Pannelli - SALVA I RIFERIMENTI
             p_crea      = self.tab.toolbarPanels.add('FAI_Panel_Create',     'Crea')
             p_modifica  = self.tab.toolbarPanels.add('FAI_Panel_Modify',     'Modifica')
             p_mobili    = self.tab.toolbarPanels.add('FAI_Panel_Mobili',     'Mobili')
@@ -44,6 +45,9 @@ class UIManager:
             p_materiali = self.tab.toolbarPanels.add('FAI_Panel_Materiali',  'Materiali')
             p_prod      = self.tab.toolbarPanels.add('FAI_Panel_Produzione', 'Produzione')
             p_config    = self.tab.toolbarPanels.add('FAI_Panel_Config',     'Configura')
+            
+            # MEMORIZZA PANNELLI per cleanup
+            self.panels = [p_crea, p_modifica, p_mobili, p_ante, p_materiali, p_prod, p_config]
             
             self.app.log("UIManager: pannelli creati")
 
@@ -153,7 +157,6 @@ class UIManager:
     def _setup_paths(self):
         """Setup path base addon e icone"""
         try:
-            # Path assoluto dell'addon
             self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             self.icon_folder = os.path.join(self.addon_path, 'resources', 'icons')
             
@@ -168,29 +171,17 @@ class UIManager:
             self.icon_folder = None
 
     def _prepare_command_icons(self, cmd_id):
-        """
-        Prepara le icone per un comando - COPIA DINAMICA come l'altro add-in
-        
-        Struttura source (una delle due):
-        1. resources/icons/FAI_Wizard_16.png + FAI_Wizard_32.png
-        2. resources/icons/16x16.png + 32x32.png (icona generica)
-        
-        Struttura destinazione (creata dinamicamente):
-        resources/icons/FAI_Wizard/16x16.png + 32x32.png
-        """
+        """Prepara le icone per un comando - COPIA DINAMICA"""
         if not self.icon_folder:
             return None
             
         try:
-            # Crea cartella temporanea per questo comando
             cmd_icon_folder = os.path.join(self.icon_folder, cmd_id)
             os.makedirs(cmd_icon_folder, exist_ok=True)
             
-            # File destinazione (naming standard)
             dest16 = os.path.join(cmd_icon_folder, '16x16.png')
             dest32 = os.path.join(cmd_icon_folder, '32x32.png')
             
-            # Prova 1: Icone specifiche del comando (FAI_Wizard_16.png)
             src16_specific = os.path.join(self.icon_folder, f'{cmd_id}_16.png')
             src32_specific = os.path.join(self.icon_folder, f'{cmd_id}_32.png')
             
@@ -200,7 +191,6 @@ class UIManager:
                 self.app.log(f"  Icone copiate (specifiche): {cmd_id}")
                 return cmd_icon_folder
             
-            # Prova 2: Icone generiche (16x16.png fallback)
             src16_generic = os.path.join(self.icon_folder, '16x16.png')
             src32_generic = os.path.join(self.icon_folder, '32x32.png')
             
@@ -210,7 +200,6 @@ class UIManager:
                 self.app.log(f"  Icone copiate (generiche): {cmd_id}")
                 return cmd_icon_folder
             
-            # Nessuna icona trovata
             self.app.log(f"  Nessuna icona trovata per: {cmd_id}")
             return None
             
@@ -219,15 +208,28 @@ class UIManager:
             return None
 
     def cleanup(self):
-        """Cleanup UI"""
+        """Cleanup UI - ORDINE CRITICO: pannelli PRIMA, poi tab, poi comandi"""
         try:
             self.app.log("UIManager: cleanup inizio")
             
+            # 1. ELIMINA PANNELLI ESPLICITAMENTE (PRIMA della tab)
+            panels_removed = 0
+            for panel in self.panels:
+                if panel and panel.isValid:
+                    try:
+                        panel.deleteMe()
+                        panels_removed += 1
+                    except:
+                        pass
+            self.app.log(f"UIManager: pannelli eliminati = {panels_removed}")
+            self.panels = []
+            
+            # 2. ELIMINA TAB (ora vuota)
             if self.tab and self.tab.isValid:
                 self.tab.deleteMe()
                 self.app.log("UIManager: tab eliminata")
             
-            # Rimuovi comandi custom
+            # 3. ELIMINA COMANDI CUSTOM
             cmd_defs = self.ui.commandDefinitions
             custom_ids = [
                 'FAI_Wizard', 'FAI_LayoutIA', 'FAI_MobileBase', 'FAI_Pensile', 'FAI_Colonna',
@@ -243,7 +245,7 @@ class UIManager:
                     cmd.deleteMe()
                     removed += 1
             
-            # Cleanup cartelle icone temporanee
+            # 4. CLEANUP CARTELLE ICONE TEMPORANEE
             if self.icon_folder and os.path.exists(self.icon_folder):
                 for cmd_id in custom_ids:
                     cmd_folder = os.path.join(self.icon_folder, cmd_id)
@@ -271,10 +273,8 @@ class UIManager:
         """Crea comando custom con icone - COPIA DINAMICA"""
         cmd_defs = self.ui.commandDefinitions
         
-        # Prepara icone (copia in sottocartella)
         icon_path = self._prepare_command_icons(cmd_id)
         
-        # Crea comando
         btn = None
         if icon_path:
             try:
@@ -284,12 +284,10 @@ class UIManager:
                 self.app.log(f"  Custom errore: {cmd_id} - {str(e)}")
                 btn = None
         
-        # FALLBACK: senza icone
         if btn is None:
             btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip)
             self.app.log(f"  Custom SENZA icone: {cmd_id}")
         
-        # Handler
         handler = CommandHandler(name, self.app)
         btn.commandCreated.add(handler)
         self.handlers.append(handler)
