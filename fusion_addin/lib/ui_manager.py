@@ -1,5 +1,5 @@
 """
-Gestore UI per FurnitureAI - VERSIONE CON ICONE FUNZIONANTI
+Gestore UI per FurnitureAI - VERSIONE CON ICONE FUNZIONANTI (CORRETTA)
 """
 
 import adsk.core
@@ -26,7 +26,7 @@ class UIManager:
             
             self.app.log(f"UIManager: workspace = {ws.name}")
 
-            # Setup path icone (RELATIVO all'addon)
+            # Setup path icone (ASSOLUTO)
             self._setup_icon_path()
 
             # Crea tab
@@ -148,20 +148,22 @@ class UIManager:
             raise
 
     def _setup_icon_path(self):
-        """Setup path icone RELATIVO alla root dell'addon"""
+        """Setup path icone ASSOLUTO - FUSION RICHIEDE PATH ASSOLUTI"""
         try:
-            # Path relativo che Fusion accetta: ./resources/icons
-            self.icon_folder = './resources/icons'
-            
-            # Verifica che la cartella esista (path assoluto per check)
+            # Ottieni il path assoluto dell'addon
+            # __file__ è in: AddIns/FurnitureAI/src/ui/UIManager.py
+            # Dobbiamo risalire di 3 livelli per arrivare alla root dell'addon
             addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            full_path = os.path.join(addon_path, 'resources', 'icons')
             
-            if os.path.exists(full_path):
-                icon_count = len([f for f in os.listdir(full_path) if f.endswith('.png')])
+            # Path ASSOLUTO alla cartella icone
+            self.icon_folder = os.path.join(addon_path, 'resources', 'icons')
+            
+            # Verifica che la cartella esista
+            if os.path.exists(self.icon_folder):
+                icon_count = len([f for f in os.listdir(self.icon_folder) if f.endswith('.png')])
                 self.app.log(f"Icone: trovate {icon_count} icone in {self.icon_folder}")
             else:
-                self.app.log(f"Icone: cartella non trovata, icone disabilitate")
+                self.app.log(f"Icone: cartella non trovata - {self.icon_folder}")
                 self.icon_folder = None
                 
         except Exception as e:
@@ -208,18 +210,19 @@ class UIManager:
         return False
 
     def _add_custom(self, panel, cmd_id, name, tooltip):
-        """Crea comando custom con icone"""
+        """Crea comando custom con icone - USA PATH ASSOLUTO"""
         cmd_defs = self.ui.commandDefinitions
         
         # Prova CON icone se disponibili
         btn = None
         if self.icon_folder:
-            # Path relativo: ./resources/icons/FAI_Wizard
-            icon_path = f'{self.icon_folder}/{cmd_id}'
+            # Path ASSOLUTO completo all'icona (SENZA estensione .png)
+            # Fusion aggiunge automaticamente _16.png e _32.png
+            icon_path = os.path.join(self.icon_folder, cmd_id)
             
             try:
                 btn = cmd_defs.addButtonDefinition(cmd_id, name, tooltip, icon_path)
-                self.app.log(f"  Custom CON icone: {cmd_id} ✓")
+                self.app.log(f"  Custom CON icone: {cmd_id} -> {icon_path}")
             except Exception as e:
                 self.app.log(f"  Custom FALLBACK per {cmd_id}: {str(e)}")
                 btn = None
