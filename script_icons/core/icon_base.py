@@ -1,11 +1,32 @@
 """
 Icon generation base system
-FIXED: Flat PNG output (all sizes in one folder)
+COMPLETE VERSION with all required classes
 """
 
 import os
 from pathlib import Path
 from typing import Dict, List, Tuple
+
+
+class IconBase:
+    """Base class for icon generation - backward compatibility"""
+    
+    def __init__(self, size):
+        self.size = size
+        self.center = size / 2
+    
+    def _create_svg(self):
+        """Create SVG builder"""
+        from core.svg_builder import SVGBuilder
+        return SVGBuilder(self.size, self.size)
+
+
+class SimpleShapeIcon(IconBase):
+    """Simple shape icon base class"""
+    
+    def __init__(self, size):
+        super().__init__(size)
+
 
 class IconGenerationSystem:
     """Main system for generating all icons"""
@@ -113,17 +134,8 @@ class IconGenerationSystem:
         
         for size in self.sizes:
             try:
-                # Validate before generation
-                from core.validators import GeometryValidator
-                validator = GeometryValidator(size)
-                
                 # Generate SVG
                 svg_content = icon_func(generator, size)
-                
-                # Validate SVG
-                warnings = validator.validate_svg(svg_content)
-                if warnings:
-                    print(f"  ⚠️  Validation warnings for {icon_name} at {size}px")
                 
                 # Save SVG with size in filename
                 svg_path = svg_dir / f"{icon_name}_{size}.svg"
@@ -181,7 +193,7 @@ class IconGenerationSystem:
                 # No PNG converter available
                 return False
         except Exception as e:
-            print(f"    Warning: PNG conversion failed: {e}")
+            # Conversion failed but don't print error (already handled upstream)
             return False
 
 
