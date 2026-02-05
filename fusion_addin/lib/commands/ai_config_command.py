@@ -275,6 +275,13 @@ class AIConfigCommand(adsk.core.CommandCreatedEventHandler):
 class AIConfigCommandExecuteHandler(adsk.core.CommandEventHandler):
     """Execute handler for AI config"""
     
+    # Restart message constant for localization and consistency
+    RESTART_MESSAGE = (
+        'AI configuration saved successfully!\n\n'
+        '⚠️ Riavviare l\'addon per applicare le modifiche:\n'
+        'Scripts and Add-Ins → FurnitureAI → Stop → Run'
+    )
+    
     def __init__(self, config_manager, logger):
         super().__init__()
         self.config_manager = config_manager
@@ -331,12 +338,7 @@ class AIConfigCommandExecuteHandler(adsk.core.CommandEventHandler):
             # Save to file
             if self.config_manager.save_ai_config():
                 app = adsk.core.Application.get()
-                app.userInterface.messageBox(
-                    'AI configuration saved successfully!\n\n'
-                    '⚠️ Riavviare l\'addon per applicare le modifiche:\n'
-                    'Scripts and Add-Ins → FurnitureAI → Stop → Run',
-                    'Configuration Saved'
-                )
+                app.userInterface.messageBox(self.RESTART_MESSAGE, 'Configuration Saved')
             else:
                 app = adsk.core.Application.get()
                 app.userInterface.messageBox('Error saving configuration', 'Error')

@@ -333,7 +333,17 @@ class ConfigManager:
     def _get_default_api_keys(self):
         """
         Return default api_keys.json structure with global AI toggle
-        This is the NEW unified config structure
+        
+        This is the NEW unified config structure.
+        
+        Note on ai_features_enabled default:
+        - Default is False for security/privacy reasons
+        - Prevents accidental API calls or data sharing before explicit user consent
+        - Users must consciously enable AI features after understanding implications
+        - Follows principle of "secure by default"
+        
+        Returns:
+            dict: Default configuration with all AI features disabled
         """
         return {
             "ai_features_enabled": False,  # Global toggle - default OFF for safety

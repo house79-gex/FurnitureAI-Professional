@@ -329,30 +329,10 @@ class UIManager:
                 import json
                 with open(config_file, 'r') as f:
                     config = json.load(f)
-                    
-                    # Check if any provider has credentials or is enabled
-                    has_cloud_api = bool(config.get('cloud', {}).get('openai', {}).get('api_key') or 
-                                       config.get('cloud', {}).get('anthropic', {}).get('api_key'))
-                    has_local_enabled = (config.get('local_lan', {}).get('lmstudio', {}).get('enabled', False) or
-                                       config.get('local_lan', {}).get('ollama', {}).get('enabled', False))
-                    has_remote_enabled = config.get('remote_wan', {}).get('custom_server', {}).get('enabled', False)
-                    
-                    self.ia_enabled = has_cloud_api or has_local_enabled or has_remote_enabled
+                    self.ia_enabled = self._has_configured_provider(config)
             else:
                 # Fallback to old ai_config.json
-                old_config = os.path.join(self.addon_path, 'config', 'ai_config.json')
-                if os.path.exists(old_config):
-                    import json
-                    with open(old_config, 'r') as f:
-                        config = json.load(f)
-                        # Check if any provider is enabled
-                        providers = config.get('providers', {})
-                        for provider_config in providers.values():
-                            if provider_config.get('enabled', False):
-                                self.ia_enabled = True
-                                break
-                else:
-                    self.ia_enabled = False
+                self.ia_enabled = self._check_old_config_format()
             
             status_msg = "✓ DISPONIBILE" if self.ia_enabled else "⚠️ NON CONFIGURATA"
             self.app.log(f"IA status: {status_msg} (global_toggle=ON, provider_configured={self.ia_enabled})")
@@ -360,6 +340,58 @@ class UIManager:
         except Exception as e:
             self.app.log(f"Errore verifica IA: {str(e)}")
             self.ia_enabled = False
+    
+    def _has_configured_provider(self, config):
+        """
+        Helper method to check if any AI provider is configured
+        
+        Args:
+            config: The api_keys.json config dictionary
+        
+        Returns:
+            bool: True if at least one provider is configured
+        """
+        # Check cloud providers (need API keys)
+        cloud_providers = config.get('cloud', {})
+        has_cloud_api = any(
+            provider.get('api_key', '').strip() 
+            for provider in cloud_providers.values()
+        )
+        
+        # Check local providers (just need to be enabled)
+        local_providers = config.get('local_lan', {})
+        has_local_enabled = any(
+            provider.get('enabled', False)
+            for provider in local_providers.values()
+        )
+        
+        # Check remote providers
+        remote_providers = config.get('remote_wan', {})
+        has_remote_enabled = any(
+            provider.get('enabled', False)
+            for provider in remote_providers.values()
+        )
+        
+        return has_cloud_api or has_local_enabled or has_remote_enabled
+    
+    def _check_old_config_format(self):
+        """
+        Fallback check for old ai_config.json format
+        
+        Returns:
+            bool: True if any provider is enabled in old format
+        """
+        old_config = os.path.join(self.addon_path, 'config', 'ai_config.json')
+        if os.path.exists(old_config):
+            import json
+            with open(old_config, 'r') as f:
+                config = json.load(f)
+                providers = config.get('providers', {})
+                return any(
+                    provider_config.get('enabled', False)
+                    for provider_config in providers.values()
+                )
+        return False
 
     def _setup_paths(self):
         """Setup path"""
