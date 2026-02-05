@@ -4,8 +4,12 @@
 PyYAML>=6.0.1
 Pillow>=10.0.0
 
+# Windows-compatible SVG to PNG conversion
+svglib>=1.5.1
+reportlab>=4.0.0
+
 # Optional: For SVG to PNG conversion (choose one)
-# cairosvg>=2.7.0  # Recommended for Linux/macOS
+# cairosvg>=2.7.0  # Recommended for Linux/macOS (requires Cairo DLLs)
 # wand>=0.6.13     # Alternative (requires ImageMagick)
 
 # Testing

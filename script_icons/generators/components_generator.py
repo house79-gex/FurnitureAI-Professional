@@ -10,7 +10,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -508,7 +508,123 @@ class FAI_Zoccolo(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class ComponentsGenerator(IconGenerator):
+    """Generator for Components Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_Designer': self._generate_designer,
+            'FAI_Anta': self._generate_anta,
+            'FAI_Cassetto': self._generate_cassetto,
+            'FAI_Ripiano': self._generate_ripiano,
+            'FAI_Schienale': self._generate_schienale,
+            'FAI_Cornice': self._generate_cornice,
+            'FAI_Cappello': self._generate_cappello,
+            'FAI_Zoccolo': self._generate_zoccolo,
+        }
+    
+    def _generate_designer(self, size):
+        icon = FAI_Designer()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_anta(self, size):
+        icon = FAI_Anta()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_cassetto(self, size):
+        icon = FAI_Cassetto()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_ripiano(self, size):
+        icon = FAI_Ripiano()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_schienale(self, size):
+        icon = FAI_Schienale()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_cornice(self, size):
+        icon = FAI_Cornice()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_cappello(self, size):
+        icon = FAI_Cappello()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_zoccolo(self, size):
+        icon = FAI_Zoccolo()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+
+
+# Export all classes
 __all__ = [
     'FAI_Designer',
     'FAI_Anta',
@@ -517,5 +633,6 @@ __all__ = [
     'FAI_Schienale',
     'FAI_Cornice',
     'FAI_Cappello',
-    'FAI_Zoccolo'
+    'FAI_Zoccolo',
+    'ComponentsGenerator'
 ]

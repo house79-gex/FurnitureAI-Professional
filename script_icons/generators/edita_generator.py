@@ -11,7 +11,7 @@ import math
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -630,7 +630,110 @@ class FAI_ModSolido(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class EditaGenerator(IconGenerator):
+    """Generator for Edita Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_EditaStruttura': self._generate_edita_struttura,
+            'FAI_EditaLayout': self._generate_edita_layout,
+            'FAI_EditaInterno': self._generate_edita_interno,
+            'FAI_EditaAperture': self._generate_edita_aperture,
+            'FAI_ApplicaMateriali': self._generate_applica_materiali,
+            'FAI_DuplicaMobile': self._generate_duplica_mobile,
+            'FAI_ModSolido': self._generate_mod_solido,
+        }
+    
+    def _generate_edita_struttura(self, size):
+        icon = FAI_EditaStruttura()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_edita_layout(self, size):
+        icon = FAI_EditaLayout()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_edita_interno(self, size):
+        icon = FAI_EditaInterno()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_edita_aperture(self, size):
+        icon = FAI_EditaAperture()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_applica_materiali(self, size):
+        icon = FAI_ApplicaMateriali()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_duplica_mobile(self, size):
+        icon = FAI_DuplicaMobile()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_mod_solido(self, size):
+        icon = FAI_ModSolido()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+
+
+# Export all classes
 __all__ = [
     'FAI_EditaStruttura',
     'FAI_EditaLayout',
@@ -638,5 +741,6 @@ __all__ = [
     'FAI_EditaAperture',
     'FAI_ApplicaMateriali',
     'FAI_DuplicaMobile',
-    'FAI_ModSolido'
+    'FAI_ModSolido',
+    'EditaGenerator'
 ]

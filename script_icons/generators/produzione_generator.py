@@ -11,7 +11,7 @@ import math
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -782,7 +782,110 @@ class FAI_Esporta(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class ProduzioneGenerator(IconGenerator):
+    """Generator for Produzione Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_Preventivo': self._generate_preventivo,
+            'FAI_DistintaMateriali': self._generate_distinta_materiali,
+            'FAI_ListaTaglio': self._generate_lista_taglio,
+            'FAI_Nesting': self._generate_nesting,
+            'FAI_Disegni2D': self._generate_disegni_2d,
+            'FAI_Etichette': self._generate_etichette,
+            'FAI_Esporta': self._generate_esporta,
+        }
+    
+    def _generate_preventivo(self, size):
+        icon = FAI_Preventivo()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_distinta_materiali(self, size):
+        icon = FAI_DistintaMateriali()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_lista_taglio(self, size):
+        icon = FAI_ListaTaglio()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_nesting(self, size):
+        icon = FAI_Nesting()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_disegni_2d(self, size):
+        icon = FAI_Disegni2D()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_etichette(self, size):
+        icon = FAI_Etichette()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_esporta(self, size):
+        icon = FAI_Esporta()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+
+
+# Export all classes
 __all__ = [
     'FAI_Preventivo',
     'FAI_DistintaMateriali',
@@ -790,5 +893,6 @@ __all__ = [
     'FAI_Nesting',
     'FAI_Disegni2D',
     'FAI_Etichette',
-    'FAI_Esporta'
+    'FAI_Esporta',
+    'ProduzioneGenerator'
 ]

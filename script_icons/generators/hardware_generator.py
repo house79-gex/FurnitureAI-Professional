@@ -9,7 +9,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.icon_base import IconBase, SimpleShapeIcon
+from core.icon_base import IconBase, SimpleShapeIcon, IconGenerator
 from core.svg_builder import SVGBuilder
 
 
@@ -303,9 +303,61 @@ class FAI_Cataloghi(SimpleShapeIcon):
         return builder
 
 
-# Export all icon classes
+class HardwareGenerator(IconGenerator):
+    """Generator for Hardware Panel icons"""
+    
+    def __init__(self):
+        super().__init__()
+    
+    def get_icons(self):
+        """Return dict of icon names to methods"""
+        return {
+            'FAI_Ferramenta': self._generate_ferramenta,
+            'FAI_Accessori': self._generate_accessori,
+            'FAI_Cataloghi': self._generate_cataloghi,
+        }
+    
+    def _generate_ferramenta(self, size):
+        icon = FAI_Ferramenta()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_accessori(self, size):
+        icon = FAI_Accessori()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+    
+    def _generate_cataloghi(self, size):
+        icon = FAI_Cataloghi()
+        builder = self._create_svg(size)
+        if size == 16:
+            return icon.generate_16px(builder).get_svg()
+        elif size == 32:
+            return icon.generate_32px(builder).get_svg()
+        elif size == 64:
+            return icon.generate_64px(builder).get_svg()
+        else:
+            return icon.generate_128px(builder).get_svg()
+
+
+# Export all classes
 __all__ = [
     'FAI_Ferramenta',
     'FAI_Accessori',
-    'FAI_Cataloghi'
+    'FAI_Cataloghi',
+    'HardwareGenerator'
 ]
