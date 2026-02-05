@@ -24,8 +24,80 @@ class IconBase:
 class SimpleShapeIcon(IconBase):
     """Simple shape icon base class"""
     
-    def __init__(self, size):
-        super().__init__(size)
+    def __init__(self, size=None, name=None, category=None, description=None):
+        """
+        Initialize icon
+        
+        Args:
+            size: Icon size (can be None if set later)
+            name: Icon name
+            category: Icon category/panel
+            description: Icon description
+        """
+        if size is not None:
+            super().__init__(size)
+        self.name = name
+        self.category = category
+        self.description = description
+        
+        # Standard color palette
+        self.colors = {
+            # Primary colors
+            'blue': '#0696D7',
+            'blue_light': '#4AB8E8',
+            'blue_dark': '#0566A7',
+            
+            # Secondary colors
+            'green': '#28A745',
+            'green_light': '#5CB85C',
+            'green_dark': '#1E7A33',
+            
+            'orange': '#FD7E14',
+            'orange_light': '#FFA94D',
+            'orange_dark': '#E8590C',
+            
+            'purple': '#6F42C1',
+            'purple_light': '#9370DB',
+            'purple_dark': '#5A32A3',
+            
+            'red': '#DC3545',
+            'red_light': '#E57373',
+            'red_dark': '#B71C1C',
+            
+            'yellow': '#FFC107',
+            'yellow_light': '#FFD54F',
+            'yellow_dark': '#FFA000',
+            
+            # Grays
+            'black': '#000000',
+            'dark_gray': '#343A40',
+            'medium_gray': '#6C757D',
+            'light_gray': '#ADB5BD',
+            'very_light_gray': '#E9ECEF',
+            'white': '#FFFFFF',
+        }
+    
+    def add_handle(self, builder, x, y, size, style='circle'):
+        """Add a furniture handle"""
+        if style == 'circle':
+            r = max(2, size // 32)
+            builder.add_circle(x, y, r, fill=self.colors['dark_gray'])
+        elif style == 'bar':
+            w = max(4, size // 16)
+            h = max(2, size // 64)
+            builder.add_rect(x - w//2, y - h//2, w, h, fill=self.colors['dark_gray'], rx=h//2)
+    
+    def add_ai_brain(self, builder, x, y, r, size):
+        """Add an AI brain indicator"""
+        builder.add_circle(x, y, r, fill=self.colors['purple'], opacity=0.9)
+        
+        # Add small nodes
+        if size >= 32:
+            import math
+            for angle in [0, 120, 240]:
+                node_x = x + (r * 0.6) * math.cos(math.radians(angle))
+                node_y = y + (r * 0.6) * math.sin(math.radians(angle))
+                builder.add_circle(node_x, node_y, max(1, r // 4), fill=self.colors['white'])
 
 
 class IconGenerationSystem:

@@ -800,89 +800,89 @@ class ProduzioneGenerator(IconGenerator):
             'FAI_Esporta': self._generate_esporta,
         }
     
-    def _generate_preventivo(self, size):
+    def _generate_preventivo(self, generator, size):
         icon = FAI_Preventivo()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_distinta_materiali(self, size):
+    def _generate_distinta_materiali(self, generator, size):
         icon = FAI_DistintaMateriali()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_lista_taglio(self, size):
+    def _generate_lista_taglio(self, generator, size):
         icon = FAI_ListaTaglio()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_nesting(self, size):
+    def _generate_nesting(self, generator, size):
         icon = FAI_Nesting()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_disegni_2d(self, size):
+    def _generate_disegni_2d(self, generator, size):
         icon = FAI_Disegni2D()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_etichette(self, size):
+    def _generate_etichette(self, generator, size):
         icon = FAI_Etichette()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_esporta(self, size):
+    def _generate_esporta(self, generator, size):
         icon = FAI_Esporta()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
 
 
 # Export all classes

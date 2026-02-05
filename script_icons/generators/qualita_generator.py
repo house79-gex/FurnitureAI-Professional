@@ -380,41 +380,41 @@ class QualitaGenerator(IconGenerator):
             'FAI_Viewer': self._generate_viewer,
         }
     
-    def _generate_verifica(self, size):
+    def _generate_verifica(self, generator, size):
         icon = FAI_Verifica()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_render(self, size):
+    def _generate_render(self, generator, size):
         icon = FAI_Render()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_viewer(self, size):
+    def _generate_viewer(self, generator, size):
         icon = FAI_Viewer()
         builder = self._create_svg(size)
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
 
 
 # Export all classes

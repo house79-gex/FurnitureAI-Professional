@@ -463,61 +463,61 @@ class DesignGenerator(IconGenerator):
             'FAI_Template': self._generate_template,
         }
     
-    def _generate_layout_ia(self, size):
+    def _generate_layout_ia(self, generator, size):
         """Generate FAI_LayoutIA icon"""
         icon = FAI_LayoutIA()
         builder = self._create_svg(size)
         
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:  # 128
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_genera_ia(self, size):
+    def _generate_genera_ia(self, generator, size):
         """Generate FAI_GeneraIA icon"""
         icon = FAI_GeneraIA()
         builder = self._create_svg(size)
         
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:  # 128
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_wizard(self, size):
+    def _generate_wizard(self, generator, size):
         """Generate FAI_Wizard icon"""
         icon = FAI_Wizard()
         builder = self._create_svg(size)
         
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:  # 128
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
     
-    def _generate_template(self, size):
+    def _generate_template(self, generator, size):
         """Generate FAI_Template icon"""
         icon = FAI_Template()
         builder = self._create_svg(size)
         
         if size == 16:
-            return icon.generate_16px(builder).get_svg()
+            return icon.generate_16px(builder).to_string()
         elif size == 32:
-            return icon.generate_32px(builder).get_svg()
+            return icon.generate_32px(builder).to_string()
         elif size == 64:
-            return icon.generate_64px(builder).get_svg()
+            return icon.generate_64px(builder).to_string()
         else:  # 128
-            return icon.generate_128px(builder).get_svg()
+            return icon.generate_128px(builder).to_string()
 
 
 # Export all classes
