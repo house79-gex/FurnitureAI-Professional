@@ -1,9 +1,56 @@
 """
 Utility functions for icon generation
+COMPLETE VERSION with all functions
 """
 
 from pathlib import Path
 from typing import Dict
+
+def calculate_contrast_ratio(color1: str, color2: str) -> float:
+    """
+    Calculate WCAG contrast ratio between two colors
+    
+    Args:
+        color1: First color (hex format like '#FFFFFF')
+        color2: Second color (hex format like '#000000')
+        
+    Returns:
+        Contrast ratio (1.0 to 21.0)
+    """
+    def hex_to_rgb(hex_color):
+        """Convert hex color to RGB tuple"""
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+    
+    def relative_luminance(rgb):
+        """Calculate relative luminance"""
+        r, g, b = rgb
+        
+        def adjust(channel):
+            if channel <= 0.03928:
+                return channel / 12.92
+            return ((channel + 0.055) / 1.055) ** 2.4
+        
+        r = adjust(r)
+        g = adjust(g)
+        b = adjust(b)
+        
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    
+    # Convert colors
+    rgb1 = hex_to_rgb(color1)
+    rgb2 = hex_to_rgb(color2)
+    
+    # Calculate luminance
+    l1 = relative_luminance(rgb1)
+    l2 = relative_luminance(rgb2)
+    
+    # Calculate contrast ratio
+    lighter = max(l1, l2)
+    darker = min(l1, l2)
+    
+    return (lighter + 0.05) / (darker + 0.05)
+
 
 def create_preview_html(results: Dict, output_path: Path):
     """
@@ -297,21 +344,6 @@ def create_preview_html(results: Dict, output_path: Path):
 """
     
     # Group icons by panel
-    panels = {}
-    for icon_name, icon_data in results['icons'].items():
-        # Try to determine panel from name prefix or use "Other"
-        panel = "Other"
-        for panel_name in results.get('panels', {}).keys():
-            if icon_name.startswith('FAI_'):
-                # All icons are in panels, will be grouped correctly
-                panel = panel_name
-                break
-        
-        if panel not in panels:
-            panels[panel] = []
-        panels[panel].append((icon_name, icon_data))
-    
-    # Add icon panels
     for panel_name in results.get('panels', {}).keys():
         icons_in_panel = [(name, data) for name, data in results['icons'].items() 
                          if name in results['panels'][panel_name]['icons']]
@@ -347,7 +379,7 @@ def create_preview_html(results: Dict, output_path: Path):
             for size in [16, 32, 64, 128]:
                 if icon_data['sizes'].get(size):
                     display = 'block' if size == 128 else 'none'
-                    html += f'                        <img src="png/{icon_name}_{size}.png" data-size="{size}" style="display: {display};" alt="{icon_name} {size}px">\n'
+                    html += f'                        <img src="svg/{icon_name}_{size}.svg" data-size="{size}" style="display: {display};" alt="{icon_name} {size}px">\n'
             
             html += f"""
                     </div>
@@ -368,7 +400,7 @@ def create_preview_html(results: Dict, output_path: Path):
         <footer>
             <p><strong>FurnitureAI Professional</strong> - Icon Generation System</p>
             <p style="margin-top: 10px; font-size: 0.9em;">
-                Generated with ❤️ by GitHub Copilot Workspace
+                Generated with ❤️ by GitHub Copilot
             </p>
         </footer>
     </div>
@@ -380,11 +412,9 @@ def create_preview_html(results: Dict, output_path: Path):
         
         sizeButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                // Update active button
                 sizeButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 
-                // Show images of selected size
                 const selectedSize = btn.dataset.size;
                 iconImages.forEach(img => {
                     img.style.display = img.dataset.size === selectedSize ? 'block' : 'none';
@@ -419,15 +449,7 @@ def create_preview_html(results: Dict, output_path: Path):
 
 
 def format_file_size(size_bytes: int) -> str:
-    """
-    Format file size in human-readable format
-    
-    Args:
-        size_bytes: Size in bytes
-        
-    Returns:
-        Formatted string (e.g., "1.5 MB")
-    """
+    """Format file size in human-readable format"""
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size_bytes < 1024:
             return f"{size_bytes:.1f} {unit}"
