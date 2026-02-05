@@ -1,302 +1,250 @@
 """
-Base icon class with adaptive scaling logic
+Icon generation base system
+FIXED: Flat PNG output (all sizes in one folder)
 """
 
-import sys
 import os
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Tuple
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from config import COLORS, RESOLUTIONS, DETAIL_LEVELS, VALIDATION_RULES
-from core.svg_builder import SVGBuilder
-from core.utils import scale_value, ensure_min_size
-
-
-class IconBase(ABC):
-    """
-    Base class for all icons with adaptive scaling
-    """
+class IconGenerationSystem:
+    """Main system for generating all icons"""
     
-    def __init__(self, name: str, category: str, description: str):
-        """
-        Initialize icon
+    def __init__(self):
+        """Initialize the icon generation system"""
+        self.sizes = [16, 32, 64, 128]
+        self.output_dir = Path('output')
         
-        Args:
-            name: Icon name (e.g., "FAI_LayoutIA")
-            category: Category/panel name
-            description: Icon description
-        """
-        self.name = name
-        self.category = category
-        self.description = description
-        self.colors = COLORS
-        
-    @abstractmethod
-    def generate_16px(self, builder: SVGBuilder) -> SVGBuilder:
-        """
-        Generate 16x16 minimalist version
-        
-        Args:
-            builder: SVG builder instance
+        # Import all generators
+        self._import_generators()
+    
+    def _import_generators(self):
+        """Import all panel generators"""
+        try:
+            from generators.design_generator import DesignGenerator
+            from generators.components_generator import ComponentsGenerator
+            from generators.edita_generator import EditaGenerator
+            from generators.hardware_generator import HardwareGenerator
+            from generators.lavorazioni_generator import LavorazioniGenerator
+            from generators.qualita_generator import QualitaGenerator
+            from generators.produzione_generator import ProduzioneGenerator
+            from generators.guida_generator import GuidaGenerator
+            from generators.impostazioni_generator import ImpostazioniGenerator
             
-        Returns:
-            Modified builder
-        """
-        pass
-    
-    @abstractmethod
-    def generate_32px(self, builder: SVGBuilder) -> SVGBuilder:
-        """
-        Generate 32x32 balanced version
-        
-        Args:
-            builder: SVG builder instance
-            
-        Returns:
-            Modified builder
-        """
-        pass
-    
-    @abstractmethod
-    def generate_64px(self, builder: SVGBuilder) -> SVGBuilder:
-        """
-        Generate 64x64 balanced version
-        
-        Args:
-            builder: SVG builder instance
-            
-        Returns:
-            Modified builder
-        """
-        pass
-    
-    @abstractmethod
-    def generate_128px(self, builder: SVGBuilder) -> SVGBuilder:
-        """
-        Generate 128x128 detailed version
-        
-        Args:
-            builder: SVG builder instance
-            
-        Returns:
-            Modified builder
-        """
-        pass
-    
-    def generate(self, size: int) -> SVGBuilder:
-        """
-        Generate icon at specified size
-        
-        Args:
-            size: Icon size (16, 32, 64, or 128)
-            
-        Returns:
-            SVG builder with icon
-        """
-        if size not in RESOLUTIONS:
-            raise ValueError(f"Invalid size {size}. Must be one of {RESOLUTIONS}")
-        
-        builder = SVGBuilder(size, size, self.name)
-        
-        if size == 16:
-            return self.generate_16px(builder)
-        elif size == 32:
-            return self.generate_32px(builder)
-        elif size == 64:
-            return self.generate_64px(builder)
-        elif size == 128:
-            return self.generate_128px(builder)
-    
-    def generate_all_sizes(self) -> Dict[int, SVGBuilder]:
-        """
-        Generate icon at all resolutions
-        
-        Returns:
-            Dictionary mapping size to SVG builder
-        """
-        return {size: self.generate(size) for size in RESOLUTIONS}
-    
-    def save_svg(self, size: int, output_dir: str) -> str:
-        """
-        Generate and save SVG file
-        
-        Args:
-            size: Icon size
-            output_dir: Output directory
-            
-        Returns:
-            Path to saved file
-        """
-        builder = self.generate(size)
-        filename = os.path.join(output_dir, f"{self.name}_{size}.svg")
-        builder.save(filename)
-        return filename
-    
-    def save_all_svgs(self, output_dir: str) -> List[str]:
-        """
-        Generate and save all SVG sizes
-        
-        Args:
-            output_dir: Output directory
-            
-        Returns:
-            List of saved file paths
-        """
-        os.makedirs(output_dir, exist_ok=True)
-        return [self.save_svg(size, output_dir) for size in RESOLUTIONS]
-    
-    def get_metadata(self) -> Dict:
-        """
-        Get icon metadata
-        
-        Returns:
-            Metadata dictionary
-        """
-        return {
-            'name': self.name,
-            'category': self.category,
-            'description': self.description,
-            'resolutions': RESOLUTIONS,
-            'detail_levels': {
-                size: DETAIL_LEVELS[size] for size in RESOLUTIONS
+            self.generators = {
+                'Design': DesignGenerator(),
+                'Componenti': ComponentsGenerator(),
+                'Edita': EditaGenerator(),
+                'Hardware': HardwareGenerator(),
+                'Lavorazioni': LavorazioniGenerator(),
+                'Qualità': QualitaGenerator(),
+                'Produzione': ProduzioneGenerator(),
+                'Guida & Info': GuidaGenerator(),
+                'Impostazioni': ImpostazioniGenerator()
             }
+        except ImportError as e:
+            print(f"Warning: Could not import all generators: {e}")
+            self.generators = {}
+    
+    def generate_all(self) -> Dict:
+        """
+        Generate all icons for all panels
+        
+        Returns:
+            Dictionary with generation results
+        """
+        results = {
+            'icons': {},
+            'panels': {}
         }
+        
+        for panel_name, generator in self.generators.items():
+            print(f"\n📂 {panel_name} Panel ({len(generator.get_icons())} icons)")
+            print("-" * 60)
+            
+            panel_results = {
+                'total': len(generator.get_icons()),
+                'successful': 0,
+                'failed': 0,
+                'icons': []
+            }
+            
+            for icon_name, icon_func in generator.get_icons().items():
+                icon_results = self._generate_icon(icon_name, icon_func, generator)
+                results['icons'][icon_name] = icon_results
+                panel_results['icons'].append(icon_name)
+                
+                if all(icon_results['sizes'].values()):
+                    panel_results['successful'] += 1
+                elif any(icon_results['sizes'].values()):
+                    panel_results['successful'] += 0.5
+                    panel_results['failed'] += 0.5
+                else:
+                    panel_results['failed'] += 1
+            
+            results['panels'][panel_name] = panel_results
+        
+        return results
     
-    def get_min_stroke_width(self, size: int) -> float:
+    def _generate_icon(self, icon_name: str, icon_func, generator) -> Dict:
         """
-        Get minimum stroke width for size
+        Generate a single icon at all sizes
+        FIXED: Saves PNG with size in filename to flat directory
         
         Args:
-            size: Icon size
+            icon_name: Name of the icon
+            icon_func: Function to generate the icon
+            generator: Generator instance
             
         Returns:
-            Minimum stroke width
+            Dictionary with generation results for this icon
         """
-        return VALIDATION_RULES['min_stroke_width'].get(size, 1)
+        results = {
+            'name': icon_name,
+            'sizes': {},
+            'errors': {}
+        }
+        
+        svg_dir = self.output_dir / 'svg'
+        png_dir = self.output_dir / 'png'  # FLAT: No size subdirectories
+        
+        svg_dir.mkdir(parents=True, exist_ok=True)
+        png_dir.mkdir(parents=True, exist_ok=True)
+        
+        for size in self.sizes:
+            try:
+                # Validate before generation
+                from core.validators import GeometryValidator
+                validator = GeometryValidator(size)
+                
+                # Generate SVG
+                svg_content = icon_func(generator, size)
+                
+                # Validate SVG
+                warnings = validator.validate_svg(svg_content)
+                if warnings:
+                    print(f"  ⚠️  Validation warnings for {icon_name} at {size}px")
+                
+                # Save SVG with size in filename
+                svg_path = svg_dir / f"{icon_name}_{size}.svg"
+                with open(svg_path, 'w', encoding='utf-8') as f:
+                    f.write(svg_content)
+                
+                # Convert to PNG - FLAT OUTPUT with size in filename
+                png_path = png_dir / f"{icon_name}_{size}.png"
+                
+                if self._convert_to_png(str(svg_path), str(png_path), size):
+                    results['sizes'][size] = True
+                    print(f"  ✓ Generated {icon_name} at {size}×{size}px")
+                else:
+                    results['sizes'][size] = True  # SVG succeeded even if PNG failed
+                    print(f"  ✓ Generated {icon_name} at {size}×{size}px (SVG only)")
+                
+            except Exception as e:
+                results['sizes'][size] = False
+                results['errors'][size] = str(e)
+                print(f"  ✗ Error generating {icon_name} at {size}px: {e}")
+        
+        return results
     
-    def scale_stroke_width(self, base_width: float, from_size: int, to_size: int) -> float:
+    def _convert_to_png(self, svg_path: str, png_path: str, size: int) -> bool:
         """
-        Scale stroke width proportionally while respecting minimums
+        Convert SVG to PNG
         
         Args:
-            base_width: Base stroke width
-            from_size: Source size
-            to_size: Target size
+            svg_path: Path to SVG file
+            png_path: Path to output PNG file
+            size: PNG size
             
         Returns:
-            Scaled stroke width
+            True if conversion succeeded, False otherwise
         """
-        scaled = scale_value(base_width, from_size, to_size)
-        min_width = self.get_min_stroke_width(to_size)
-        return ensure_min_size(scaled, min_width)
-    
-    def get_padding(self, size: int, relative: float = 0.1) -> float:
-        """
-        Get padding for icon at size
-        
-        Args:
-            size: Icon size
-            relative: Relative padding (fraction of size)
-            
-        Returns:
-            Padding in pixels
-        """
-        return max(2, size * relative)
-
-
-class SimpleShapeIcon(IconBase):
-    """
-    Helper class for icons based on simple geometric shapes
-    Provides common shape-building methods
-    """
-    
-    def add_cabinet_shape(self, builder: SVGBuilder, x: float, y: float, 
-                         width: float, height: float, size: int) -> SVGBuilder:
-        """
-        Add a basic cabinet shape
-        
-        Args:
-            builder: SVG builder
-            x, y: Position
-            width, height: Dimensions
-            size: Icon size for stroke scaling
-            
-        Returns:
-            Modified builder
-        """
-        stroke_width = self.get_min_stroke_width(size)
-        
-        # Main cabinet body
-        builder.add_rect(
-            x, y, width, height,
-            fill=self.colors['very_light_gray'],
-            stroke=self.colors['blue'],
-            stroke_width=stroke_width
-        )
-        
-        return builder
-    
-    def add_handle(self, builder: SVGBuilder, x: float, y: float, 
-                   size: int, handle_type: str = 'circle') -> SVGBuilder:
-        """
-        Add a handle to a cabinet/drawer
-        
-        Args:
-            builder: SVG builder
-            x, y: Handle position
-            size: Icon size
-            handle_type: 'circle' or 'bar'
-            
-        Returns:
-            Modified builder
-        """
-        if handle_type == 'circle':
-            r = max(2, size * 0.05)
-            builder.add_circle(x, y, r, fill=self.colors['medium_gray'])
-        elif handle_type == 'bar':
-            bar_width = max(4, size * 0.2)
-            bar_height = max(2, size * 0.03)
-            builder.add_rect(
-                x - bar_width/2, y - bar_height/2,
-                bar_width, bar_height,
-                fill=self.colors['medium_gray'],
-                rx=bar_height/2
+        try:
+            import cairosvg
+            cairosvg.svg2png(
+                url=svg_path,
+                write_to=png_path,
+                output_width=size,
+                output_height=size
             )
-        
-        return builder
+            return True
+        except ImportError:
+            # Try alternative converter
+            try:
+                from svglib.svglib import svg2rlg
+                from reportlab.graphics import renderPM
+                
+                drawing = svg2rlg(svg_path)
+                renderPM.drawToFile(drawing, png_path, fmt='PNG', dpi=72)
+                return True
+            except ImportError:
+                # No PNG converter available
+                return False
+        except Exception as e:
+            print(f"    Warning: PNG conversion failed: {e}")
+            return False
+
+
+class IconGenerator:
+    """Base class for icon generators"""
     
-    def add_ai_brain(self, builder: SVGBuilder, cx: float, cy: float, 
-                     radius: float, size: int) -> SVGBuilder:
+    def __init__(self):
+        """Initialize generator"""
+        pass
+    
+    def get_icons(self) -> Dict:
         """
-        Add AI brain symbol
+        Get dictionary of icon names to generation functions
+        Must be implemented by subclasses
+        
+        Returns:
+            Dictionary mapping icon names to generator functions
+        """
+        raise NotImplementedError("Subclasses must implement get_icons()")
+    
+    def _create_svg(self, size: int) -> 'SVGBuilder':
+        """
+        Create SVG builder for given size
         
         Args:
-            builder: SVG builder
-            cx, cy: Center position
-            radius: Brain radius
             size: Icon size
             
         Returns:
-            Modified builder
+            SVGBuilder instance
         """
-        # Brain circle
-        builder.add_circle(
-            cx, cy, radius,
-            fill=self.colors['purple'],
-            opacity=0.9
-        )
+        from core.svg_builder import SVGBuilder
+        return SVGBuilder(size, size)
+    
+    def _get_scaled_value(self, base_value: float, size: int, 
+                         base_size: int = 32) -> float:
+        """
+        Get value scaled for icon size
         
-        # Add nodes if size permits
-        if size >= 32:
-            node_r = max(1, radius * 0.2)
-            # Add small neural network nodes
-            for angle in [0, 120, 240]:
-                import math
-                node_x = cx + radius * 0.5 * math.cos(math.radians(angle))
-                node_y = cy + radius * 0.5 * math.sin(math.radians(angle))
-                builder.add_circle(node_x, node_y, node_r, fill=self.colors['white'])
+        Args:
+            base_value: Value at base size
+            size: Target size
+            base_size: Base size (default 32)
+            
+        Returns:
+            Scaled value
+        """
+        return base_value * (size / base_size)
+    
+    def _get_stroke_width(self, size: int) -> float:
+        """
+        Get appropriate stroke width for size
         
-        return builder
+        Args:
+            size: Icon size
+            
+        Returns:
+            Stroke width
+        """
+        if size <= 16:
+            return 2
+        elif size <= 32:
+            return 1.5
+        elif size <= 64:
+            return 1
+        else:
+            return 0.75
