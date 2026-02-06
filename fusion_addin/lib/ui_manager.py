@@ -402,7 +402,7 @@ class UIManager:
         Controlla ogni 1 secondo se tab Furniture AI è attivo
         """
         def monitor():
-            max_checks = 300  # 5 minuti max
+            max_checks = 60  # 1 minuto max (ridotto da 300)
             checks = 0
             
             while checks < max_checks:
@@ -414,22 +414,8 @@ class UIManager:
                     if self.tab and self.tab.isActive:
                         self.app.log("🎯 Tab Furniture AI attivato (first run)")
                         
-                        # Apri dialog con delay
-                        time.sleep(0.5)
-                        
-                        # ✅ CHIAMATA DIRETTA alla classe comando
-                        addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                        commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
-                        if commands_path not in sys.path:
-                            sys.path.insert(0, commands_path)
-                        
-                        import configura_ia
-                        
-                        # Esegui direttamente
-                        cmd = configura_ia.ConfiguraIACommand()
-                        cmd.execute()
-                        
-                        self.app.log("✓ Dialog Configura IA aperto (primo accesso tab)")
+                        # Apri dialog immediato (no delay)
+                        self._open_configura_ia_direct()
                         
                         break  # Esci dal loop
                         
@@ -441,6 +427,29 @@ class UIManager:
         thread = threading.Thread(target=monitor)
         thread.daemon = True
         thread.start()
+    
+    def _open_configura_ia_direct(self):
+        """Apri dialog Configura IA direttamente (no delay)"""
+        try:
+            self.app.log("🚀 Apertura Configura IA (direct)...")
+            
+            # ✅ CHIAMATA DIRETTA alla classe comando
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+            if commands_path not in sys.path:
+                sys.path.insert(0, commands_path)
+            
+            import configura_ia
+            
+            # Esegui direttamente
+            cmd = configura_ia.ConfiguraIACommand()
+            cmd.execute()
+            
+            self.app.log("✓ Dialog Configura IA aperto (direct)")
+            
+        except Exception as e:
+            self.app.log(f"✗ Errore apertura dialog: {e}")
+            self.app.log(traceback.format_exc())
 
 
 # ========== HANDLER CLASSES ==========
