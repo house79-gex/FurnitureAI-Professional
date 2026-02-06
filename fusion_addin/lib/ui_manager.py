@@ -1,10 +1,11 @@
 """
-Gestore UI per FurnitureAI - VERSIONE FINALE CORRETTA
+Gestore UI per FurnitureAI - VERSIONE FINALE
 - Fix import assoluto (NO import relativi)
 - Sistema tooltip avanzato stile Fusion
 - Help integrato con F1
 - ConfigManager integrato con toggle globale IA
-- Routing comando ConfiguraIA funzionante
+- Routing comandi implementati
+- Handler first run intelligente
 """
 
 import adsk.core
@@ -13,6 +14,8 @@ import traceback
 import os
 import shutil
 import sys
+import threading
+import time
 
 class UIManager:
     def __init__(self, logger, ui):
@@ -222,26 +225,20 @@ class UIManager:
             if not self.ia_enabled:
                 self.app.log("ATTENZIONE: Comandi IA disabilitati")
 
-            # ===== FIRST RUN: Apri automaticamente Configura IA =====
+            # ===== FIRST RUN: Registra handler click tab (solo se startup manuale) =====
             if self.is_first_run:
-                self.app.log("🚀 FIRST RUN: Apertura automatica Configura IA...")
+                prefs = self.config_manager.get_preferences()
+                startup_auto = prefs.get('startup', {}).get('auto_setup_enabled', False)
                 
-                # Usa timer per aprire dopo che UI è completamente caricata
-                import threading
-                def open_config_delayed():
-                    import time
-                    time.sleep(1)
-                    
-                    try:
-                        cmd_def = self.ui.commandDefinitions.itemById('FAI_ConfiguraIA')
-                        if cmd_def:
-                            cmd_def.execute()
-                            self.app.log("✓ Dialog Configura IA aperto automaticamente")
-                    except Exception as e:
-                        self.app.log(f"✗ Errore apertura auto Configura IA: {e}")
-                
-                thread = threading.Thread(target=open_config_delayed)
-                thread.start()
+                if not startup_auto:
+                    # Startup MANUALE: apri dialog al click tab
+                    on_activated = TabActivatedHandler(self.ui, self.is_first_run)
+                    self.tab.activated.add(on_activated)
+                    self.handlers.append(on_activated)
+                    self.app.log("🎯 FIRST RUN (manuale): Dialog si aprirà al click tab")
+                else:
+                    # Startup AUTO: dialog sarà aperto da StartupManager
+                    self.app.log("🚀 FIRST RUN (auto): Dialog sarà aperto da StartupManager")
 
         except Exception as e:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
@@ -399,6 +396,44 @@ class UIManager:
         panel.controls.addCommand(btn)
 
 
+class TabActivatedHandler(adsk.core.WorkspaceEventHandler):
+    """Handler attivazione tab Furniture AI (first run manuale)"""
+    
+    def __init__(self, ui, is_first_run):
+        super().__init__()
+        self.ui = ui
+        self.is_first_run = is_first_run
+        self.already_opened = False
+    
+    def notify(self, args):
+        """Apri Configura IA al primo click su tab"""
+        if self.is_first_run and not self.already_opened:
+            self.already_opened = True
+            
+            try:
+                app = adsk.core.Application.get()
+                app.log("🎯 Tab Furniture AI cliccato per la prima volta")
+                
+                def open_config_delayed():
+                    time.sleep(0.5)
+                    
+                    try:
+                        cmd_def = self.ui.commandDefinitions.itemById('FAI_ConfiguraIA')
+                        if cmd_def:
+                            cmd_def.execute()
+                            app.log("✓ Dialog Configura IA aperto (click tab)")
+                    except Exception as e:
+                        app.log(f"✗ Errore apertura dialog: {e}")
+                
+                thread = threading.Thread(target=open_config_delayed)
+                thread.daemon = True
+                thread.start()
+                
+            except Exception as e:
+                app = adsk.core.Application.get()
+                app.log(f"Errore handler tab: {e}")
+
+
 class CommandHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False):
         super().__init__()
@@ -431,13 +466,16 @@ class ExecHandler(adsk.core.CommandEventHandler):
         self.app = app
         
     def notify(self, args):
+        # ===== ROUTING COMANDI IMPLEMENTATI =====
+        
+        # Configura IA
         if self.cmd_id == 'FAI_ConfiguraIA':
             try:
                 import sys
                 import os
                 
                 addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                commands_path = os.path.join(addon_path, 'fusion_addin', 'commands')
+                commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
                 if commands_path not in sys.path:
                     sys.path.insert(0, commands_path)
                 
@@ -445,9 +483,28 @@ class ExecHandler(adsk.core.CommandEventHandler):
                 configura_ia.run(None)
                 return
             except Exception as e:
-                self.app.userInterface.messageBox(f'Errore:\n{str(e)}')
+                self.app.userInterface.messageBox(f'Errore:\n{str(e)}\n{traceback.format_exc()}')
                 return
         
+        # Preferenze
+        if self.cmd_id == 'FAI_Preferenze':
+            try:
+                import sys
+                import os
+                
+                addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+                if commands_path not in sys.path:
+                    sys.path.insert(0, commands_path)
+                
+                import preferenze_command
+                preferenze_command.run(None)
+                return
+            except Exception as e:
+                self.app.userInterface.messageBox(f'Errore:\n{str(e)}\n{traceback.format_exc()}')
+                return
+        
+        # ===== ALTRI COMANDI (placeholder) =====
         self.app.userInterface.messageBox(
             f'{self.name}\n\nFunzionalità in sviluppo', 
             'FurnitureAI'
