@@ -29,6 +29,9 @@ class ConfiguraIACommand:
     def execute(self):
         """Esegui comando"""
         try:
+            self.app.log("🚀 ConfiguraIA: execute() chiamato")
+            self.app.log(f"📊 First run: {self.config_manager.is_first_run()}")
+            
             # Crea command definition
             cmd_def = self.ui.commandDefinitions.itemById('FAI_ConfiguraIA_Dialog')
             if not cmd_def:
@@ -37,15 +40,21 @@ class ConfiguraIACommand:
                     'Configura IA',
                     'Configurazione provider intelligenza artificiale'
                 )
+                self.app.log("✓ Command definition creato")
+            else:
+                self.app.log("✓ Command definition esistente trovato")
             
             # Handler
             on_command_created = ConfiguraIACommandCreatedHandler(self.config_manager, self.config)
             cmd_def.commandCreated.add(on_command_created)
             
             # Esegui
+            self.app.log("🎯 Esecuzione dialog...")
             cmd_def.execute()
+            self.app.log("✓ Dialog eseguito")
             
         except Exception as e:
+            self.app.log(f"❌ Errore comando Configura IA: {e}")
             self.ui.messageBox(f'Errore comando Configura IA:\n{traceback.format_exc()}')
 
 
@@ -272,7 +281,160 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             # Test Locale
             tab_local_inputs.addBoolValueInput('test_local', '🔍 Test Connessione PC Locale', False, '', False)
             
-            # ===== TAB 2: INTERNET (REMOTO) =====
+            # ===== TAB 2: CLOUD GRATIS (NUOVO) =====
+            tab_free = inputs.addTabCommandInput('tab_free', '🆓 Cloud Gratis')
+            tab_free_inputs = tab_free.children
+            
+            tab_free_inputs.addTextBoxCommandInput(
+                'free_info',
+                '',
+                '<b>🆓 Provider Cloud GRATUITI</b>\n\n'
+                '<b>💡 Perfetto per iniziare senza costi!</b>\n\n'
+                '<b>Vantaggi:</b>\n'
+                '✓ 100% Gratis (limiti giornalieri generosi)\n'
+                '✓ Nessuna carta di credito richiesta\n'
+                '✓ Qualità eccellente\n'
+                '✓ Setup in 2 minuti\n\n'
+                '<b>Provider disponibili:</b>\n'
+                '• <b>⚡ Groq:</b> Chat velocissimo (14,400 req/giorno)\n'
+                '• <b>🤗 HuggingFace:</b> Vision + Image Gen + Chat\n\n'
+                '<i>Consigliato per provare le funzionalità IA gratuitamente</i>',
+                9,
+                True
+            )
+            
+            # Groq
+            group_groq = tab_free_inputs.addGroupCommandInput('group_groq', '⚡ Groq (Chat Veloce)')
+            group_groq_inputs = group_groq.children
+            
+            groq_enabled_default = False
+            groq_key_default = ""
+            groq_model_default = "llama-3.3-70b-versatile"
+            
+            if not is_first_run and self.config:
+                groq_enabled_default = self.config.get('cloud', {}).get('groq', {}).get('enabled', False)
+                groq_key_default = self.config.get('cloud', {}).get('groq', {}).get('api_key', "")
+                groq_model_default = self.config.get('cloud', {}).get('groq', {}).get('model_text', groq_model_default)
+            
+            group_groq_inputs.addBoolValueInput(
+                'groq_enabled',
+                'Abilita Groq',
+                True,
+                '',
+                groq_enabled_default
+            )
+            
+            groq_key_input = group_groq_inputs.addStringValueInput(
+                'groq_key',
+                'API Key',
+                groq_key_default
+            )
+            
+            group_groq_inputs.addStringValueInput(
+                'groq_model',
+                'Modello',
+                groq_model_default
+            )
+            
+            group_groq_inputs.addTextBoxCommandInput(
+                'groq_help',
+                '',
+                '<b>🔑 Come ottenere API Key GRATIS:</b>\n'
+                '1. Vai su https://console.groq.com\n'
+                '2. Crea account (no carta credito)\n'
+                '3. API Keys → Create API Key\n'
+                '4. Copia chiave e incolla qui\n\n'
+                '<b>⚡ Caratteristiche:</b>\n'
+                '• 14,400 richieste/giorno GRATIS\n'
+                '• Velocità: ~500 token/secondo (incredibile!)\n'
+                '• Modelli: Llama 3.3 70B, Mixtral, etc.\n'
+                '• Qualità eccellente\n\n'
+                '<b>💰 Costi:</b> $0 (completamente gratis)\n\n'
+                '<b>Modelli disponibili:</b>\n'
+                '• llama-3.3-70b-versatile (consigliato)\n'
+                '• llama-3.1-70b-versatile\n'
+                '• mixtral-8x7b-32768',
+                11,
+                True
+            )
+            
+            # HuggingFace
+            group_hf = tab_free_inputs.addGroupCommandInput('group_hf', '🤗 HuggingFace (Vision + Image Gen)')
+            group_hf_inputs = group_hf.children
+            
+            hf_enabled_default = False
+            hf_token_default = ""
+            hf_model_text_default = "meta-llama/Llama-3.1-8B-Instruct"
+            hf_model_vision_default = "Salesforce/blip-image-captioning-large"
+            hf_model_image_default = "stabilityai/stable-diffusion-xl-base-1.0"
+            
+            if not is_first_run and self.config:
+                hf_config = self.config.get('cloud', {}).get('huggingface', {})
+                hf_enabled_default = hf_config.get('enabled', False)
+                hf_token_default = hf_config.get('token', "")
+                hf_models = hf_config.get('models', {})
+                hf_model_text_default = hf_models.get('text', hf_model_text_default)
+                hf_model_vision_default = hf_models.get('vision', hf_model_vision_default)
+                hf_model_image_default = hf_models.get('image_gen', hf_model_image_default)
+            
+            group_hf_inputs.addBoolValueInput(
+                'hf_enabled',
+                'Abilita HuggingFace',
+                True,
+                '',
+                hf_enabled_default
+            )
+            
+            hf_token_input = group_hf_inputs.addStringValueInput(
+                'hf_token',
+                'Access Token',
+                hf_token_default
+            )
+            
+            group_hf_inputs.addStringValueInput(
+                'hf_model_text',
+                'Modello Text',
+                hf_model_text_default
+            )
+            
+            group_hf_inputs.addStringValueInput(
+                'hf_model_vision',
+                'Modello Vision',
+                hf_model_vision_default
+            )
+            
+            group_hf_inputs.addStringValueInput(
+                'hf_model_image',
+                'Modello Image Gen',
+                hf_model_image_default
+            )
+            
+            group_hf_inputs.addTextBoxCommandInput(
+                'hf_help',
+                '',
+                '<b>🔑 Come ottenere Access Token GRATIS:</b>\n'
+                '1. Vai su https://huggingface.co/settings/tokens\n'
+                '2. Crea account (no carta credito)\n'
+                '3. New token → Read access\n'
+                '4. Copia token e incolla qui\n\n'
+                '<b>🎨 Funzionalità:</b>\n'
+                '• Chat testuale (Llama, Mistral, etc.)\n'
+                '• Vision: Analisi immagini mobili\n'
+                '• Image Gen: Genera concept da testo\n'
+                '• Migliaia di modelli disponibili\n\n'
+                '<b>💰 Costi:</b> $0 (completamente gratis)\n'
+                '  • Inference API gratis (con rate limit)\n'
+                '  • Modelli open source illimitati\n\n'
+                '<b>📌 Nota:</b> Primi utilizzi possono richiedere 20s\n'
+                '  (warm-up modello), poi istantaneo',
+                12,
+                True
+            )
+            
+            # Test Free Cloud
+            tab_free_inputs.addBoolValueInput('test_free', '🔍 Test Connessione Provider Gratis', False, '', False)
+            
+            # ===== TAB 3: INTERNET (REMOTO) =====
             tab_remote = inputs.addTabCommandInput('tab_remote', '🌐 Internet (Remoto)')
             tab_remote_inputs = tab_remote.children
             
@@ -342,8 +504,8 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
             tab_remote_inputs.addBoolValueInput('test_remote', '🔍 Test Connessione Internet', False, '', False)
             
-            # ===== TAB 3: CLOUD ESTERNO =====
-            tab_cloud = inputs.addTabCommandInput('tab_cloud', '☁️ Cloud Esterno')
+            # ===== TAB 4: CLOUD PREMIUM =====
+            tab_cloud = inputs.addTabCommandInput('tab_cloud', '☁️ Cloud Premium')
             tab_cloud_inputs = tab_cloud.children
             
             tab_cloud_inputs.addTextBoxCommandInput(
@@ -501,6 +663,14 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         if self.config.get('local_lan', {}).get('ollama', {}).get('enabled'):
             status += "  ✓ Ollama (PC Locale)\n"
         
+        # Groq
+        if self.config.get('cloud', {}).get('groq', {}).get('enabled'):
+            status += "  ✓ Groq (Cloud Gratis)\n"
+        
+        # HuggingFace
+        if self.config.get('cloud', {}).get('huggingface', {}).get('enabled'):
+            status += "  ✓ HuggingFace (Cloud Gratis)\n"
+        
         # Server Remoto
         if self.config.get('remote_wan', {}).get('custom_server', {}).get('enabled'):
             status += "  ✓ Server Remoto (Internet)\n"
@@ -516,6 +686,8 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         if not any([
             self.config.get('local_lan', {}).get('lmstudio', {}).get('enabled'),
             self.config.get('local_lan', {}).get('ollama', {}).get('enabled'),
+            self.config.get('cloud', {}).get('groq', {}).get('enabled'),
+            self.config.get('cloud', {}).get('huggingface', {}).get('enabled'),
             self.config.get('remote_wan', {}).get('custom_server', {}).get('enabled'),
             self.config.get('cloud', {}).get('openai', {}).get('enabled'),
             self.config.get('cloud', {}).get('anthropic', {}).get('enabled')
@@ -538,6 +710,8 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
             
             if changed_input.id == 'test_local':
                 self._test_local(args.inputs)
+            elif changed_input.id == 'test_free':
+                self._test_free(args.inputs)
             elif changed_input.id == 'test_remote':
                 self._test_remote(args.inputs)
             elif changed_input.id == 'test_cloud':
@@ -586,6 +760,77 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
             result += "Nessun server locale abilitato"
         
         app.userInterface.messageBox(result, 'Test Server Locale')
+    
+    def _test_free(self, inputs):
+        """Test provider gratuiti (Groq, HuggingFace)"""
+        app = adsk.core.Application.get()
+        
+        result = "🔍 TEST PROVIDER GRATUITI\n\n"
+        
+        # Test Groq
+        if inputs.itemById('groq_enabled').value:
+            api_key = inputs.itemById('groq_key').value
+            if api_key:
+                result += "⚡ Groq:\n"
+                try:
+                    import requests
+                    headers = {
+                        'Authorization': f'Bearer {api_key}',
+                        'Content-Type': 'application/json'
+                    }
+                    payload = {
+                        "model": inputs.itemById('groq_model').value,
+                        "messages": [{"role": "user", "content": "Test"}],
+                        "max_tokens": 10
+                    }
+                    response = requests.post(
+                        'https://api.groq.com/openai/v1/chat/completions',
+                        headers=headers,
+                        json=payload,
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        result += "  ✓ API Key valida\n  ✓ Connessione OK\n  ✓ Velocità: Incredibile!\n"
+                    elif response.status_code == 401:
+                        result += "  ✗ API Key non valida\n  Verifica chiave copiata correttamente\n"
+                    else:
+                        result += f"  ✗ Errore: {response.status_code}\n"
+                except Exception as e:
+                    result += f"  ✗ Errore connessione\n"
+            else:
+                result += "⚡ Groq: API Key non inserita\n"
+        
+        # Test HuggingFace
+        if inputs.itemById('hf_enabled').value:
+            token = inputs.itemById('hf_token').value
+            if token:
+                result += "\n🤗 HuggingFace:\n"
+                try:
+                    import requests
+                    headers = {'Authorization': f'Bearer {token}'}
+                    
+                    # Test con modello leggero
+                    response = requests.post(
+                        'https://api-inference.huggingface.co/models/gpt2',
+                        headers=headers,
+                        json={"inputs": "Test"},
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        result += "  ✓ Token valido\n  ✓ Connessione OK\n  ✓ Accesso a migliaia di modelli!\n"
+                    elif response.status_code == 401:
+                        result += "  ✗ Token non valido\n  Verifica token copiato correttamente\n"
+                    else:
+                        result += f"  ✗ Errore: {response.status_code}\n"
+                except Exception as e:
+                    result += f"  ✗ Errore connessione\n"
+            else:
+                result += "\n🤗 HuggingFace: Token non inserito\n"
+        
+        if not inputs.itemById('groq_enabled').value and not inputs.itemById('hf_enabled').value:
+            result += "Nessun provider gratuito abilitato"
+        
+        app.userInterface.messageBox(result, 'Test Provider Gratuiti')
     
     def _test_remote(self, inputs):
         """Test server remoto"""
@@ -707,6 +952,24 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
                             "api_key": "",
                             "model": "claude-3-5-sonnet-20241022",
                             "enabled": False
+                        },
+                        "groq": {
+                            "api_key": "",
+                            "base_url": "https://api.groq.com/openai/v1",
+                            "model_text": "llama-3.3-70b-versatile",
+                            "enabled": False,
+                            "timeout": 30
+                        },
+                        "huggingface": {
+                            "token": "",
+                            "base_url": "https://api-inference.huggingface.co",
+                            "models": {
+                                "text": "meta-llama/Llama-3.1-8B-Instruct",
+                                "vision": "Salesforce/blip-image-captioning-large",
+                                "image_gen": "stabilityai/stable-diffusion-xl-base-1.0"
+                            },
+                            "enabled": False,
+                            "timeout": 60
                         }
                     },
                     "local_lan": {
@@ -758,6 +1021,18 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             self.config['local_lan']['ollama']['model_text'] = inputs.itemById('ollama_model_text').value
             self.config['local_lan']['ollama']['model_vision'] = inputs.itemById('ollama_model_vision').value
             
+            # Groq
+            self.config['cloud']['groq']['enabled'] = inputs.itemById('groq_enabled').value
+            self.config['cloud']['groq']['api_key'] = inputs.itemById('groq_key').value
+            self.config['cloud']['groq']['model_text'] = inputs.itemById('groq_model').value
+            
+            # HuggingFace
+            self.config['cloud']['huggingface']['enabled'] = inputs.itemById('hf_enabled').value
+            self.config['cloud']['huggingface']['token'] = inputs.itemById('hf_token').value
+            self.config['cloud']['huggingface']['models']['text'] = inputs.itemById('hf_model_text').value
+            self.config['cloud']['huggingface']['models']['vision'] = inputs.itemById('hf_model_vision').value
+            self.config['cloud']['huggingface']['models']['image_gen'] = inputs.itemById('hf_model_image').value
+            
             # Server Custom
             self.config['remote_wan']['custom_server']['enabled'] = inputs.itemById('custom_enabled').value
             self.config['remote_wan']['custom_server']['base_url'] = inputs.itemById('custom_url').value
@@ -783,6 +1058,8 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
                     has_provider = (
                         inputs.itemById('lmstudio_enabled').value or
                         inputs.itemById('ollama_enabled').value or
+                        (inputs.itemById('groq_enabled').value and inputs.itemById('groq_key').value) or
+                        (inputs.itemById('hf_enabled').value and inputs.itemById('hf_token').value) or
                         inputs.itemById('custom_enabled').value or
                         (inputs.itemById('openai_enabled').value and inputs.itemById('openai_key').value) or
                         (inputs.itemById('anthropic_enabled').value and inputs.itemById('anthropic_key').value)
