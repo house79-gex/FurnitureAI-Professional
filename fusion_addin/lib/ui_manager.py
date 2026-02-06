@@ -224,26 +224,22 @@ class UIManager:
             if not self.ia_enabled:
                 self.app.log("ATTENZIONE: Comandi IA disabilitati")
 
-            # ===== FIRST RUN: Registra handler click tab (solo se startup manuale) =====
+            # ===== FIRST RUN: Monitora attivazione tab (solo se startup manuale) =====
             if self.is_first_run and self.config_manager:
                 prefs = self.config_manager.get_preferences()
                 startup_auto = prefs.get('startup', {}).get('auto_setup_enabled', False)
                 
                 if not startup_auto:
-                    # Startup MANUALE: apri dialog al click tab
-                    on_activated = TabActivatedHandler(self.ui, self.is_first_run)
-                    self.tab.activated.add(on_activated)
-                    self.handlers.append(on_activated)
-                    self.app.log("🎯 FIRST RUN (manuale): Dialog si aprirà al click tab")
+                    # Startup MANUALE: usa timer per monitorare attivazione tab
+                    self._start_first_run_monitor()
+                    self.app.log("🎯 FIRST RUN (manuale): Dialog si aprirà quando tab sarà attivo")
                 else:
                     # Startup AUTO: dialog sarà aperto da StartupManager
                     self.app.log("🚀 FIRST RUN (auto): Dialog sarà aperto da StartupManager")
             elif self.is_first_run and not self.config_manager:
                 # Fallback: config_manager non disponibile
-                on_activated = TabActivatedHandler(self.ui, self.is_first_run)
-                self.tab.activated.add(on_activated)
-                self.handlers.append(on_activated)
-                self.app.log("⚠️ ConfigManager non disponibile, uso handler click tab")
+                self._start_first_run_monitor()
+                self.app.log("⚠️ ConfigManager non disponibile, uso monitor timer")
 
         except Exception as e:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
@@ -400,46 +396,44 @@ class UIManager:
         self.handlers.append(handler)
         panel.controls.addCommand(btn)
 
-
-# ========== HANDLER CLASSES ==========
-
-class TabActivatedHandler(adsk.core.WorkspaceEventHandler):
-    """Handler attivazione tab Furniture AI (first run manuale)"""
-    
-    def __init__(self, ui, is_first_run):
-        super().__init__()
-        self.ui = ui
-        self.is_first_run = is_first_run
-        self.already_opened = False
-    
-    def notify(self, args):
-        """Apri Configura IA al primo click su tab"""
-        if self.is_first_run and not self.already_opened:
-            self.already_opened = True
+    def _start_first_run_monitor(self):
+        """
+        Monitora attivazione tab con timer (first run manuale)
+        Controlla ogni 1 secondo se tab Furniture AI è attivo
+        """
+        def monitor():
+            max_checks = 300  # 5 minuti max
+            checks = 0
             
-            try:
-                app = adsk.core.Application.get()
-                app.log("🎯 Tab Furniture AI cliccato per la prima volta")
+            while checks < max_checks:
+                time.sleep(1)
+                checks += 1
                 
-                def open_config_delayed():
-                    time.sleep(0.5)
-                    
-                    try:
+                try:
+                    # Check se tab è attivo
+                    if self.tab and self.tab.isActive:
+                        self.app.log("🎯 Tab Furniture AI attivato (first run)")
+                        
+                        # Apri dialog con delay
+                        time.sleep(0.5)
+                        
                         cmd_def = self.ui.commandDefinitions.itemById('FAI_ConfiguraIA')
                         if cmd_def:
                             cmd_def.execute()
-                            app.log("✓ Dialog Configura IA aperto (click tab)")
-                    except Exception as e:
-                        app.log(f"✗ Errore apertura dialog: {e}")
-                
-                thread = threading.Thread(target=open_config_delayed)
-                thread.daemon = True
-                thread.start()
-                
-            except Exception as e:
-                app = adsk.core.Application.get()
-                app.log(f"Errore handler tab: {e}")
+                            self.app.log("✓ Dialog Configura IA aperto (primo accesso tab)")
+                        
+                        break  # Esci dal loop
+                        
+                except Exception as e:
+                    self.app.log(f"Errore monitor first run: {e}")
+                    break
+        
+        thread = threading.Thread(target=monitor)
+        thread.daemon = True
+        thread.start()
 
+
+# ========== HANDLER CLASSES ==========
 
 class CommandHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False):
