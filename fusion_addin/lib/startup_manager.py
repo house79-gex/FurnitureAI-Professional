@@ -28,7 +28,7 @@ class StartupManager:
             startup_prefs = prefs.get('startup', {})
             
             # ===== CHECK: Startup automatico abilitato? =====
-            auto_enabled = startup_prefs.get('auto_setup_enabled', False)
+            auto_enabled = startup_prefs.get('auto_setup_enabled', True)
             
             if auto_enabled:
                 # Applica workspace settings (Assembly + Tab)

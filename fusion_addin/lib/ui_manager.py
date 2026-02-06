@@ -398,14 +398,14 @@ class UIManager:
 
     def _start_first_run_monitor(self):
         """
-        Monitora attivazione tab (first run manuale)
-        Usa threading per non bloccare UI
+        Monitors tab activation (manual first run)
+        Uses threading to avoid blocking UI
         """
         import threading
         import time
         
         def monitor():
-            max_checks = 60  # 1 minuto max (ridotto da 5)
+            max_checks = 60  # 1 minute max (reduced from 5)
             checks = 0
             
             self.app.log("⏱️ Monitor tab avviato, attendo attivazione...")
