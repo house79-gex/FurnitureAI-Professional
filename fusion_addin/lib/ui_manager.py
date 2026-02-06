@@ -417,15 +417,25 @@ class UIManager:
                         # Apri dialog con delay
                         time.sleep(0.5)
                         
-                        cmd_def = self.ui.commandDefinitions.itemById('FAI_ConfiguraIA')
-                        if cmd_def:
-                            cmd_def.execute()
-                            self.app.log("✓ Dialog Configura IA aperto (primo accesso tab)")
+                        # ✅ CHIAMATA DIRETTA alla classe comando
+                        addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                        commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+                        if commands_path not in sys.path:
+                            sys.path.insert(0, commands_path)
+                        
+                        import configura_ia
+                        
+                        # Esegui direttamente
+                        cmd = configura_ia.ConfiguraIACommand()
+                        cmd.execute()
+                        
+                        self.app.log("✓ Dialog Configura IA aperto (primo accesso tab)")
                         
                         break  # Esci dal loop
                         
                 except Exception as e:
                     self.app.log(f"Errore monitor first run: {e}")
+                    self.app.log(traceback.format_exc())
                     break
         
         thread = threading.Thread(target=monitor)
