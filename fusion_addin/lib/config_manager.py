@@ -86,10 +86,10 @@ class ConfigManager:
                     "workspace_path": ""
                 },
                 "startup": {
-                    "auto_setup_enabled": False,
+                    "auto_setup_enabled": True,
                     "force_assembly_mode": True,
                     "activate_furnitureai_tab": True,
-                    "show_welcome_message": True
+                    "show_welcome_message": False
                 },
                 "furniture_defaults": {
                     "panel_thickness": 18,
