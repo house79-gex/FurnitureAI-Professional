@@ -27,26 +27,25 @@ class StartupManager:
             prefs = self.config_manager.get_preferences()
             startup_prefs = prefs.get('startup', {})
             
-            # ===== CHECK: Startup automatico abilitato? =====
-            auto_enabled = startup_prefs.get('auto_setup_enabled', True)
-            
-            if auto_enabled:
-                # Applica workspace settings (Assembly + Tab)
-                self.app.log("🚀 Startup AUTO: applico Assembly + Tab Furniture AI")
+            # ===== APPLICA WORKSPACE SEMPRE se auto_setup_enabled =====
+            if startup_prefs.get('auto_setup_enabled', True):
+                self.app.log("🚀 Startup automatico abilitato: applico workspace")
                 self._apply_workspace_settings_always(startup_prefs)
             else:
-                self.app.log("⏭️ Startup automatico disabilitato dall'utente")
+                self.app.log("⏸️ Startup automatico disabilitato, skip workspace")
             
-            # ===== FIRST RUN: Apri dialog se necessario =====
+            # ===== CHECK FIRST RUN per dialog =====
             if self.is_first_run:
+                auto_enabled = startup_prefs.get('auto_setup_enabled', True)
+                
                 if auto_enabled:
-                    # Startup auto + first run: apri dialog automaticamente
-                    self.app.log("🎯 First Run + Startup AUTO: apro dialog Configura IA")
+                    # Startup automatico: apri dialog immediatamente
+                    self.app.log("🎯 First Run + Startup AUTO: apro dialog IA")
                     self._open_config_dialog_immediate()
                 else:
-                    # Startup manuale: registra timer per click tab
+                    # Startup manuale: dialog al click tab
                     self.app.log("🎯 First Run + Startup MANUALE: aspetto click tab")
-                    self._register_tab_monitor()
+                    self._register_tab_click_handler()
             
         except Exception as e:
             import traceback
@@ -54,7 +53,7 @@ class StartupManager:
             self.app.log(traceback.format_exc())
     
     def _apply_workspace_settings_always(self, startup_prefs):
-        """Applica workspace settings SEMPRE (non solo first run)"""
+        """Applica impostazioni workspace SEMPRE (non solo first run)"""
         try:
             # 1. Modalità Assembly
             if startup_prefs.get('force_assembly_mode', True):
@@ -64,7 +63,9 @@ class StartupManager:
             if startup_prefs.get('activate_furnitureai_tab', True):
                 self._activate_furnitureai_tab()
             
-            self.app.log("✓ Workspace configurato automaticamente")
+            # 3. Messaggio benvenuto (solo first run)
+            if startup_prefs.get('show_welcome_message', True) and self.is_first_run:
+                self._show_welcome_message()
             
         except Exception as e:
             import traceback
@@ -112,7 +113,30 @@ class StartupManager:
             self.app.log(f"Errore attivazione tab: {e}")
     
     def _open_config_dialog_immediate(self):
-        """Apri Configura IA IMMEDIATAMENTE (no thread, no delay)"""
+        """Apri Configura IA immediatamente (no thread, no delay)"""
+        self.app.log("🚀 Apertura immediata Configura IA (first run)...")
+        
+        try:
+            # ✅ CHIAMATA DIRETTA alla classe comando (no thread)
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+            if commands_path not in sys.path:
+                sys.path.insert(0, commands_path)
+            
+            import configura_ia
+            
+            # Esegui direttamente
+            cmd = configura_ia.ConfiguraIACommand()
+            cmd.execute()
+            
+            self.app.log("✓ Dialog Configura IA aperto (immediato)")
+            
+        except Exception as e:
+            self.app.log(f"✗ Errore apertura dialog: {e}")
+            self.app.log(traceback.format_exc())
+    
+    def _register_tab_click_handler(self):
+        """Registra handler per click su tab (startup manuale)"""
         try:
             import sys
             import os

@@ -405,7 +405,7 @@ class UIManager:
         import time
         
         def monitor():
-            max_checks = 60  # 1 minute max (reduced from 5)
+            max_checks = 60  # 1 minuto max (ridotto da 300)
             checks = 0
             
             self.app.log("⏱️ Monitor tab avviato, attendo attivazione...")
@@ -419,13 +419,10 @@ class UIManager:
                     if self.tab and self.tab.isActive:
                         self.app.log(f"🎯 Tab attivato dopo {checks} secondi")
                         
-                        # Attendi stabilizzazione UI
-                        time.sleep(0.5)
-                        
-                        # ✅ APRI DIALOG (no thread nidificato)
+                        # Apri dialog immediato (no delay)
                         self._open_configura_ia_direct()
                         
-                        break
+                        break  # Esci dal loop
                         
                 except Exception as e:
                     import traceback
@@ -440,24 +437,25 @@ class UIManager:
         thread.start()
     
     def _open_configura_ia_direct(self):
-        """Apri dialog Configura IA direttamente"""
+        """Apri dialog Configura IA direttamente (no delay)"""
         try:
-            import sys
-            import os
+            self.app.log("🚀 Apertura Configura IA (direct)...")
             
-            commands_path = os.path.join(self.addon_path, 'fusion_addin', 'lib', 'commands')
+            # ✅ CHIAMATA DIRETTA alla classe comando
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
             if commands_path not in sys.path:
                 sys.path.insert(0, commands_path)
             
             import configura_ia
             
+            # Esegui direttamente
             cmd = configura_ia.ConfiguraIACommand()
             cmd.execute()
             
-            self.app.log("✓ Dialog Configura IA aperto (monitor tab)")
+            self.app.log("✓ Dialog Configura IA aperto (direct)")
             
         except Exception as e:
-            import traceback
             self.app.log(f"✗ Errore apertura dialog: {e}")
             self.app.log(traceback.format_exc())
 

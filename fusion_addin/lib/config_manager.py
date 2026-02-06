@@ -258,4 +258,270 @@ class ConfigManager:
         if custom_config.get('enabled') and custom_config.get('base_url'):
             return True
         
+        # Check Groq
+        groq_config = config.get('cloud', {}).get('groq', {})
+        if groq_config.get('enabled') and groq_config.get('api_key'):
+            return True
+        
+        # Check HuggingFace
+        hf_config = config.get('cloud', {}).get('huggingface', {})
+        if hf_config.get('enabled') and hf_config.get('token'):
+            return True
+        
         return False
+    
+    def test_provider_connection(self, provider_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Test connessione a un provider IA
+        
+        Args:
+            provider_type: Tipo provider (groq, huggingface, lmstudio, ollama, etc.)
+            config: Configurazione del provider
+        
+        Returns:
+            Dict con success, message, details
+        """
+        try:
+            if provider_type == "groq":
+                return self._test_groq_connection(config)
+            elif provider_type == "huggingface":
+                return self._test_huggingface_connection(config)
+            elif provider_type == "lmstudio":
+                return self._test_lmstudio_connection(config)
+            elif provider_type == "ollama":
+                return self._test_ollama_connection(config)
+            else:
+                return {
+                    "success": False,
+                    "message": f"Provider {provider_type} non supportato per test",
+                    "details": ""
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"❌ Errore test {provider_type}",
+                "details": str(e)
+            }
+    
+    def _test_groq_connection(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Test connessione Groq"""
+        try:
+            import requests
+            
+            api_key = config.get('api_key', '')
+            if not api_key:
+                return {
+                    "success": False,
+                    "message": "❌ API Key mancante",
+                    "details": "Inserisci una API key valida"
+                }
+            
+            base_url = config.get('base_url', 'https://api.groq.com/openai/v1')
+            model = config.get('model_text', 'llama-3.3-70b-versatile')
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "model": model,
+                "messages": [{"role": "user", "content": "Test"}],
+                "max_tokens": 10
+            }
+            
+            response = requests.post(
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=30
+            )
+            
+            if response.ok:
+                return {
+                    "success": True,
+                    "message": "✅ Connessione Groq riuscita!",
+                    "details": f"Modello: {model}"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "❌ Connessione fallita",
+                    "details": f"HTTP {response.status_code}: {response.text}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "message": "❌ Errore connessione",
+                "details": str(e)
+            }
+    
+    def _test_huggingface_connection(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Test connessione HuggingFace"""
+        try:
+            import requests
+            
+            token = config.get('token', '')
+            if not token:
+                return {
+                    "success": False,
+                    "message": "❌ Token mancante",
+                    "details": "Inserisci un token valido"
+                }
+            
+            base_url = config.get('base_url', 'https://api-inference.huggingface.co')
+            
+            headers = {"Authorization": f"Bearer {token}"}
+            
+            # Test con modello leggero
+            response = requests.post(
+                f"{base_url}/models/gpt2",
+                headers=headers,
+                json={"inputs": "Test"},
+                timeout=10
+            )
+            
+            if response.ok:
+                return {
+                    "success": True,
+                    "message": "✅ Connessione HuggingFace riuscita!",
+                    "details": "Token valido"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "❌ Token non valido",
+                    "details": f"HTTP {response.status_code}: {response.text}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "message": "❌ Errore connessione",
+                "details": str(e)
+            }
+    
+    def _test_lmstudio_connection(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Test connessione LM Studio"""
+        try:
+            import requests
+            
+            base_url = config.get('base_url', 'http://localhost:1234/v1')
+            
+            response = requests.get(
+                f"{base_url}/models",
+                timeout=5
+            )
+            
+            if response.ok:
+                models = response.json().get('data', [])
+                return {
+                    "success": True,
+                    "message": "✅ LM Studio connesso!",
+                    "details": f"Trovati {len(models)} modelli"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "❌ LM Studio non risponde",
+                    "details": f"HTTP {response.status_code}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "message": "❌ LM Studio non trovato",
+                "details": "Verifica che LM Studio sia avviato"
+            }
+    
+    def _test_ollama_connection(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Test connessione Ollama"""
+        try:
+            import requests
+            
+            base_url = config.get('base_url', 'http://localhost:11434')
+            
+            response = requests.get(
+                f"{base_url}/api/tags",
+                timeout=5
+            )
+            
+            if response.ok:
+                models = response.json().get('models', [])
+                return {
+                    "success": True,
+                    "message": "✅ Ollama connesso!",
+                    "details": f"Trovati {len(models)} modelli"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "❌ Ollama non risponde",
+                    "details": f"HTTP {response.status_code}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "message": "❌ Ollama non trovato",
+                "details": "Verifica che Ollama sia avviato"
+            }
+    
+    def auto_discover_local_servers(self) -> list:
+        """
+        Auto-discovery server locali (LM Studio, Ollama)
+        
+        Returns:
+            Lista di dict con info server trovati
+        """
+        results = []
+        
+        try:
+            import requests
+        except ImportError:
+            return results
+        
+        # Test LM Studio
+        try:
+            r = requests.get("http://localhost:1234/v1/models", timeout=2)
+            if r.ok:
+                models = r.json().get('data', [])
+                results.append({
+                    "provider": "lmstudio",
+                    "name": "LM Studio",
+                    "url": "http://localhost:1234/v1",
+                    "status": "active",
+                    "models": [m.get('id', '') for m in models],
+                    "icon": "💻"
+                })
+        except:
+            results.append({
+                "provider": "lmstudio",
+                "name": "LM Studio",
+                "status": "not_found",
+                "icon": "💻"
+            })
+        
+        # Test Ollama
+        try:
+            r = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if r.ok:
+                models = r.json().get('models', [])
+                results.append({
+                    "provider": "ollama",
+                    "name": "Ollama",
+                    "url": "http://localhost:11434",
+                    "status": "active",
+                    "models": [m.get('name', '') for m in models],
+                    "icon": "🦙"
+                })
+        except:
+            results.append({
+                "provider": "ollama",
+                "name": "Ollama",
+                "status": "not_found",
+                "icon": "🦙"
+            })
+        
+        return results
