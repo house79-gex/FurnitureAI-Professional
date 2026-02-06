@@ -4,6 +4,7 @@ Gestore UI per FurnitureAI - VERSIONE FINALE CORRETTA
 - Sistema tooltip avanzato stile Fusion
 - Help integrato con F1
 - ConfigManager integrato con toggle globale IA
+- Routing comando ConfiguraIA funzionante
 """
 
 import adsk.core
@@ -354,9 +355,7 @@ class UIManager:
             self.icon_folder = None
 
     def _prepare_command_icons(self, cmd_id):
-        """
-        Prepara icone MULTI-RISOLUZIONE (16x16, 32x32, 64x64, 128x128)
-        """
+        """Prepara icone MULTI-RISOLUZIONE (16x16, 32x32, 64x64, 128x128)"""
         if not self.icon_folder:
             return None
             
@@ -395,9 +394,7 @@ class UIManager:
             return None
 
     def get_icon_path(self, cmd_id, size='32x32'):
-        """
-        Helper per ottenere path icona specifica risoluzione
-        """
+        """Helper per ottenere path icona specifica risoluzione"""
         if not self.icon_folder:
             return None
         
@@ -525,6 +522,7 @@ class UIManager:
         self.handlers.append(handler)
         panel.controls.addCommand(btn)
 
+
 class CommandHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False):
         super().__init__()
@@ -550,6 +548,7 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
         keydown_handler = KeyDownHandler(self.cmd_id, self.app)
         cmd.keyDown.add(keydown_handler)
 
+
 class ExecHandler(adsk.core.CommandEventHandler):
     def __init__(self, name, cmd_id, app):
         super().__init__()
@@ -558,10 +557,30 @@ class ExecHandler(adsk.core.CommandEventHandler):
         self.app = app
         
     def notify(self, args):
+        # ===== ROUTING COMANDO CONFIGURA IA =====
+        if self.cmd_id == 'FAI_ConfiguraIA':
+            try:
+                import sys
+                import os
+                
+                addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                commands_path = os.path.join(addon_path, 'fusion_addin', 'commands')
+                if commands_path not in sys.path:
+                    sys.path.insert(0, commands_path)
+                
+                import configura_ia
+                configura_ia.run(None)
+                return
+            except Exception as e:
+                self.app.userInterface.messageBox(f'Errore ConfiguraIA:\n{str(e)}')
+                return
+        
+        # ===== ALTRI COMANDI (placeholder) =====
         self.app.userInterface.messageBox(
             f'{self.name}\n\nFunzionalità in sviluppo\n\nPremi F1 per guida dettagliata', 
             'FurnitureAI'
         )
+
 
 class KeyDownHandler(adsk.core.KeyboardEventHandler):
     def __init__(self, cmd_id, app):
