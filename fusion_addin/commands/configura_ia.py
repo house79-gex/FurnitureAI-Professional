@@ -1,6 +1,6 @@
 """
 Comando FAI_ConfiguraIA - Configurazione IA Completa
-Versione: 3.0 - First Run Detection + Logica Professionale
+Versione: 3.0 - Tab chiare + Icone + First Run Detection
 """
 
 import adsk.core
@@ -129,34 +129,43 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 '',
                 '<b>📋 Provider IA Disponibili:</b>\n\n'
                 'FurnitureAI supporta provider multipli con fallback automatico:\n\n'
-                '• <b>🏠 Server NPU Locale (LAN)</b>\n'
-                '  LM Studio, Ollama - Privacy massima, zero costi API\n\n'
-                '• <b>🌐 Server NPU Remoto (WAN)</b>\n'
-                '  Accedi al tuo server NPU da ovunque via Internet\n\n'
-                '• <b>☁️ Cloud (OpenAI/Anthropic)</b>\n'
-                '  Qualità massima, costi per utilizzo\n\n'
+                '• <b>💻 PC Locale/LAN</b>\n'
+                '  Esegui IA su questa macchina o su PC in rete locale\n'
+                '  → Privacy massima, zero costi, funziona offline\n\n'
+                '• <b>🌐 Internet (Remoto)</b>\n'
+                '  Accedi al tuo server NPU da ovunque via Internet\n'
+                '  → Usa VPN/Cloudflare per accesso sicuro\n\n'
+                '• <b>☁️ Cloud Esterno</b>\n'
+                '  OpenAI, Anthropic - Servizi professionali\n'
+                '  → Qualità massima, costi per utilizzo\n\n'
                 '<i>Configura almeno un provider per usare funzioni IA</i>',
-                8,
+                9,
                 True
             )
             
-            # ===== TAB 1: SERVER LAN =====
-            tab_lan = inputs.addTabCommandInput('tab_lan', '🏠 Server LAN')
-            tab_lan_inputs = tab_lan.children
+            # ===== TAB 1: PC LOCALE / LAN =====
+            tab_local = inputs.addTabCommandInput('tab_local', '💻 PC Locale/LAN')
+            tab_local_inputs = tab_local.children
             
-            tab_lan_inputs.addTextBoxCommandInput(
-                'lan_info',
+            tab_local_inputs.addTextBoxCommandInput(
+                'local_info',
                 '',
-                '<b>Server NPU Locale (Rete LAN)</b>\n\n'
-                'Esegui modelli IA sul tuo PC o su un server casalingo.\n'
-                'Massima privacy, nessun dato inviato online.\n\n'
-                '<i>Richiede: LM Studio o Ollama installato e avviato</i>',
-                4,
+                '<b>💻 Server IA su PC Locale o Rete Locale (LAN)</b>\n\n'
+                '<b>Esegui IA su:</b>\n'
+                '• Questa stessa macchina (localhost)\n'
+                '• Altro PC in casa/ufficio (rete locale)\n\n'
+                '<b>Vantaggi:</b>\n'
+                '✓ Privacy totale (dati non escono dal tuo PC/rete)\n'
+                '✓ Zero costi API\n'
+                '✓ Funziona senza Internet\n'
+                '✓ Velocità dipende dalla tua GPU/NPU\n\n'
+                '<i>Richiede: LM Studio o Ollama installato</i>',
+                7,
                 True
             )
             
             # LM Studio
-            group_lmstudio = tab_lan_inputs.addGroupCommandInput('group_lmstudio', 'LM Studio (Server Locale)')
+            group_lmstudio = tab_local_inputs.addGroupCommandInput('group_lmstudio', 'LM Studio')
             group_lmstudio_inputs = group_lmstudio.children
             
             lmstudio_enabled_default = False
@@ -191,15 +200,19 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             group_lmstudio_inputs.addTextBoxCommandInput(
                 'lmstudio_help',
                 '',
-                '<i>Esempio: http://localhost:1234/v1 (default locale)\n'
-                'o http://192.168.1.100:1234/v1 (altro PC in LAN)\n\n'
-                'Modelli consigliati: llama-3.1-8b-instruct</i>',
-                3,
+                '<b>📍 Esempi URL:</b>\n'
+                '• <b>Stesso PC:</b> http://localhost:1234/v1 (default)\n'
+                '• <b>Altro PC in LAN:</b> http://192.168.1.100:1234/v1\n\n'
+                '<b>Modelli consigliati:</b>\n'
+                '• llama-3.1-8b-instruct (veloce, 8GB VRAM)\n'
+                '• llama-3.1-70b-instruct (qualità massima, 40GB VRAM)\n\n'
+                '<i>Download LM Studio: https://lmstudio.ai</i>',
+                5,
                 True
             )
             
             # Ollama
-            group_ollama = tab_lan_inputs.addGroupCommandInput('group_ollama', 'Ollama (Server Locale)')
+            group_ollama = tab_local_inputs.addGroupCommandInput('group_ollama', 'Ollama')
             group_ollama_inputs = group_ollama.children
             
             ollama_enabled_default = False
@@ -235,39 +248,52 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
             group_ollama_inputs.addStringValueInput(
                 'ollama_model_vision',
-                'Modello Vision',
+                'Modello Vision (Analisi Immagini)',
                 ollama_model_vision_default
             )
             
             group_ollama_inputs.addTextBoxCommandInput(
                 'ollama_help',
                 '',
-                '<i>Esempio: http://localhost:11434 (default locale)\n'
-                'o http://192.168.1.100:11434 (altro PC in LAN)\n\n'
-                'Modelli: llama3.1:8b (testo), llava:13b (vision)</i>',
-                3,
+                '<b>📍 Esempi URL:</b>\n'
+                '• <b>Stesso PC:</b> http://localhost:11434 (default)\n'
+                '• <b>Altro PC in LAN:</b> http://192.168.1.100:11434\n\n'
+                '<b>Modelli consigliati:</b>\n'
+                '• Testo: llama3.1:8b (veloce, 8GB)\n'
+                '• Vision: llava:13b (analisi immagini, 13GB)\n\n'
+                '<b>Setup rapido:</b>\n'
+                '1. Download: https://ollama.com\n'
+                '2. ollama pull llama3.1:8b\n'
+                '3. ollama serve',
+                7,
                 True
             )
             
-            # Test LAN
-            tab_lan_inputs.addBoolValueInput('test_lan', '🔍 Test Connessione Server LAN', False, '', False)
+            # Test Locale
+            tab_local_inputs.addBoolValueInput('test_local', '🔍 Test Connessione PC Locale', False, '', False)
             
-            # ===== TAB 2: SERVER REMOTO (WAN) =====
-            tab_wan = inputs.addTabCommandInput('tab_wan', '🌐 Server Remoto')
-            tab_wan_inputs = tab_wan.children
+            # ===== TAB 2: INTERNET (REMOTO) =====
+            tab_remote = inputs.addTabCommandInput('tab_remote', '🌐 Internet (Remoto)')
+            tab_remote_inputs = tab_remote.children
             
-            tab_wan_inputs.addTextBoxCommandInput(
-                'wan_info',
+            tab_remote_inputs.addTextBoxCommandInput(
+                'remote_info',
                 '',
-                '<b>Server NPU Remoto (Internet)</b>\n\n'
-                'Accedi al tuo server NPU casalingo da ovunque.\n'
-                'Usa Cloudflare Tunnel o Tailscale VPN per accesso sicuro.\n\n'
+                '<b>🌐 Server IA Accessibile via Internet</b>\n\n'
+                '<b>Quando usare:</b>\n'
+                '• Hai server NPU a casa ma lavori da FUORI (altro ufficio, viaggio)\n'
+                '• Vuoi accesso da ovunque mantenendo il tuo hardware\n\n'
+                '<b>Metodi accesso sicuro:</b>\n'
+                '✓ Cloudflare Tunnel (HTTPS gratis)\n'
+                '✓ Tailscale VPN (rete privata virtuale)\n'
+                '✓ WireGuard/OpenVPN\n\n'
+                '<b>⚠️ NON esporre MAI direttamente a Internet senza protezione!</b>\n\n'
                 '<i>Setup avanzato: consulta docs/SERVER_NPU_SETUP.md</i>',
-                4,
+                8,
                 True
             )
             
-            group_custom = tab_wan_inputs.addGroupCommandInput('group_custom', 'Server Custom HTTPS')
+            group_custom = tab_remote_inputs.addGroupCommandInput('group_custom', 'Server Custom HTTPS/VPN')
             group_custom_inputs = group_custom.children
             
             custom_enabled_default = False
@@ -289,7 +315,7 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             
             group_custom_inputs.addStringValueInput(
                 'custom_url',
-                'URL Server (HTTPS)',
+                'URL Server (HTTPS/VPN)',
                 custom_url_default
             )
             
@@ -302,26 +328,42 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             group_custom_inputs.addTextBoxCommandInput(
                 'custom_help',
                 '',
-                '<i>Esempio: https://your-server.com:8443/api/v1\n'
-                'o https://xxxx.trycloudflare.com (Cloudflare Tunnel)</i>',
-                2,
+                '<b>📍 Esempi URL:</b>\n'
+                '• <b>Cloudflare Tunnel:</b> https://xxxx.trycloudflare.com\n'
+                '• <b>Tailscale VPN:</b> http://100.64.x.x:11434\n'
+                '• <b>Dominio custom:</b> https://ai.tuodominio.com\n\n'
+                '<b>Setup Cloudflare Tunnel (consigliato):</b>\n'
+                '1. cloudflared tunnel --url http://localhost:11434\n'
+                '2. Usa URL generato (es: https://xxxx.trycloudflare.com)\n\n'
+                '<i>HTTPS obbligatorio per sicurezza</i>',
+                6,
                 True
             )
             
-            tab_wan_inputs.addBoolValueInput('test_wan', '🔍 Test Connessione Remota', False, '', False)
+            tab_remote_inputs.addBoolValueInput('test_remote', '🔍 Test Connessione Internet', False, '', False)
             
-            # ===== TAB 3: CLOUD =====
-            tab_cloud = inputs.addTabCommandInput('tab_cloud', '☁️ Cloud')
+            # ===== TAB 3: CLOUD ESTERNO =====
+            tab_cloud = inputs.addTabCommandInput('tab_cloud', '☁️ Cloud Esterno')
             tab_cloud_inputs = tab_cloud.children
             
             tab_cloud_inputs.addTextBoxCommandInput(
                 'cloud_info',
                 '',
-                '<b>Provider Cloud</b>\n\n'
-                'Servizi cloud professionali con qualità massima.\n'
-                'Richiede API key (costi per utilizzo).\n\n'
+                '<b>☁️ Provider Cloud Professionali</b>\n\n'
+                '<b>Quando usare:</b>\n'
+                '• Non hai GPU/NPU per server locale\n'
+                '• Progetti professionali che richiedono qualità massima\n'
+                '• Non vuoi gestire infrastruttura server\n\n'
+                '<b>Pro:</b>\n'
+                '✓ Qualità top (GPT-4o, Claude 3.5 Sonnet)\n'
+                '✓ Sempre disponibile (99.9% uptime)\n'
+                '✓ Zero manutenzione\n\n'
+                '<b>Contro:</b>\n'
+                '✗ Costi per utilizzo (API key richiesta)\n'
+                '✗ Dati progetti inviati a server esterni\n'
+                '✗ Richiede Internet\n\n'
                 '<i>Consigliato per progetti professionali critici</i>',
-                4,
+                9,
                 True
             )
             
@@ -353,12 +395,19 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             group_openai_inputs.addTextBoxCommandInput(
                 'openai_help',
                 '',
-                '<i>Ottieni API key su: https://platform.openai.com/api-keys\n\n'
-                'Modelli usati:\n'
-                '• gpt-4o-mini (testo, veloce)\n'
-                '• gpt-4o (vision, qualità massima)\n\n'
-                'Costo medio: $0.15 per richiesta</i>',
-                5,
+                '<b>🔑 Come ottenere API Key:</b>\n'
+                '1. Vai su https://platform.openai.com/api-keys\n'
+                '2. Crea nuovo account (se necessario)\n'
+                '3. Click "Create new secret key"\n'
+                '4. Copia chiave e incolla qui\n\n'
+                '<b>Modelli usati automaticamente:</b>\n'
+                '• gpt-4o-mini (testo, veloce, economico)\n'
+                '• gpt-4o (vision, qualità massima)\n'
+                '• dall-e-3 (generazione immagini)\n\n'
+                '<b>💰 Costi stimati:</b>\n'
+                '• ~$0.10-0.20 per richiesta media\n'
+                '• Credito iniziale: $5 gratis (trial)',
+                8,
                 True
             )
             
@@ -390,11 +439,19 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             group_anthropic_inputs.addTextBoxCommandInput(
                 'anthropic_help',
                 '',
-                '<i>Ottieni API key su: https://console.anthropic.com/\n\n'
-                'Modello: claude-3-5-sonnet-20241022\n'
-                'Context window: 200K token (ottimo per progetti complessi)\n\n'
-                'Costo medio: $0.30 per richiesta</i>',
-                4,
+                '<b>🔑 Come ottenere API Key:</b>\n'
+                '1. Vai su https://console.anthropic.com/\n'
+                '2. Crea account\n'
+                '3. Settings → API Keys → Create Key\n'
+                '4. Copia e incolla qui\n\n'
+                '<b>Modello usato:</b>\n'
+                '• claude-3-5-sonnet-20241022\n'
+                '• Context window: 200K token (ottimo per progetti complessi)\n'
+                '• Eccellente per reasoning complesso\n\n'
+                '<b>💰 Costi stimati:</b>\n'
+                '• ~$0.20-0.40 per richiesta media\n'
+                '• Credito iniziale: $5 gratis (trial)',
+                8,
                 True
             )
             
@@ -438,11 +495,15 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         
         # LM Studio
         if self.config.get('local_lan', {}).get('lmstudio', {}).get('enabled'):
-            status += "  ✓ LM Studio (LAN)\n"
+            status += "  ✓ LM Studio (PC Locale)\n"
         
         # Ollama
         if self.config.get('local_lan', {}).get('ollama', {}).get('enabled'):
-            status += "  ✓ Ollama (LAN)\n"
+            status += "  ✓ Ollama (PC Locale)\n"
+        
+        # Server Remoto
+        if self.config.get('remote_wan', {}).get('custom_server', {}).get('enabled'):
+            status += "  ✓ Server Remoto (Internet)\n"
         
         # OpenAI
         if self.config.get('cloud', {}).get('openai', {}).get('enabled'):
@@ -455,6 +516,7 @@ class ConfiguraIACommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         if not any([
             self.config.get('local_lan', {}).get('lmstudio', {}).get('enabled'),
             self.config.get('local_lan', {}).get('ollama', {}).get('enabled'),
+            self.config.get('remote_wan', {}).get('custom_server', {}).get('enabled'),
             self.config.get('cloud', {}).get('openai', {}).get('enabled'),
             self.config.get('cloud', {}).get('anthropic', {}).get('enabled')
         ]):
@@ -474,20 +536,20 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
         try:
             changed_input = args.input
             
-            if changed_input.id == 'test_lan':
-                self._test_lan(args.inputs)
-            elif changed_input.id == 'test_wan':
-                self._test_wan(args.inputs)
+            if changed_input.id == 'test_local':
+                self._test_local(args.inputs)
+            elif changed_input.id == 'test_remote':
+                self._test_remote(args.inputs)
             elif changed_input.id == 'test_cloud':
                 self._test_cloud(args.inputs)
         except:
             pass
     
-    def _test_lan(self, inputs):
-        """Test server LAN"""
+    def _test_local(self, inputs):
+        """Test server locale"""
         app = adsk.core.Application.get()
         
-        result = "🔍 TEST SERVER LAN\n\n"
+        result = "🔍 TEST SERVER PC LOCALE\n\n"
         
         # Test LM Studio
         if inputs.itemById('lmstudio_enabled').value:
@@ -501,7 +563,7 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
                 else:
                     result += f"  ✗ Errore HTTP {response.status_code}\n"
             except Exception as e:
-                result += f"  ✗ Non raggiungibile\n"
+                result += f"  ✗ Non raggiungibile\n  Verifica che LM Studio sia avviato\n"
         
         # Test Ollama
         if inputs.itemById('ollama_enabled').value:
@@ -518,23 +580,23 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
                 else:
                     result += f"  ✗ Errore HTTP {response.status_code}\n"
             except Exception as e:
-                result += f"  ✗ Non raggiungibile\n"
+                result += f"  ✗ Non raggiungibile\n  Verifica che Ollama sia avviato: ollama serve\n"
         
         if not inputs.itemById('lmstudio_enabled').value and not inputs.itemById('ollama_enabled').value:
-            result += "Nessun server LAN abilitato"
+            result += "Nessun server locale abilitato"
         
-        app.userInterface.messageBox(result, 'Test Connessione LAN')
+        app.userInterface.messageBox(result, 'Test Server Locale')
     
-    def _test_wan(self, inputs):
+    def _test_remote(self, inputs):
         """Test server remoto"""
         app = adsk.core.Application.get()
         
-        result = "🔍 TEST SERVER REMOTO\n\n"
+        result = "🔍 TEST SERVER REMOTO (Internet)\n\n"
         
         if inputs.itemById('custom_enabled').value:
             url = inputs.itemById('custom_url').value
             if url:
-                result += f"Server Custom ({url}):\n"
+                result += f"Server ({url}):\n"
                 try:
                     import requests
                     response = requests.get(f"{url}/health", timeout=5)
@@ -543,13 +605,13 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
                     else:
                         result += f"  ✗ Errore HTTP {response.status_code}\n"
                 except Exception as e:
-                    result += f"  ✗ Non raggiungibile\n"
+                    result += f"  ✗ Non raggiungibile\n  Verifica:\n  • URL corretto\n  • Tunnel/VPN attivo\n  • Firewall\n"
             else:
                 result += "URL non configurato"
         else:
             result += "Server remoto non abilitato"
         
-        app.userInterface.messageBox(result, 'Test Connessione Remota')
+        app.userInterface.messageBox(result, 'Test Server Remoto')
     
     def _test_cloud(self, inputs):
         """Test provider cloud"""
@@ -567,11 +629,13 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
                     headers = {'Authorization': f'Bearer {api_key}'}
                     response = requests.get('https://api.openai.com/v1/models', headers=headers, timeout=5)
                     if response.status_code == 200:
-                        result += "  ✓ API Key valida\n"
+                        result += "  ✓ API Key valida\n  ✓ Connessione OK\n"
+                    elif response.status_code == 401:
+                        result += "  ✗ API Key non valida\n  Verifica chiave copiata correttamente\n"
                     else:
                         result += f"  ✗ Errore: {response.status_code}\n"
                 except Exception as e:
-                    result += f"  ✗ Errore connessione\n"
+                    result += f"  ✗ Errore connessione Internet\n"
             else:
                 result += "OpenAI: API Key non inserita\n"
         
@@ -595,18 +659,20 @@ class ConfiguraIAInputChangedHandler(adsk.core.InputChangedEventHandler):
                     response = requests.post('https://api.anthropic.com/v1/messages', 
                                             headers=headers, json=payload, timeout=5)
                     if response.status_code == 200:
-                        result += "  ✓ API Key valida\n"
+                        result += "  ✓ API Key valida\n  ✓ Connessione OK\n"
+                    elif response.status_code == 401:
+                        result += "  ✗ API Key non valida\n  Verifica chiave copiata correttamente\n"
                     else:
                         result += f"  ✗ Errore: {response.status_code}\n"
                 except Exception as e:
-                    result += f"  ✗ Errore connessione\n"
+                    result += f"  ✗ Errore connessione Internet\n"
             else:
                 result += "\nAnthropic: API Key non inserita\n"
         
         if not inputs.itemById('openai_enabled').value and not inputs.itemById('anthropic_enabled').value:
             result += "Nessun provider cloud abilitato"
         
-        app.userInterface.messageBox(result, 'Test Connessione Cloud')
+        app.userInterface.messageBox(result, 'Test Provider Cloud')
 
 
 class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
@@ -717,6 +783,7 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
                     has_provider = (
                         inputs.itemById('lmstudio_enabled').value or
                         inputs.itemById('ollama_enabled').value or
+                        inputs.itemById('custom_enabled').value or
                         (inputs.itemById('openai_enabled').value and inputs.itemById('openai_key').value) or
                         (inputs.itemById('anthropic_enabled').value and inputs.itemById('anthropic_key').value)
                     )
@@ -735,7 +802,7 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
                             "⚠️ Configurazione salvata\n\n"
                             "Toggle IA è ON ma nessun provider configurato.\n\n"
                             "Per abilitare comandi IA:\n"
-                            "1. Configura almeno un provider (LM Studio, Ollama, etc.)\n"
+                            "1. Configura almeno un provider\n"
                             "2. Riavvia addon\n\n"
                             "Oppure disabilita toggle IA per lavorare offline."
                         )
