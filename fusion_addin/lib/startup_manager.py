@@ -27,36 +27,35 @@ class StartupManager:
             prefs = self.config_manager.get_preferences()
             startup_prefs = prefs.get('startup', {})
             
-            # ===== CHECK 1: IA già configurata? =====
-            if not self.is_first_run:
-                self.app.log("✓ IA già configurata, procedo normale")
-                self._apply_workspace_settings(startup_prefs)
-                return
-            
-            # ===== CHECK 2: First Run - Startup AUTO abilitato? =====
-            auto_enabled = startup_prefs.get('auto_setup_enabled', False)
+            # ===== CHECK: Startup automatico abilitato? =====
+            auto_enabled = startup_prefs.get('auto_setup_enabled', True)
             
             if auto_enabled:
-                # Startup automatico: Assembly + Tab + Configura IA subito
-                self.app.log("🚀 First Run + Startup AUTO: applico tutto")
-                self._apply_workspace_settings(startup_prefs)
-                self._open_config_dialog_delayed()
+                # Applica workspace settings (Assembly + Tab)
+                self.app.log("🚀 Startup AUTO: applico Assembly + Tab Furniture AI")
+                self._apply_workspace_settings_always(startup_prefs)
             else:
-                # Startup manuale: solo workspace, Configura IA al click tab
-                self.app.log("🎯 First Run + Startup MANUALE: aspetto click tab")
-                self._apply_workspace_settings(startup_prefs)
-                self._register_tab_click_handler()
+                self.app.log("⏭️ Startup automatico disabilitato dall'utente")
+            
+            # ===== FIRST RUN: Apri dialog se necessario =====
+            if self.is_first_run:
+                if auto_enabled:
+                    # Startup auto + first run: apri dialog automaticamente
+                    self.app.log("🎯 First Run + Startup AUTO: apro dialog Configura IA")
+                    self._open_config_dialog_immediate()
+                else:
+                    # Startup manuale: registra timer per click tab
+                    self.app.log("🎯 First Run + Startup MANUALE: aspetto click tab")
+                    self._register_tab_monitor()
             
         except Exception as e:
+            import traceback
             self.app.log(f"Errore startup manager: {e}")
+            self.app.log(traceback.format_exc())
     
-    def _apply_workspace_settings(self, startup_prefs):
-        """Applica impostazioni workspace (se abilitate)"""
+    def _apply_workspace_settings_always(self, startup_prefs):
+        """Applica workspace settings SEMPRE (non solo first run)"""
         try:
-            if not startup_prefs.get('auto_setup_enabled', False):
-                self.app.log("Startup automatico disabilitato, skip workspace")
-                return
-            
             # 1. Modalità Assembly
             if startup_prefs.get('force_assembly_mode', True):
                 self._switch_to_assembly_mode()
@@ -65,12 +64,12 @@ class StartupManager:
             if startup_prefs.get('activate_furnitureai_tab', True):
                 self._activate_furnitureai_tab()
             
-            # 3. Messaggio benvenuto (opzionale)
-            if startup_prefs.get('show_welcome_message', True) and self.is_first_run:
-                self._show_welcome_message()
+            self.app.log("✓ Workspace configurato automaticamente")
             
         except Exception as e:
+            import traceback
             self.app.log(f"Errore workspace settings: {e}")
+            self.app.log(traceback.format_exc())
     
     def _switch_to_assembly_mode(self):
         """Passa a modalità Assembly"""
@@ -112,59 +111,36 @@ class StartupManager:
         except Exception as e:
             self.app.log(f"Errore attivazione tab: {e}")
     
-    def _open_config_dialog_delayed(self):
-        """Apri Configura IA con delay (startup automatico)"""
-        self.app.log("🚀 Apertura automatica Configura IA (startup auto)...")
-        
-        def open_delayed():
-            time.sleep(1.5)
-            
-            try:
-                # ✅ CHIAMATA DIRETTA alla classe comando
-                addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
-                if commands_path not in sys.path:
-                    sys.path.insert(0, commands_path)
-                
-                import configura_ia
-                
-                # Esegui direttamente
-                cmd = configura_ia.ConfiguraIACommand()
-                cmd.execute()
-                
-                self.app.log("✓ Dialog Configura IA aperto (auto)")
-                
-            except Exception as e:
-                self.app.log(f"✗ Errore apertura dialog: {e}")
-                self.app.log(traceback.format_exc())
-        
-        thread = threading.Thread(target=open_delayed)
-        thread.daemon = True
-        thread.start()
-    
-    def _register_tab_click_handler(self):
-        """Registra handler per click su tab (startup manuale)"""
+    def _open_config_dialog_immediate(self):
+        """Apri Configura IA IMMEDIATAMENTE (no thread, no delay)"""
         try:
-            ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
-            if not ws:
-                return
+            import sys
+            import os
             
-            tab = ws.toolbarTabs.itemById('FurnitureAI_Tab')
-            if not tab:
-                return
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+            if commands_path not in sys.path:
+                sys.path.insert(0, commands_path)
             
-            # Handler già registrato in ui_manager
-            self.app.log("✓ Handler click tab già registrato")
+            import configura_ia
+            
+            # Esegui SUBITO (no threading)
+            cmd = configura_ia.ConfiguraIACommand()
+            cmd.execute()
+            
+            self.app.log("✓ Dialog Configura IA eseguito")
             
         except Exception as e:
-            self.app.log(f"Errore registrazione handler: {e}")
+            import traceback
+            self.app.log(f"✗ Errore apertura dialog: {e}")
+            self.app.log(traceback.format_exc())
     
-    def _show_welcome_message(self):
-        """Mostra messaggio benvenuto (opzionale)"""
-        try:
-            # Messaggio non bloccante (toast notification stile)
-            # Per ora solo log, in futuro: custom notification
-            self.app.log("🎉 Benvenuto in FurnitureAI Professional!")
-            
-        except Exception as e:
-            self.app.log(f"Errore welcome message: {e}")
+    def _register_tab_monitor(self):
+        """Registra monitor tab per modalità manuale"""
+        # Delega a ui_manager
+        if hasattr(self.ui_manager, '_start_first_run_monitor'):
+            self.ui_manager._start_first_run_monitor()
+            self.app.log("✓ Monitor tab registrato")
+        else:
+            self.app.log("⚠️ Monitor tab non disponibile")
+
