@@ -87,7 +87,7 @@ class ConfigManager:
     def _create_default_api_keys(self):
         """Crea api_keys.json default"""
         default_config = {
-            "ai_features_enabled": False,
+            "ai_features_enabled": True,
             
             "cloud": {
                 "openai": {
