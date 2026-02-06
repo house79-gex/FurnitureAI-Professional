@@ -14,61 +14,63 @@ import os
 import shutil
 import sys
 
+# Trova la classe UIManager (riga 18 circa) e sostituisci SOLO il metodo __init__:
+
 class UIManager:
     def __init__(self, logger, ui):
-    self.logger = logger
-    self.ui = ui
-    self.app = adsk.core.Application.get()
-    self.tab = None
-    self.handlers = []
-    self.icon_folder = None
-    self.addon_path = None
-    self.panels = []
-    self.ia_enabled = False
-    self.config_manager = None
-    self.is_first_run = False
-    
-    # Inizializza ConfigManager
-    try:
-        self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        
-        # Setup path per import
-        lib_path = os.path.join(self.addon_path, 'fusion_addin', 'lib')
-        if lib_path not in sys.path:
-            sys.path.insert(0, lib_path)
-        
-        # Import ConfigManager
-        from config_manager import ConfigManager
-        
-        self.config_manager = ConfigManager(self.addon_path)
-        
-        # ===== LOGICA CORRETTA =====
-        # Check first run
-        self.is_first_run = self.config_manager.is_first_run()
-        
-        if self.is_first_run:
-            self.app.log("🆕 FIRST RUN: Config IA non trovata")
-            self.ia_enabled = False  # Disabilita IA temporaneamente
-        else:
-            # Config esiste, check se IA abilitata E configurata
-            ai_toggle_on = self.config_manager.is_ai_enabled()
-            has_provider = self.config_manager.has_ai_provider_configured()
-            
-            self.ia_enabled = ai_toggle_on and has_provider
-            
-            if ai_toggle_on and not has_provider:
-                self.app.log("⚠️ Toggle IA ON ma nessun provider configurato")
-            elif not ai_toggle_on:
-                self.app.log("⚠️ Toggle IA OFF (scelta utente)")
-        
-        self.app.log(f"✓ ConfigManager inizializzato")
-        self.app.log(f"🔌 IA abilitata: {self.ia_enabled}")
-        
-    except Exception as e:
-        self.app.log(f"✗ Errore init ConfigManager: {e}")
-        self.config_manager = None
+        self.logger = logger
+        self.ui = ui
+        self.app = adsk.core.Application.get()
+        self.tab = None
+        self.handlers = []
+        self.icon_folder = None
+        self.addon_path = None
+        self.panels = []
         self.ia_enabled = False
-        self.is_first_run = True
+        self.config_manager = None
+        self.is_first_run = False
+        
+        # Inizializza ConfigManager
+        try:
+            self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
+            # Setup path per import
+            lib_path = os.path.join(self.addon_path, 'fusion_addin', 'lib')
+            if lib_path not in sys.path:
+                sys.path.insert(0, lib_path)
+            
+            # Import ConfigManager
+            from config_manager import ConfigManager
+            
+            self.config_manager = ConfigManager(self.addon_path)
+            
+            # ===== LOGICA CORRETTA =====
+            # Check first run
+            self.is_first_run = self.config_manager.is_first_run()
+            
+            if self.is_first_run:
+                self.app.log("🆕 FIRST RUN: Config IA non trovata")
+                self.ia_enabled = False  # Disabilita IA temporaneamente
+            else:
+                # Config esiste, check se IA abilitata E configurata
+                ai_toggle_on = self.config_manager.is_ai_enabled()
+                has_provider = self.config_manager.has_ai_provider_configured()
+                
+                self.ia_enabled = ai_toggle_on and has_provider
+                
+                if ai_toggle_on and not has_provider:
+                    self.app.log("⚠️ Toggle IA ON ma nessun provider configurato")
+                elif not ai_toggle_on:
+                    self.app.log("⚠️ Toggle IA OFF (scelta utente)")
+            
+            self.app.log(f"✓ ConfigManager inizializzato")
+            self.app.log(f"🔌 IA abilitata: {self.ia_enabled}")
+            
+        except Exception as e:
+            self.app.log(f"✗ Errore init ConfigManager: {e}")
+            self.config_manager = None
+            self.ia_enabled = False
+            self.is_first_run = True
 
     def create_ui(self):
         try:
