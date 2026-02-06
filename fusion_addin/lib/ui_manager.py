@@ -51,7 +51,7 @@ class UIManager:
             
             if self.is_first_run:
                 self.app.log("🆕 FIRST RUN: Config IA non trovata")
-                self.ia_enabled = False  # Disabilita IA temporaneamente
+                self.ia_enabled = False
             else:
                 # Config esiste, check se IA abilitata E configurata
                 ai_toggle_on = self.config_manager.is_ai_enabled()
@@ -69,11 +69,11 @@ class UIManager:
             
         except Exception as e:
             self.app.log(f"✗ Errore init ConfigManager: {e}")
+            self.app.log(traceback.format_exc())
             self.config_manager = None
             self.ia_enabled = False
             self.is_first_run = True
-
-    def create_ui(self):
+                def create_ui(self):
         try:
             self.app.log("UIManager: inizio creazione UI")
             
@@ -113,12 +113,10 @@ class UIManager:
             
             self._add_custom(p_design, 'FAI_LayoutIA', 'Layout IA', 
                            tooltip='Genera layout completo da pianta',
-                           tooltip_extended='Wizard intelligente per generare layout completi',
                            ia_required=True)
             
             self._add_custom(p_design, 'FAI_GeneraIA', 'Genera IA', 
                            tooltip='Genera mobile da testo/immagine',
-                           tooltip_extended='Wizard per generare mobili da descrizione testuale',
                            ia_required=True)
             
             self._add_custom(p_design, 'FAI_Wizard', 'Wizard Mobile', 
@@ -226,7 +224,7 @@ class UIManager:
                 self.app.log("ATTENZIONE: Comandi IA disabilitati")
 
             # ===== FIRST RUN: Registra handler click tab (solo se startup manuale) =====
-            if self.is_first_run:
+            if self.is_first_run and self.config_manager:
                 prefs = self.config_manager.get_preferences()
                 startup_auto = prefs.get('startup', {}).get('auto_setup_enabled', False)
                 
@@ -239,6 +237,12 @@ class UIManager:
                 else:
                     # Startup AUTO: dialog sarà aperto da StartupManager
                     self.app.log("🚀 FIRST RUN (auto): Dialog sarà aperto da StartupManager")
+            elif self.is_first_run and not self.config_manager:
+                # Fallback: config_manager non disponibile
+                on_activated = TabActivatedHandler(self.ui, self.is_first_run)
+                self.tab.activated.add(on_activated)
+                self.handlers.append(on_activated)
+                self.app.log("⚠️ ConfigManager non disponibile, uso handler click tab")
 
         except Exception as e:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
@@ -395,6 +399,8 @@ class UIManager:
         self.handlers.append(handler)
         panel.controls.addCommand(btn)
 
+
+# ========== HANDLER CLASSES ==========
 
 class TabActivatedHandler(adsk.core.WorkspaceEventHandler):
     """Handler attivazione tab Furniture AI (first run manuale)"""
