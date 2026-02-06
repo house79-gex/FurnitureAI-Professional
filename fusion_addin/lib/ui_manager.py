@@ -398,12 +398,17 @@ class UIManager:
 
     def _start_first_run_monitor(self):
         """
-        Monitora attivazione tab con timer (first run manuale)
-        Controlla ogni 1 secondo se tab Furniture AI è attivo
+        Monitors tab activation (manual first run)
+        Uses threading to avoid blocking UI
         """
+        import threading
+        import time
+        
         def monitor():
             max_checks = 60  # 1 minuto max (ridotto da 300)
             checks = 0
+            
+            self.app.log("⏱️ Monitor tab avviato, attendo attivazione...")
             
             while checks < max_checks:
                 time.sleep(1)
@@ -412,7 +417,7 @@ class UIManager:
                 try:
                     # Check se tab è attivo
                     if self.tab and self.tab.isActive:
-                        self.app.log("🎯 Tab Furniture AI attivato (first run)")
+                        self.app.log(f"🎯 Tab attivato dopo {checks} secondi")
                         
                         # Apri dialog immediato (no delay)
                         self._open_configura_ia_direct()
@@ -420,12 +425,15 @@ class UIManager:
                         break  # Esci dal loop
                         
                 except Exception as e:
-                    self.app.log(f"Errore monitor first run: {e}")
+                    import traceback
+                    self.app.log(f"Errore monitor: {e}")
                     self.app.log(traceback.format_exc())
                     break
+            
+            if checks >= max_checks:
+                self.app.log("⏱️ Timeout monitor tab (60s), utente non ha cliccato")
         
-        thread = threading.Thread(target=monitor)
-        thread.daemon = True
+        thread = threading.Thread(target=monitor, daemon=True)
         thread.start()
     
     def _open_configura_ia_direct(self):

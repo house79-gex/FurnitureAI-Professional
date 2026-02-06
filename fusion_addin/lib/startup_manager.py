@@ -48,7 +48,9 @@ class StartupManager:
                     self._register_tab_click_handler()
             
         except Exception as e:
+            import traceback
             self.app.log(f"Errore startup manager: {e}")
+            self.app.log(traceback.format_exc())
     
     def _apply_workspace_settings_always(self, startup_prefs):
         """Applica impostazioni workspace SEMPRE (non solo first run)"""
@@ -66,7 +68,9 @@ class StartupManager:
                 self._show_welcome_message()
             
         except Exception as e:
+            import traceback
             self.app.log(f"Errore workspace settings: {e}")
+            self.app.log(traceback.format_exc())
     
     def _switch_to_assembly_mode(self):
         """Passa a modalità Assembly"""
@@ -134,26 +138,33 @@ class StartupManager:
     def _register_tab_click_handler(self):
         """Registra handler per click su tab (startup manuale)"""
         try:
-            ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
-            if not ws:
-                return
+            import sys
+            import os
             
-            tab = ws.toolbarTabs.itemById('FurnitureAI_Tab')
-            if not tab:
-                return
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+            if commands_path not in sys.path:
+                sys.path.insert(0, commands_path)
             
-            # Handler già registrato in ui_manager
-            self.app.log("✓ Handler click tab già registrato")
+            import configura_ia
+            
+            # Esegui SUBITO (no threading)
+            cmd = configura_ia.ConfiguraIACommand()
+            cmd.execute()
+            
+            self.app.log("✓ Dialog Configura IA eseguito")
             
         except Exception as e:
-            self.app.log(f"Errore registrazione handler: {e}")
+            import traceback
+            self.app.log(f"✗ Errore apertura dialog: {e}")
+            self.app.log(traceback.format_exc())
     
-    def _show_welcome_message(self):
-        """Mostra messaggio benvenuto (opzionale)"""
-        try:
-            # Messaggio non bloccante (toast notification stile)
-            # Per ora solo log, in futuro: custom notification
-            self.app.log("🎉 Benvenuto in FurnitureAI Professional!")
-            
-        except Exception as e:
-            self.app.log(f"Errore welcome message: {e}")
+    def _register_tab_monitor(self):
+        """Registra monitor tab per modalità manuale"""
+        # Delega a ui_manager
+        if hasattr(self.ui_manager, '_start_first_run_monitor'):
+            self.ui_manager._start_first_run_monitor()
+            self.app.log("✓ Monitor tab registrato")
+        else:
+            self.app.log("⚠️ Monitor tab non disponibile")
+
