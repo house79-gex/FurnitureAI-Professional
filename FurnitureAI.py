@@ -11,28 +11,20 @@ import os
 
 # Variabili globali
 ui_manager = None
-logger = None
 
 def run(context):
     """Entry point addon"""
-    global ui_manager, logger
+    global ui_manager
     
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
         
-        # ===== SETUP LOGGER =====
-        try:
-            addon_path = os.path.dirname(os.path.abspath(__file__))
-            lib_path = os.path.join(addon_path, 'fusion_addin', 'lib')
-            if lib_path not in sys.path:
-                sys.path.insert(0, lib_path)
-            
-            from logging_utils import Logger
-            logger = Logger(app)
-        except Exception as e:
-            app.log(f"⚠️ Logger non disponibile: {e}")
-            logger = None
+        # ===== SETUP PATH =====
+        addon_path = os.path.dirname(os.path.abspath(__file__))
+        lib_path = os.path.join(addon_path, 'fusion_addin', 'lib')
+        if lib_path not in sys.path:
+            sys.path.insert(0, lib_path)
         
         # ===== CLEANUP FORZATO =====
         app.log("=" * 60)
@@ -44,9 +36,9 @@ def run(context):
         except Exception as e:
             app.log(f"⚠️ Cleanup warning: {e}")
         
-        # ===== CREA UI MANAGER =====
+        # ===== CREA UI MANAGER (senza logger) =====
         from ui_manager import UIManager
-        ui_manager = UIManager(logger, ui)
+        ui_manager = UIManager(None, ui)  # ← Passa None come logger
         ui_manager.create_ui()
         
         # ===== STARTUP MANAGER (Logica Intelligente) =====
