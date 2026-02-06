@@ -7,6 +7,9 @@ import adsk.core
 import adsk.fusion
 import threading
 import time
+import sys
+import os
+import traceback
 
 class StartupManager:
     """Gestore configurazione startup Fusion con logica intelligente"""
@@ -114,17 +117,26 @@ class StartupManager:
         self.app.log("🚀 Apertura automatica Configura IA (startup auto)...")
         
         def open_delayed():
-            time.sleep(1.5)  # Delay più lungo per startup completo
+            time.sleep(1.5)
             
             try:
-                cmd_def = self.ui.commandDefinitions.itemById('FAI_ConfiguraIA')
-                if cmd_def:
-                    cmd_def.execute()
-                    self.app.log("✓ Dialog Configura IA aperto (auto)")
-                else:
-                    self.app.log("✗ Comando FAI_ConfiguraIA non trovato")
+                # ✅ CHIAMATA DIRETTA alla classe comando
+                addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+                if commands_path not in sys.path:
+                    sys.path.insert(0, commands_path)
+                
+                import configura_ia
+                
+                # Esegui direttamente
+                cmd = configura_ia.ConfiguraIACommand()
+                cmd.execute()
+                
+                self.app.log("✓ Dialog Configura IA aperto (auto)")
+                
             except Exception as e:
                 self.app.log(f"✗ Errore apertura dialog: {e}")
+                self.app.log(traceback.format_exc())
         
         thread = threading.Thread(target=open_delayed)
         thread.daemon = True
