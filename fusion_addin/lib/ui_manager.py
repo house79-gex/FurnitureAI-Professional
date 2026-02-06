@@ -22,6 +22,7 @@ class UIManager:
         self.addon_path = None
         self.panels = []
         self.ia_enabled = False
+        self.config_manager = None  # Will be initialized in create_ui
 
     def create_ui(self):
         try:
@@ -35,6 +36,12 @@ class UIManager:
 
             # Setup
             self._setup_paths()
+            
+            # Initialize config_manager
+            from .config_manager import get_config
+            self.config_manager = get_config()
+            self.app.log("UIManager: ConfigManager inizializzato")
+            
             self._check_ia_availability()
 
             # Crea tab
@@ -307,23 +314,84 @@ class UIManager:
             raise
 
     def _check_ia_availability(self):
-        """Verifica configurazione IA"""
+        """Verifica configurazione IA usando ConfigManager"""
         try:
+            # Check global toggle first
+            if not self.config_manager.is_ai_enabled():
+                self.ia_enabled = False
+                self.app.log("❌ IA DISABILITATA: Global toggle OFF (ai_features_enabled=False)")
+                return
+            
+            # Global toggle is ON, now check if any provider is configured
             config_file = os.path.join(self.addon_path, 'config', 'api_keys.json')
             
             if os.path.exists(config_file):
                 import json
                 with open(config_file, 'r') as f:
                     config = json.load(f)
-                    self.ia_enabled = bool(config.get('openai_api_key') or config.get('anthropic_api_key'))
+                    self.ia_enabled = self._has_configured_provider(config)
             else:
-                self.ia_enabled = False
+                # Fallback to old ai_config.json
+                self.ia_enabled = self._check_old_config_format()
             
-            self.app.log(f"IA disponibile: {self.ia_enabled}")
+            status_msg = "✓ DISPONIBILE" if self.ia_enabled else "⚠️ NON CONFIGURATA"
+            self.app.log(f"IA status: {status_msg} (global_toggle=ON, provider_configured={self.ia_enabled})")
             
         except Exception as e:
             self.app.log(f"Errore verifica IA: {str(e)}")
             self.ia_enabled = False
+    
+    def _has_configured_provider(self, config):
+        """
+        Helper method to check if any AI provider is configured
+        
+        Args:
+            config: The api_keys.json config dictionary
+        
+        Returns:
+            bool: True if at least one provider is configured
+        """
+        # Check cloud providers (need API keys)
+        cloud_providers = config.get('cloud', {})
+        has_cloud_api = any(
+            provider.get('api_key', '').strip() 
+            for provider in cloud_providers.values()
+        )
+        
+        # Check local providers (just need to be enabled)
+        local_providers = config.get('local_lan', {})
+        has_local_enabled = any(
+            provider.get('enabled', False)
+            for provider in local_providers.values()
+        )
+        
+        # Check remote providers
+        remote_providers = config.get('remote_wan', {})
+        has_remote_enabled = any(
+            provider.get('enabled', False)
+            for provider in remote_providers.values()
+        )
+        
+        return has_cloud_api or has_local_enabled or has_remote_enabled
+    
+    def _check_old_config_format(self):
+        """
+        Fallback check for old ai_config.json format
+        
+        Returns:
+            bool: True if any provider is enabled in old format
+        """
+        old_config = os.path.join(self.addon_path, 'config', 'ai_config.json')
+        if os.path.exists(old_config):
+            import json
+            with open(old_config, 'r') as f:
+                config = json.load(f)
+                providers = config.get('providers', {})
+                return any(
+                    provider_config.get('enabled', False)
+                    for provider_config in providers.values()
+                )
+        return False
 
     def _setup_paths(self):
         """Setup path"""
@@ -485,23 +553,36 @@ class UIManager:
         if tooltip_extended and hasattr(btn, 'tooltipDescription'):
             btn.tooltipDescription = tooltip_extended
         
-        if ia_required and not self.ia_enabled:
-            btn.isEnabled = False
-            self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
+        # CRITICAL FIX: FAI_ConfiguraIA must ALWAYS be enabled (entry point to configure AI)
+        if cmd_id == 'FAI_ConfiguraIA':
+            btn.isEnabled = True
+            self.app.log(f"  ✓ {cmd_id} SEMPRE ABILITATO (comando configurazione)")
+        elif ia_required:
+            # Check both global toggle AND provider availability
+            if not self.config_manager.is_ai_enabled():
+                btn.isEnabled = False
+                self.app.log(f"  >>> {cmd_id} DISABILITATO (IA disabilitata dall'utente)")
+            elif not self.ia_enabled:
+                btn.isEnabled = False
+                self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
+            else:
+                btn.isEnabled = True
+                self.app.log(f"  ✓ {cmd_id} ABILITATO (IA configurata e abilitata)")
         
-        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled)
+        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled, self.config_manager)
         btn.commandCreated.add(handler)
         self.handlers.append(handler)
         panel.controls.addCommand(btn)
 
 class CommandHandler(adsk.core.CommandCreatedEventHandler):
-    def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False):
+    def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False, config_manager=None):
         super().__init__()
         self.name = name
         self.cmd_id = cmd_id
         self.app = app
         self.ia_required = ia_required
         self.ia_enabled = ia_enabled
+        self.config_manager = config_manager
         
     def notify(self, args):
         # Import specific command handlers
@@ -516,6 +597,14 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             return
         
         if self.cmd_id == 'FAI_GeneraIA':
+            # Check global toggle first
+            if self.config_manager and not self.config_manager.is_ai_enabled():
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Funzionalità IA disabilitate\n\nAbilita IA da: Impostazioni → Configura IA',
+                    'IA Disabilitata'
+                )
+                return
+            
             if self.ia_required and not self.ia_enabled:
                 self.app.userInterface.messageBox(
                     f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
@@ -531,13 +620,22 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             handler.notify(args)
             return
         
-        # Default handler for other commands
-        if self.ia_required and not self.ia_enabled:
-            self.app.userInterface.messageBox(
-                f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
-                'IA Non Configurata'
-            )
-            return
+        # Default handler for other commands with ia_required
+        if self.ia_required:
+            # Check global toggle first
+            if self.config_manager and not self.config_manager.is_ai_enabled():
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Funzionalità IA disabilitate\n\nAbilita IA da: Impostazioni → Configura IA',
+                    'IA Disabilitata'
+                )
+                return
+            
+            if not self.ia_enabled:
+                self.app.userInterface.messageBox(
+                    f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
+                    'IA Non Configurata'
+                )
+                return
         
         cmd = args.command
         
