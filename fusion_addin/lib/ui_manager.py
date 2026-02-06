@@ -1,8 +1,9 @@
 """
-Gestore UI per FurnitureAI - VERSIONE FINALE CON MULTI-RISOLUZIONE ICONE
-- Supporto icone 16x16, 32x32, 64x64, 128x128
+Gestore UI per FurnitureAI - VERSIONE FINALE CORRETTA
+- Fix import assoluto (NO import relativi)
 - Sistema tooltip avanzato stile Fusion
 - Help integrato con F1
+- ConfigManager integrato con toggle globale IA
 """
 
 import adsk.core
@@ -10,6 +11,7 @@ import adsk.fusion
 import traceback
 import os
 import shutil
+import sys
 
 class UIManager:
     def __init__(self, logger, ui):
@@ -22,7 +24,34 @@ class UIManager:
         self.addon_path = None
         self.panels = []
         self.ia_enabled = False
-        self.config_manager = None  # Will be initialized in create_ui
+        self.config_manager = None
+        
+        # Inizializza ConfigManager
+        try:
+            self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
+            # Setup path per import
+            lib_path = os.path.join(self.addon_path, 'fusion_addin', 'lib')
+            if lib_path not in sys.path:
+                sys.path.insert(0, lib_path)
+            
+            # Import ConfigManager (assoluto, NO import relativo!)
+            from config_manager import ConfigManager
+            
+            self.config_manager = ConfigManager(self.addon_path)
+            
+            # Check IA abilitata
+            self.ia_enabled = self.config_manager.is_ai_enabled()
+            
+            self.app.log(f"✓ ConfigManager inizializzato")
+            self.app.log(f"📁 Config dir: {self.config_manager.config_dir}")
+            self.app.log(f"🔌 IA abilitata: {self.ia_enabled}")
+            
+        except Exception as e:
+            self.app.log(f"✗ Errore init ConfigManager: {e}")
+            self.app.log(f"⚠️ Addon funzionerà senza gestione IA")
+            self.config_manager = None
+            self.ia_enabled = False
 
     def create_ui(self):
         try:
@@ -36,13 +65,6 @@ class UIManager:
 
             # Setup
             self._setup_paths()
-            
-            # Initialize config_manager
-            from .config_manager import get_config
-            self.config_manager = get_config()
-            self.app.log("UIManager: ConfigManager inizializzato")
-            
-            self._check_ia_availability()
 
             # Crea tab
             self.tab = ws.toolbarTabs.add('FurnitureAI_Tab', 'Furniture AI')
@@ -283,7 +305,8 @@ class UIManager:
             
             self._add_custom(p_config, 'FAI_ConfiguraIA', 'Configura IA', 
                            tooltip='Configurazione intelligenza artificiale',
-                           tooltip_extended='Impostazioni IA: API keys (OpenAI, Anthropic), selezione modelli, temperature generazione, context window, cache locale.\n\nF1: Setup completo IA')
+                           tooltip_extended='Impostazioni IA: API keys (OpenAI, Anthropic), selezione modelli, temperature generazione, context window, cache locale.\n\nF1: Setup completo IA',
+                           ia_required=False)  # ← CRITICO: NON richiede IA per essere abilitato!
             
             self._add_custom(p_config, 'FAI_Preferenze', 'Preferenze', 
                            tooltip='Preferenze generali addon',
@@ -313,95 +336,18 @@ class UIManager:
             self.app.log(f"UIManager ERRORE: {str(e)}\n{traceback.format_exc()}")
             raise
 
-    def _check_ia_availability(self):
-        """Verifica configurazione IA usando ConfigManager"""
-        try:
-            # Check global toggle first
-            if not self.config_manager.is_ai_enabled():
-                self.ia_enabled = False
-                self.app.log("❌ IA DISABILITATA: Global toggle OFF (ai_features_enabled=False)")
-                return
-            
-            # Global toggle is ON, now check if any provider is configured
-            config_file = os.path.join(self.addon_path, 'config', 'api_keys.json')
-            
-            if os.path.exists(config_file):
-                import json
-                with open(config_file, 'r') as f:
-                    config = json.load(f)
-                    self.ia_enabled = self._has_configured_provider(config)
-            else:
-                # Fallback to old ai_config.json
-                self.ia_enabled = self._check_old_config_format()
-            
-            status_msg = "✓ DISPONIBILE" if self.ia_enabled else "⚠️ NON CONFIGURATA"
-            self.app.log(f"IA status: {status_msg} (global_toggle=ON, provider_configured={self.ia_enabled})")
-            
-        except Exception as e:
-            self.app.log(f"Errore verifica IA: {str(e)}")
-            self.ia_enabled = False
-    
-    def _has_configured_provider(self, config):
-        """
-        Helper method to check if any AI provider is configured
-        
-        Args:
-            config: The api_keys.json config dictionary
-        
-        Returns:
-            bool: True if at least one provider is configured
-        """
-        # Check cloud providers (need API keys)
-        cloud_providers = config.get('cloud', {})
-        has_cloud_api = any(
-            provider.get('api_key', '').strip() 
-            for provider in cloud_providers.values()
-        )
-        
-        # Check local providers (just need to be enabled)
-        local_providers = config.get('local_lan', {})
-        has_local_enabled = any(
-            provider.get('enabled', False)
-            for provider in local_providers.values()
-        )
-        
-        # Check remote providers
-        remote_providers = config.get('remote_wan', {})
-        has_remote_enabled = any(
-            provider.get('enabled', False)
-            for provider in remote_providers.values()
-        )
-        
-        return has_cloud_api or has_local_enabled or has_remote_enabled
-    
-    def _check_old_config_format(self):
-        """
-        Fallback check for old ai_config.json format
-        
-        Returns:
-            bool: True if any provider is enabled in old format
-        """
-        old_config = os.path.join(self.addon_path, 'config', 'ai_config.json')
-        if os.path.exists(old_config):
-            import json
-            with open(old_config, 'r') as f:
-                config = json.load(f)
-                providers = config.get('providers', {})
-                return any(
-                    provider_config.get('enabled', False)
-                    for provider_config in providers.values()
-                )
-        return False
-
     def _setup_paths(self):
         """Setup path"""
         try:
-            self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            if not self.addon_path:
+                self.addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
             self.icon_folder = os.path.join(self.addon_path, 'resources', 'icons')
             
             if os.path.exists(self.icon_folder):
                 self.app.log(f"Icone: cartella trovata")
             else:
+                self.app.log(f"Icone: cartella non trovata")
                 self.icon_folder = None
         except Exception as e:
             self.app.log(f"Icone: errore - {str(e)}")
@@ -410,22 +356,22 @@ class UIManager:
     def _prepare_command_icons(self, cmd_id):
         """
         Prepara icone MULTI-RISOLUZIONE (16x16, 32x32, 64x64, 128x128)
-        Fusion toolbar usa 16x16 e 32x32
-        Wizard dialogs useranno 64x64 e 128x128
         """
         if not self.icon_folder:
             return None
             
         try:
-            cmd_icon_folder = os.path.join(self.icon_folder, cmd_id)
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            cmd_icon_folder = os.path.join(temp_dir, 'FurnitureAI', 'icons', cmd_id)
             os.makedirs(cmd_icon_folder, exist_ok=True)
             
             # Mapping risoluzioni richieste
             resolutions = {
                 '16x16.png': f'{cmd_id}_16.png',
                 '32x32.png': f'{cmd_id}_32.png',
-                '64x64.png': f'{cmd_id}_64.png',     # NUOVO per wizard
-                '128x128.png': f'{cmd_id}_128.png'   # NUOVO per wizard
+                '64x64.png': f'{cmd_id}_64.png',
+                '128x128.png': f'{cmd_id}_128.png'
             }
             
             copied_count = 0
@@ -437,7 +383,6 @@ class UIManager:
                     shutil.copyfile(src_path, dest_path)
                     copied_count += 1
             
-            # Fusion richiede almeno 16x16 e 32x32 per toolbar
             if copied_count >= 2:
                 self.app.log(f"  Icone copiate per {cmd_id}: {copied_count}/4 risoluzioni")
                 return cmd_icon_folder
@@ -452,14 +397,6 @@ class UIManager:
     def get_icon_path(self, cmd_id, size='32x32'):
         """
         Helper per ottenere path icona specifica risoluzione
-        Uso: per wizard che necessitano icone 64x64 o 128x128
-        
-        Args:
-            cmd_id: ID comando
-            size: '16x16', '32x32', '64x64', '128x128'
-        
-        Returns:
-            Path assoluto icona o None
         """
         if not self.icon_folder:
             return None
@@ -519,15 +456,14 @@ class UIManager:
                 if cmd:
                     cmd.deleteMe()
             
-            # Cleanup cartelle icone temp (include tutte le risoluzioni)
-            if self.icon_folder:
-                for cmd_id in custom_ids:
-                    cmd_folder = os.path.join(self.icon_folder, cmd_id)
-                    if os.path.exists(cmd_folder):
-                        try:
-                            shutil.rmtree(cmd_folder)
-                        except:
-                            pass
+            # Cleanup cartelle icone temp
+            try:
+                import tempfile
+                temp_icons = os.path.join(tempfile.gettempdir(), 'FurnitureAI', 'icons')
+                if os.path.exists(temp_icons):
+                    shutil.rmtree(temp_icons)
+            except:
+                pass
             
             self.app.log("UIManager: cleanup completato")
         except Exception as e:
@@ -553,89 +489,58 @@ class UIManager:
         if tooltip_extended and hasattr(btn, 'tooltipDescription'):
             btn.tooltipDescription = tooltip_extended
         
-        # CRITICAL FIX: FAI_ConfiguraIA must ALWAYS be enabled (entry point to configure AI)
+        # ===== LOGICA ABILITAZIONE COMANDI =====
+        
+        # FAI_ConfiguraIA deve essere SEMPRE abilitato (è il comando per configurare!)
         if cmd_id == 'FAI_ConfiguraIA':
             btn.isEnabled = True
             self.app.log(f"  ✓ {cmd_id} SEMPRE ABILITATO (comando configurazione)")
-        elif ia_required:
-            # Check both global toggle AND provider availability
-            if not self.config_manager.is_ai_enabled():
-                btn.isEnabled = False
-                self.app.log(f"  >>> {cmd_id} DISABILITATO (IA disabilitata dall'utente)")
-            elif not self.ia_enabled:
-                btn.isEnabled = False
-                self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
-            else:
-                btn.isEnabled = True
-                self.app.log(f"  ✓ {cmd_id} ABILITATO (IA configurata e abilitata)")
         
-        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled, self.config_manager)
+        # Altri comandi IA: controlla toggle globale + disponibilità provider
+        elif ia_required:
+            if self.config_manager:
+                ai_enabled_by_user = self.config_manager.is_ai_enabled()
+                
+                if not ai_enabled_by_user:
+                    btn.isEnabled = False
+                    self.app.log(f"  >>> {cmd_id} DISABILITATO (IA disabilitata dall'utente)")
+                elif not self.ia_enabled:
+                    btn.isEnabled = False
+                    self.app.log(f"  >>> {cmd_id} DISABILITATO (IA non configurata)")
+                else:
+                    btn.isEnabled = True
+                    self.app.log(f"  ✓ {cmd_id} ABILITATO (IA disponibile)")
+            else:
+                btn.isEnabled = False
+                self.app.log(f"  >>> {cmd_id} DISABILITATO (ConfigManager non disponibile)")
+        
+        # Comandi normali (non IA): sempre abilitati
+        else:
+            btn.isEnabled = True
+        
+        # ===== FINE LOGICA =====
+        
+        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled)
         btn.commandCreated.add(handler)
         self.handlers.append(handler)
         panel.controls.addCommand(btn)
 
 class CommandHandler(adsk.core.CommandCreatedEventHandler):
-    def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False, config_manager=None):
+    def __init__(self, name, cmd_id, app, ia_required=False, ia_enabled=False):
         super().__init__()
         self.name = name
         self.cmd_id = cmd_id
         self.app = app
         self.ia_required = ia_required
         self.ia_enabled = ia_enabled
-        self.config_manager = config_manager
         
     def notify(self, args):
-        # Import specific command handlers
-        from commands.ai_config_command import AIConfigCommand
-        from commands.ai_genera_command import AIGeneraCommand
-        from commands.wizard_command import WizardCommand
-        
-        # Route to appropriate handler
-        if self.cmd_id == 'FAI_ConfiguraIA':
-            handler = AIConfigCommand()
-            handler.notify(args)
+        if self.ia_required and not self.ia_enabled:
+            self.app.userInterface.messageBox(
+                f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
+                'IA Non Configurata'
+            )
             return
-        
-        if self.cmd_id == 'FAI_GeneraIA':
-            # Check global toggle first
-            if self.config_manager and not self.config_manager.is_ai_enabled():
-                self.app.userInterface.messageBox(
-                    f'{self.name}\n\n❌ Funzionalità IA disabilitate\n\nAbilita IA da: Impostazioni → Configura IA',
-                    'IA Disabilitata'
-                )
-                return
-            
-            if self.ia_required and not self.ia_enabled:
-                self.app.userInterface.messageBox(
-                    f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
-                    'IA Non Configurata'
-                )
-                return
-            handler = AIGeneraCommand()
-            handler.notify(args)
-            return
-        
-        if self.cmd_id == 'FAI_Wizard':
-            handler = WizardCommand()
-            handler.notify(args)
-            return
-        
-        # Default handler for other commands with ia_required
-        if self.ia_required:
-            # Check global toggle first
-            if self.config_manager and not self.config_manager.is_ai_enabled():
-                self.app.userInterface.messageBox(
-                    f'{self.name}\n\n❌ Funzionalità IA disabilitate\n\nAbilita IA da: Impostazioni → Configura IA',
-                    'IA Disabilitata'
-                )
-                return
-            
-            if not self.ia_enabled:
-                self.app.userInterface.messageBox(
-                    f'{self.name}\n\n❌ Richiede IA configurata\n\nImpostazioni → Configura IA',
-                    'IA Non Configurata'
-                )
-                return
         
         cmd = args.command
         
