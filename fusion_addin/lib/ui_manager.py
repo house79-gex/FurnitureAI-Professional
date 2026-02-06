@@ -73,7 +73,8 @@ class UIManager:
             self.config_manager = None
             self.ia_enabled = False
             self.is_first_run = True
-                def create_ui(self):
+    
+    def create_ui(self):
         try:
             self.app.log("UIManager: inizio creazione UI")
             

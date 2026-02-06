@@ -42,3 +42,4 @@ script_icons/output/
 .coverage
 htmlcov/
 .pytest_cache/
+test_startup_integration.py
