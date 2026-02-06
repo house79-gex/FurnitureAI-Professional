@@ -17,7 +17,7 @@ class ConfiguraIACommand:
         self.ui = self.app.userInterface
         
         # Setup path
-        addon_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         lib_path = os.path.join(addon_path, 'fusion_addin', 'lib')
         if lib_path not in sys.path:
             sys.path.insert(0, lib_path)
