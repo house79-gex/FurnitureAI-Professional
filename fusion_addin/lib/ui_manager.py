@@ -746,9 +746,10 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             if self.cmd_id == 'FAI_ConfiguraIA':
                 self.app.log("   → Avvio ConfiguraIA command")
                 try:
-                    # Import diretto
+                    # Import diretto con reload per assicurare codice aggiornato
                     import sys
                     import os
+                    import importlib
                     
                     addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
@@ -756,8 +757,11 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                     if commands_path not in sys.path:
                         sys.path.insert(0, commands_path)
                     
-                    # Import modulo configura_ia
+                    # Import con reload per assicurare codice aggiornato
                     import configura_ia
+                    
+                    if 'configura_ia' in sys.modules:
+                        importlib.reload(configura_ia)
                     
                     # Crea ed esegui comando
                     cmd_instance = configura_ia.ConfiguraIACommand()

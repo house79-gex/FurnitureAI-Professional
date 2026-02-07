@@ -1,6 +1,6 @@
 """
 Comando FAI_ConfiguraIA - Dialog Nativo Fusion 360 API
-Versione: 4.0 - Command Dialog Standard
+Versione: 4.1 - Fix handler garbage collection
 """
 
 import adsk.core
@@ -9,6 +9,9 @@ import os
 import sys
 import json
 import traceback
+
+# CRITICO: Lista globale per prevenire garbage collection degli handler
+_handlers = []
 
 def _get_addon_path():
     """Helper per ottenere path addon"""
@@ -33,6 +36,7 @@ class ConfiguraIACommand:
         
     def execute(self):
         """Esegui comando - Apri dialog nativo"""
+        global _handlers
         try:
             self.app.log("🚀 ConfiguraIACommand.execute() chiamato")
             
@@ -49,9 +53,10 @@ class ConfiguraIACommand:
                 'Configurazione provider Intelligenza Artificiale'
             )
             
-            # Registra handler
+            # Registra handler - SALVALO NELLA LISTA GLOBALE
             on_created = ConfiguraIACreatedHandler()
             cmd_def.commandCreated.add(on_created)
+            _handlers.append(on_created)  # PREVIENI GARBAGE COLLECTION
             
             # Esegui (questo FUNZIONA con Command API)
             cmd_def.execute()
@@ -74,17 +79,20 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
         self.app = adsk.core.Application.get()
         
     def notify(self, args):
+        global _handlers
         try:
             self.app.log("🎯 ConfiguraIACreatedHandler.notify() chiamato")
             
             cmd = args.command
             
-            # Registra event handlers
+            # Registra event handlers - SALVA NELLA LISTA GLOBALE
             on_execute = ConfiguraIAExecuteHandler()
             cmd.execute.add(on_execute)
+            _handlers.append(on_execute)  # PREVIENI GARBAGE COLLECTION
             
             on_destroy = ConfiguraIADestroyHandler()
             cmd.destroy.add(on_destroy)
+            _handlers.append(on_destroy)  # PREVIENI GARBAGE COLLECTION
             
             # Build UI inputs
             inputs = cmd.commandInputs
