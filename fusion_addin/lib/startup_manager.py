@@ -53,8 +53,12 @@ class StartupManager:
             doc = self.app.activeDocument
             if not doc:
                 self.app.log("📄 Nessun documento aperto, creo documento Assembly...")
-                doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
-                self.app.log("✓ Nuovo documento creato")
+                try:
+                    doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
+                    self.app.log("✓ Nuovo documento creato")
+                except Exception as e:
+                    self.app.log(f"❌ Errore creazione documento: {e}")
+                    raise
             
             # 2. Imposta modalità Assembly (Parametric Design con componenti)
             design = adsk.fusion.Design.cast(self.app.activeProduct)
