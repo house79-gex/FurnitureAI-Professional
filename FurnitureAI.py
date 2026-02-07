@@ -37,10 +37,10 @@ def run(context):
         # Force cleanup precedente
         force_cleanup(app)
         
-        # Import modules
-        from fusion_addin.lib.config_manager import ConfigManager
-        from fusion_addin.lib.ui_manager import UIManager
-        from fusion_addin.lib.startup_manager import StartupManager
+        # Import modules (diretto, non fusion_addin.lib)
+        from config_manager import ConfigManager
+        from ui_manager import UIManager
+        from startup_manager import StartupManager
         
         # Inizializza Config Manager
         _config_manager = ConfigManager()
