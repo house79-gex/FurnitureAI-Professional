@@ -1,6 +1,6 @@
 """
 Comando FAI_ConfiguraIA - Dialog Nativo Fusion 360 API
-Versione: 4.1 - Fix handler garbage collection
+Versione: 4.2 - Fix tab nesting error + input validation guards
 """
 
 import adsk.core
@@ -98,16 +98,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs = cmd.commandInputs
             
             # ════════════════════════════════════════════
-            # TAB GROUP PRINCIPALE
-            # ════════════════════════════════════════════
-            
-            tab_group = inputs.addTabCommandInput('tab_group', 'Providers IA')
-            
-            # ════════════════════════════════════════════
             # TAB 1: PROVIDER GRATUITI
             # ════════════════════════════════════════════
+            # NOTA: Tab aggiunti direttamente a inputs (NON annidati in tab_group)
+            # perché Fusion 360 API non permette TabCommandInput dentro TabCommandInput
             
-            tab_gratis = tab_group.children.addTabCommandInput('tab_gratis', '🆓 Cloud Gratis')
+            tab_gratis = inputs.addTabCommandInput('tab_gratis', '🆓 Cloud Gratis')
             tab_gratis_children = tab_gratis.children
             
             # --- Groq ---
@@ -138,7 +134,7 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             # TAB 2: SERVER LOCALE
             # ════════════════════════════════════════════
             
-            tab_locale = tab_group.children.addTabCommandInput('tab_locale', '💻 Server Locale')
+            tab_locale = inputs.addTabCommandInput('tab_locale', '💻 Server Locale')
             tab_locale_children = tab_locale.children
             
             # --- LM Studio ---
@@ -169,7 +165,7 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             # TAB 3: CLOUD PREMIUM
             # ════════════════════════════════════════════
             
-            tab_premium = tab_group.children.addTabCommandInput('tab_premium', '☁️ Cloud Premium')
+            tab_premium = inputs.addTabCommandInput('tab_premium', '☁️ Cloud Premium')
             tab_premium_children = tab_premium.children
             
             # --- OpenAI ---
@@ -274,6 +270,29 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             
             cmd = args.command
             inputs = cmd.commandInputs
+            
+            # ════════════════════════════════════════════
+            # VERIFICA CHE LA UI SIA STATA COSTRUITA
+            # ════════════════════════════════════════════
+            # Se il dialog non è stato costruito correttamente (errore Error 1),
+            # gli input non esistono e accedere a .value causerebbe un crash
+            
+            groq_enabled_input = inputs.itemById('groq_enabled')
+            if not groq_enabled_input:
+                self.app.log("⚠️ Input non trovati - la UI non è stata costruita correttamente")
+                self.app.userInterface.messageBox(
+                    'La configurazione non può essere salvata.\n'
+                    'La dialog non è stata costruita correttamente.\n'
+                    'Riprova chiudendo e riaprendo la dialog.',
+                    'Errore Configurazione',
+                    adsk.core.MessageBoxButtonTypes.OKButtonType,
+                    adsk.core.MessageBoxIconTypes.WarningIconType
+                )
+                return
+            
+            # ════════════════════════════════════════════
+            # BUILD CONFIG OBJECT
+            # ════════════════════════════════════════════
             
             # Costruisci config object
             config = {}

@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 3.1 - Timer esteso e messaggio first-run migliorato
+Versione: 3.2 - First-run message updated for Assembly project guidance
 """
 
 import adsk.core
@@ -236,9 +236,9 @@ class StartupManager:
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
                 '📌 PRIMO PASSO:\n'
                 '   Se vedi la finestra di avvio di Fusion:\n'
-                '   → Seleziona "Nuovo Progetto"\n'
-                '   → Tipo: "Progetto di Assieme"\n'
-                '   → Clicca "Crea"\n\n'
+                '   → Crea un "Nuovo Progetto"\n'
+                '   → Tipo: Progetto di Assieme\n'
+                '   → Il tipo "Assieme" è necessario per FurnitureAI\n\n'
                 '🤖 FUNZIONI IA (Opzionali):\n'
                 '   Per abilitarle:\n'
                 '   → Clicca "Configura IA" nel pannello Impostazioni\n\n'
