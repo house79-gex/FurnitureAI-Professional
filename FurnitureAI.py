@@ -50,7 +50,7 @@ def run(context):
         _ui_manager.create_ui()
         
         # Inizializza Startup Manager
-        startup_manager = StartupManager(app, _config_manager)
+        startup_manager = StartupManager(_config_manager, app)
         startup_manager.apply_startup_settings()
         
         app.log("FurnitureAI: avvio completato con successo")
