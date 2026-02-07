@@ -17,7 +17,7 @@ class UIManager:
         self.ui = app.userInterface
         self.config_manager = config_manager
         self.handlers = []
-        self.ia_enabled = config_manager.is_ia_enabled()
+        self.ia_enabled = config_manager.is_ai_enabled()
         
         # IDs
         self.workspace_id = 'FusionSolidEnvironment'
