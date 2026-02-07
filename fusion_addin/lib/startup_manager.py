@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 3.0 - Con deferred startup per evitare InternalValidationError
+Versione: 3.1 - Timer esteso e messaggio first-run migliorato
 """
 
 import adsk.core
@@ -26,6 +26,23 @@ class DeferredStartupHandler(adsk.core.CustomEventHandler):
         except:
             pass
 
+class FirstRunMsgHandler(adsk.core.CustomEventHandler):
+    """Handler per mostrare messaggio first-run con delay"""
+    def __init__(self, startup_manager):
+        super().__init__()
+        self.startup_manager = startup_manager
+    
+    def notify(self, args):
+        try:
+            self.startup_manager._show_first_run_message()
+            # Cleanup evento
+            try:
+                self.startup_manager.app.unregisterCustomEvent('FurnitureAI_FirstRunMsg')
+            except:
+                pass
+        except:
+            pass
+
 class StartupManager:
     """Gestore configurazione startup Fusion con logica intelligente"""
     
@@ -37,6 +54,8 @@ class StartupManager:
         self.is_first_run = config_manager.is_first_run()
         self._custom_event = None
         self._handler = None
+        self._first_run_event = None
+        self._first_run_handler = None
     
     def apply_startup_settings(self):
         """Applica impostazioni startup"""
@@ -68,10 +87,9 @@ class StartupManager:
             # Se arriviamo qui, Fusion è pronto
             self._do_workspace_setup(doc)
             
-            # ORA mostra first run message (Fusion è pronto e setup completato)
+            # ORA mostra first run message (Fusion è pronto e setup completato) con delay
             if self.is_first_run:
-                self.app.log("🎉 First run rilevato, mostro messaggio")
-                self._show_first_run_message()
+                self._show_first_run_delayed()
                 
         except RuntimeError as e:
             if 'InternalValidationError' in str(e):
@@ -85,7 +103,7 @@ class StartupManager:
             self.app.log(traceback.format_exc())
     
     def _schedule_deferred_startup(self):
-        """Registra custom event + timer per riprovare dopo 3 secondi"""
+        """Registra custom event + timer per riprovare dopo 6 secondi"""
         global _custom_event_handler
         try:
             # Registra custom event
@@ -94,12 +112,12 @@ class StartupManager:
             self._custom_event.add(self._handler)
             _custom_event_handler = self._handler  # Keep reference
             
-            # Timer da 3 secondi
-            timer = threading.Timer(3.0, self._fire_deferred_event)
+            # Timer INIZIALE: 6 secondi (macchine lente)
+            timer = threading.Timer(6.0, self._fire_deferred_event)
             timer.daemon = True
             timer.start()
             
-            self.app.log("⏰ Timer avvio differito programmato (3s)")
+            self.app.log("⏰ Timer avvio differito programmato (6s)")
         except Exception as e:
             self.app.log(f"❌ Errore scheduling: {e}")
             self.app.log(traceback.format_exc())
@@ -123,16 +141,15 @@ class StartupManager:
             # Cleanup custom event
             self._cleanup_custom_event()
             
-            # ORA mostra first run message (Fusion è pronto)
+            # ORA mostra first run message (Fusion è pronto) con delay
             if self.is_first_run:
-                self.app.log("🎉 First run rilevato, mostro messaggio")
-                self._show_first_run_message()
+                self._show_first_run_delayed()
                 
         except RuntimeError as e:
             if 'InternalValidationError' in str(e) and _retry_count < _max_retries:
                 self.app.log(f"⏳ Tentativo {_retry_count}/{_max_retries} - Fusion ancora non pronto")
-                # Riprova con altro timer
-                timer = threading.Timer(3.0, self._fire_deferred_event)
+                # Riprova con altro timer (4 secondi per i retry)
+                timer = threading.Timer(4.0, self._fire_deferred_event)
                 timer.daemon = True
                 timer.start()
             else:
@@ -155,28 +172,22 @@ class StartupManager:
     
     def _do_workspace_setup(self, doc):
         """Logica effettiva di setup workspace"""
-        # Se nessun documento aperto, creane uno
+        # Se nessun documento aperto, NON crearne uno
+        # (La dialog di avvio di Fusion è responsabilità dell'utente)
         if not doc:
-            self.app.log("📄 Nessun documento, creo nuovo Design...")
-            doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
-            self.app.log("✓ Documento Design creato")
+            self.app.log("⚠️ Nessun documento aperto - l'utente deve completare la dialog di avvio Fusion")
+            # Non creare documento, solo attiva workspace e tab
+        else:
+            # Imposta modalità Parametrica solo se documento presente
+            design = adsk.fusion.Design.cast(self.app.activeProduct)
+            if design:
+                if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
+                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                    self.app.log("✓ Modalità Parametrica attivata")
+                else:
+                    self.app.log("✓ Già in modalità Parametrica")
         
-        # Imposta Parametric Design (Assembly mode con timeline)
-        design = adsk.fusion.Design.cast(self.app.activeProduct)
-        if design:
-            if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
-                design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-                self.app.log("✓ Modalità Parametrica (Assembly) attivata")
-            else:
-                self.app.log("✓ Già in modalità Parametrica")
-            
-            # Rinomina root component
-            root = design.rootComponent
-            if root and root.name == 'Unnamed':
-                root.name = 'FurnitureAI_Assembly'
-                self.app.log("✓ Root component rinominato")
-        
-        # Attiva workspace Solid
+        # Attiva workspace e tab (funziona anche senza documento)
         ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
         if ws:
             ws.activate()
@@ -192,12 +203,42 @@ class StartupManager:
         else:
             self.app.log("⚠️ Workspace Solid non trovato")
     
+    def _show_first_run_delayed(self):
+        """Mostra messaggio first-run con un piccolo delay per dare tempo alla UI"""
+        def _fire():
+            try:
+                self.app.fireCustomEvent('FurnitureAI_FirstRunMsg', '')
+            except:
+                pass
+        
+        # Registra evento per first run message
+        try:
+            evt = self.app.registerCustomEvent('FurnitureAI_FirstRunMsg')
+            handler = FirstRunMsgHandler(self)
+            evt.add(handler)
+            # Salva riferimento per evitare GC
+            self._first_run_event = evt
+            self._first_run_handler = handler
+            
+            self.app.log("🎉 First run rilevato, mostro messaggio (con delay 2s)")
+            timer = threading.Timer(2.0, _fire)  # 2s dopo il setup
+            timer.daemon = True
+            timer.start()
+        except:
+            # Fallback: mostra subito
+            self._show_first_run_message()
+    
     def _show_first_run_message(self):
-        """Messaggio first run semplice e chiaro"""
+        """Messaggio first run con istruzioni chiare"""
         try:
             self.ui.messageBox(
                 '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                '📌 PRIMO PASSO:\n'
+                '   Se vedi la finestra di avvio di Fusion:\n'
+                '   → Seleziona "Nuovo Progetto"\n'
+                '   → Tipo: "Progetto di Assieme"\n'
+                '   → Click "Crea"\n\n'
                 '🤖 FUNZIONI IA (Opzionali):\n'
                 '   Per abilitarle:\n'
                 '   → Click "Configura IA" nel pannello Impostazioni\n\n'
@@ -209,7 +250,7 @@ class StartupManager:
                 '   • Lista taglio ottimizzata\n'
                 '   • Esportazione produzione\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                'Il tab "Furniture AI" è ora attivo!',
+                'Il tab "Furniture AI" è ora attivo nella toolbar!',
                 'FurnitureAI Professional - Primo Avvio',
                 adsk.core.MessageBoxButtonTypes.OKButtonType,
                 adsk.core.MessageBoxIconTypes.InformationIconType
