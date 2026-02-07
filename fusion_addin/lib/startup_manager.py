@@ -57,7 +57,10 @@ class StartupManager:
                     doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
                     self.app.log("✓ Nuovo documento creato")
                 except Exception as e:
+                    import traceback
                     self.app.log(f"❌ Errore creazione documento: {e}")
+                    self.app.log(f"   Tipo errore: {type(e).__name__}")
+                    self.app.log(f"   Dettagli: {traceback.format_exc()}")
                     raise
             
             # 2. Imposta modalità Assembly (Parametric Design con componenti)
