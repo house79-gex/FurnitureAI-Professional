@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 3.2 - First-run message updated for Assembly project guidance
+Versione: 3.3 - Auto-document creation + persistent first-run flag
 """
 
 import adsk.core
@@ -172,6 +172,7 @@ class StartupManager:
     
     def _do_workspace_setup(self, doc):
         """Logica effettiva di setup workspace"""
+        # Auto-creazione documento se non esiste
         if not doc:
             self.app.log("📄 Nessun documento aperto - creazione automatica...")
             try:
@@ -183,19 +184,25 @@ class StartupManager:
                 if not self.app.activeProduct:
                     self.app.log("⚠️ Documento creato ma non attivo")
                     return
+                
+                # Imposta modalità Parametrica (= Assembly mode in Fusion 360)
+                design = adsk.fusion.Design.cast(self.app.activeProduct)
+                if design:
+                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                    self.app.log("✓ Modalità Parametrica (Assieme) attivata sul nuovo documento")
                     
             except Exception as e:
                 self.app.log(f"⚠️ Impossibile creare documento: {e}")
                 return
-        
-        # Imposta modalità Parametrica (= Assembly mode in Fusion 360)
-        design = adsk.fusion.Design.cast(self.app.activeProduct)
-        if design:
-            if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
-                design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-                self.app.log("✓ Modalità Parametrica (Assieme) attivata")
-            else:
-                self.app.log("✓ Già in modalità Parametrica (Assieme)")
+        else:
+            # Documento già aperto - imposta solo modalità Parametrica se necessario
+            design = adsk.fusion.Design.cast(self.app.activeProduct)
+            if design:
+                if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
+                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                    self.app.log("✓ Modalità Parametrica (Assieme) attivata")
+                else:
+                    self.app.log("✓ Già in modalità Parametrica (Assieme)")
         
         # Attiva workspace e tab (funziona anche senza documento)
         ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
@@ -245,8 +252,8 @@ class StartupManager:
                 '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
                 '✅ SETUP AUTOMATICO COMPLETATO:\n'
-                '   • Documento Design creato\n'
-                '   • Modalità Assieme attivata\n'
+                '   • Documento Parametrico (Assieme) creato\n'
+                '   • Workspace Design attivato\n'
                 '   • Tab "Furniture AI" attivo\n\n'
                 '🤖 FUNZIONI IA (Opzionali):\n'
                 '   Per abilitarle:\n'
@@ -265,7 +272,9 @@ class StartupManager:
                 adsk.core.MessageBoxIconTypes.InformationIconType
             )
             
-            self.app.log("✓ Messaggio first run mostrato")
+            # Marca first run come completato
+            self.config_manager.mark_first_run_completed()
+            self.app.log("✓ Messaggio first run mostrato e flag salvato")
             
         except Exception as e:
             self.app.log(f"❌ Errore messaggio first run: {e}")
