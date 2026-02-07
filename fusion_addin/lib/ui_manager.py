@@ -758,11 +758,10 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                         sys.path.insert(0, commands_path)
                     
                     # Import con reload per assicurare codice aggiornato
+                    import configura_ia
+                    
                     if 'configura_ia' in sys.modules:
-                        import configura_ia
                         importlib.reload(configura_ia)
-                    else:
-                        import configura_ia
                     
                     # Crea ed esegui comando
                     cmd_instance = configura_ia.ConfiguraIACommand()
