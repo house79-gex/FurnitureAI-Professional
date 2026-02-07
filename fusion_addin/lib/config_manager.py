@@ -2,7 +2,7 @@
 Config Manager - VERSIONE CORRETTA
 - NON crea config default automaticamente
 - Ritorna solo se file esiste
-- First run detection
+- First run detection con flag persistente e check configurazione IA
 """
 
 import json
@@ -29,8 +29,47 @@ class ConfigManager:
         self.materials_path = os.path.join(self.config_dir, 'materials_base.json')
     
     def is_first_run(self) -> bool:
-        """Controlla se è il primo avvio (config non esiste)"""
-        return not os.path.exists(self.api_keys_path)
+        """
+        Controlla se è il primo avvio
+        First run = flag non impostato E nessun provider IA configurato
+        """
+        # Controlla flag persistente nelle preferenze
+        prefs = self.get_preferences()
+        first_run_completed = prefs.get('startup', {}).get('first_run_completed', False)
+        
+        if first_run_completed:
+            # Utente ha già visto il messaggio
+            return False
+        
+        # Se IA è già configurata, non è first run
+        if self.has_ai_provider_configured():
+            return False
+        
+        # Altrimenti è first run
+        return True
+    
+    def mark_first_run_completed(self):
+        """Marca il primo avvio come completato"""
+        try:
+            prefs = self.get_preferences()
+            if 'startup' not in prefs:
+                prefs['startup'] = {}
+            prefs['startup']['first_run_completed'] = True
+            self.save_preferences(prefs)
+            
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Flag first_run_completed impostato")
+            except:
+                pass
+        except Exception as e:
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log(f"✗ Errore salvataggio flag first_run: {e}")
+            except:
+                pass
     
     def get_ai_config(self) -> Optional[Dict[str, Any]]:
         """
