@@ -61,9 +61,6 @@ class ConfiguraIACommand:
             # Esegui (questo FUNZIONA con Command API)
             cmd_def.execute()
             
-            # Prevent auto-terminate
-            adsk.autoTerminate(False)
-            
             self.app.log("✅ Comando Configura IA eseguito")
             
         except Exception as e:
@@ -98,6 +95,28 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             inputs = cmd.commandInputs
             
             # ════════════════════════════════════════════
+            # HEADER E TOGGLE GLOBALE
+            # ════════════════════════════════════════════
+            
+            # Titolo con HTML formattato
+            inputs.addTextBoxCommandInput('header_title', '', 
+                '<br><b style="font-size:14px">🤖 FurnitureAI - Configurazione Intelligenza Artificiale</b><br>'
+                '<i>Configura i provider AI per generazione mobili, analisi immagini e design assistito.</i><br>', 
+                4, True)
+            
+            # Toggle globale IA
+            inputs.addBoolValueInput('ia_global_enabled', '🟢 Abilita funzioni IA', True, '', True)
+            
+            # Info toggle
+            inputs.addTextBoxCommandInput('ia_toggle_info', '',
+                '<i>Se disabilitato, i comandi IA (Genera IA, Layout IA) non saranno disponibili.<br>'
+                'Tutti gli altri comandi (Wizard, Template, etc.) restano attivi.</i>',
+                2, True)
+            
+            # Separatore
+            inputs.addTextBoxCommandInput('separator_1', '', '<br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>', 1, True)
+            
+            # ════════════════════════════════════════════
             # TAB 1: PROVIDER GRATUITI
             # ════════════════════════════════════════════
             # NOTA: Tab aggiunti direttamente a inputs (NON annidati in tab_group)
@@ -114,9 +133,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             groq_children.addBoolValueInput('groq_enabled', 'Abilita Groq', True, '', False)
             groq_children.addStringValueInput('groq_key', 'API Key', '')
             groq_children.addTextBoxCommandInput('groq_info', '', 
-                'Chat ultra-veloce (500 token/s)\n' +
-                '14,400 richieste/giorno GRATIS\n' +
-                'Ottieni chiave su: https://groq.com', 3, True)
+                '<b>⚡ Groq - Chat Ultra-Veloce</b><br>'
+                '<i>Velocità: 500 token/s</i><br>'
+                '✅ 14,400 richieste/giorno <b>GRATIS</b><br>'
+                '🔗 Ottieni chiave: <a href="https://groq.com">groq.com</a><br>'
+                '📋 Modello: llama-3.3-70b-versatile', 
+                6, True)
             
             # --- Hugging Face ---
             group_hf = tab_gratis_children.addGroupCommandInput('group_hf', '🤗 Hugging Face')
@@ -126,9 +148,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             hf_children.addBoolValueInput('hf_enabled', 'Abilita Hugging Face', True, '', False)
             hf_children.addStringValueInput('hf_token', 'Access Token', '')
             hf_children.addTextBoxCommandInput('hf_info', '',
-                'Vision + Image Generation GRATIS\n' +
-                'Analisi foto mobili + Rendering\n' +
-                'Ottieni token su: https://huggingface.co', 3, True)
+                '<b>🤗 Hugging Face - Vision & Image Gen</b><br>'
+                '<i>Analisi foto mobili + Rendering</i><br>'
+                '✅ API <b>GRATUITA</b> per tutti<br>'
+                '🔗 Ottieni token: <a href="https://huggingface.co">huggingface.co</a><br>'
+                '📋 Modelli: BLIP, Stable Diffusion',
+                6, True)
             
             # ════════════════════════════════════════════
             # TAB 2: SERVER LOCALE
@@ -145,9 +170,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             lms_children.addBoolValueInput('lms_enabled', 'Abilita LM Studio', True, '', False)
             lms_children.addStringValueInput('lms_url', 'URL Server', 'http://localhost:1234/v1')
             lms_children.addTextBoxCommandInput('lms_info', '',
-                'Server locale con modelli open source\n' +
-                'Privacy massima, zero costi cloud\n' +
-                'Download: https://lmstudio.ai', 3, True)
+                '<b>💻 LM Studio - Server Locale</b><br>'
+                '<i>Modelli open source sul tuo PC</i><br>'
+                '✅ Privacy massima, zero costi cloud<br>'
+                '🔗 Download: <a href="https://lmstudio.ai">lmstudio.ai</a><br>'
+                '📋 Supporta: Llama, Mistral, Phi',
+                6, True)
             
             # --- Ollama ---
             group_ollama = tab_locale_children.addGroupCommandInput('group_ollama', '🦙 Ollama')
@@ -157,9 +185,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             ollama_children.addBoolValueInput('ollama_enabled', 'Abilita Ollama', True, '', False)
             ollama_children.addStringValueInput('ollama_url', 'URL Server', 'http://localhost:11434')
             ollama_children.addTextBoxCommandInput('ollama_info', '',
-                'Esegui Llama, Mistral, Gemma localmente\n' +
-                'Installazione semplice, cross-platform\n' +
-                'Download: https://ollama.com', 3, True)
+                '<b>🦙 Ollama - Esegui LLM Localmente</b><br>'
+                '<i>Llama, Mistral, Gemma sul tuo PC</i><br>'
+                '✅ Installazione semplice, cross-platform<br>'
+                '🔗 Download: <a href="https://ollama.com">ollama.com</a><br>'
+                '📋 Oltre 100 modelli disponibili',
+                6, True)
             
             # ════════════════════════════════════════════
             # TAB 3: CLOUD PREMIUM
@@ -187,9 +218,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             dropdown_openai_model.listItems.add('gpt-4-turbo', False)
             
             openai_children.addTextBoxCommandInput('openai_info', '',
-                'GPT-4o + DALL-E 3 - Massima qualità\n' +
-                'Costo: ~$0.01-0.05 per richiesta\n' +
-                'API Key: https://platform.openai.com', 3, True)
+                '<b>🤖 OpenAI - GPT-4o + DALL-E 3</b><br>'
+                '<i>Massima qualità AI disponibile</i><br>'
+                '💰 Costo: ~$0.01-0.05 per richiesta<br>'
+                '🔗 API Key: <a href="https://platform.openai.com">platform.openai.com</a><br>'
+                '📋 Include: GPT-4o, DALL-E 3, Vision',
+                6, True)
             
             # --- Anthropic ---
             group_anthropic = tab_premium_children.addGroupCommandInput('group_anthropic', '🧠 Anthropic Claude')
@@ -199,9 +233,12 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             anthropic_children.addBoolValueInput('anthropic_enabled', 'Abilita Claude', True, '', False)
             anthropic_children.addStringValueInput('anthropic_key', 'API Key', '')
             anthropic_children.addTextBoxCommandInput('anthropic_info', '',
-                'Claude 3.5 Sonnet\n' +
-                'Eccellente per reasoning e design\n' +
-                'API Key: https://console.anthropic.com', 3, True)
+                '<b>🧠 Anthropic - Claude 3.5 Sonnet</b><br>'
+                '<i>Eccellente per reasoning e design</i><br>'
+                '💰 Costo: ~$0.015 per 1000 token<br>'
+                '🔗 API Key: <a href="https://console.anthropic.com">console.anthropic.com</a><br>'
+                '📋 Ideale per analisi complesse',
+                6, True)
             
             # ════════════════════════════════════════════
             # CARICA CONFIG ESISTENTE (se presente)
@@ -226,30 +263,59 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             with open(config_path, 'r') as f:
                 config = json.load(f)
             
-            # Popola campi
+            # Carica toggle globale IA
+            ia_enabled_input = inputs.itemById('ia_global_enabled')
+            if ia_enabled_input:
+                ia_enabled_input.value = config.get('ia_enabled', True)
+            
+            # Popola campi provider
             if 'groq' in config:
-                inputs.itemById('groq_enabled').value = config['groq'].get('enabled', False)
-                inputs.itemById('groq_key').value = config['groq'].get('api_key', '')
+                groq_enabled = inputs.itemById('groq_enabled')
+                groq_key = inputs.itemById('groq_key')
+                if groq_enabled:
+                    groq_enabled.value = config['groq'].get('enabled', False)
+                if groq_key:
+                    groq_key.value = config['groq'].get('api_key', '')
             
             if 'huggingface' in config:
-                inputs.itemById('hf_enabled').value = config['huggingface'].get('enabled', False)
-                inputs.itemById('hf_token').value = config['huggingface'].get('token', '')
+                hf_enabled = inputs.itemById('hf_enabled')
+                hf_token = inputs.itemById('hf_token')
+                if hf_enabled:
+                    hf_enabled.value = config['huggingface'].get('enabled', False)
+                if hf_token:
+                    hf_token.value = config['huggingface'].get('token', '')
             
             if 'lmstudio' in config:
-                inputs.itemById('lms_enabled').value = config['lmstudio'].get('enabled', False)
-                inputs.itemById('lms_url').value = config['lmstudio'].get('url', 'http://localhost:1234/v1')
+                lms_enabled = inputs.itemById('lms_enabled')
+                lms_url = inputs.itemById('lms_url')
+                if lms_enabled:
+                    lms_enabled.value = config['lmstudio'].get('enabled', False)
+                if lms_url:
+                    lms_url.value = config['lmstudio'].get('url', 'http://localhost:1234/v1')
             
             if 'ollama' in config:
-                inputs.itemById('ollama_enabled').value = config['ollama'].get('enabled', False)
-                inputs.itemById('ollama_url').value = config['ollama'].get('url', 'http://localhost:11434')
+                ollama_enabled = inputs.itemById('ollama_enabled')
+                ollama_url = inputs.itemById('ollama_url')
+                if ollama_enabled:
+                    ollama_enabled.value = config['ollama'].get('enabled', False)
+                if ollama_url:
+                    ollama_url.value = config['ollama'].get('url', 'http://localhost:11434')
             
             if 'openai' in config:
-                inputs.itemById('openai_enabled').value = config['openai'].get('enabled', False)
-                inputs.itemById('openai_key').value = config['openai'].get('api_key', '')
+                openai_enabled = inputs.itemById('openai_enabled')
+                openai_key = inputs.itemById('openai_key')
+                if openai_enabled:
+                    openai_enabled.value = config['openai'].get('enabled', False)
+                if openai_key:
+                    openai_key.value = config['openai'].get('api_key', '')
             
             if 'anthropic' in config:
-                inputs.itemById('anthropic_enabled').value = config['anthropic'].get('enabled', False)
-                inputs.itemById('anthropic_key').value = config['anthropic'].get('api_key', '')
+                anthropic_enabled = inputs.itemById('anthropic_enabled')
+                anthropic_key = inputs.itemById('anthropic_key')
+                if anthropic_enabled:
+                    anthropic_enabled.value = config['anthropic'].get('enabled', False)
+                if anthropic_key:
+                    anthropic_key.value = config['anthropic'].get('api_key', '')
             
             self.app.log("✅ Config esistente caricata")
             
@@ -277,8 +343,9 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             # Se il dialog non è stato costruito correttamente (errore Error 1),
             # gli input non esistono e accedere a .value causerebbe un crash
             
+            ia_global_enabled_input = inputs.itemById('ia_global_enabled')
             groq_enabled_input = inputs.itemById('groq_enabled')
-            if not groq_enabled_input:
+            if not ia_global_enabled_input or not groq_enabled_input:
                 self.app.log("⚠️ Input non trovati - la UI non è stata costruita correttamente")
                 self.app.userInterface.messageBox(
                     'La configurazione non può essere salvata.\n'
@@ -297,18 +364,24 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             # Costruisci config object
             config = {}
             
+            # Salva toggle globale IA
+            config['ia_enabled'] = ia_global_enabled_input.value
+            
             # Groq - Salva sempre, anche se disabilitato
+            groq_key_input = inputs.itemById('groq_key')
             config['groq'] = {
-                'enabled': inputs.itemById('groq_enabled').value,
-                'api_key': inputs.itemById('groq_key').value,
+                'enabled': groq_enabled_input.value,
+                'api_key': groq_key_input.value if groq_key_input else '',
                 'base_url': 'https://api.groq.com/openai/v1',
                 'model': 'llama-3.3-70b-versatile'
             }
             
             # Hugging Face - Salva sempre
+            hf_enabled_input = inputs.itemById('hf_enabled')
+            hf_token_input = inputs.itemById('hf_token')
             config['huggingface'] = {
-                'enabled': inputs.itemById('hf_enabled').value,
-                'token': inputs.itemById('hf_token').value,
+                'enabled': hf_enabled_input.value if hf_enabled_input else False,
+                'token': hf_token_input.value if hf_token_input else '',
                 'base_url': 'https://api-inference.huggingface.co',
                 'models': {
                     'text': 'meta-llama/Llama-3.1-8B-Instruct',
@@ -318,31 +391,41 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             }
             
             # LM Studio - Salva sempre
+            lms_enabled_input = inputs.itemById('lms_enabled')
+            lms_url_input = inputs.itemById('lms_url')
             config['lmstudio'] = {
-                'enabled': inputs.itemById('lms_enabled').value,
-                'url': inputs.itemById('lms_url').value
+                'enabled': lms_enabled_input.value if lms_enabled_input else False,
+                'url': lms_url_input.value if lms_url_input else 'http://localhost:1234/v1'
             }
             
             # Ollama - Salva sempre
+            ollama_enabled_input = inputs.itemById('ollama_enabled')
+            ollama_url_input = inputs.itemById('ollama_url')
             config['ollama'] = {
-                'enabled': inputs.itemById('ollama_enabled').value,
-                'url': inputs.itemById('ollama_url').value
+                'enabled': ollama_enabled_input.value if ollama_enabled_input else False,
+                'url': ollama_url_input.value if ollama_url_input else 'http://localhost:11434'
             }
             
             # OpenAI - Salva sempre
+            openai_enabled_input = inputs.itemById('openai_enabled')
+            openai_key_input = inputs.itemById('openai_key')
             model_dropdown = inputs.itemById('openai_model')
-            selected_model = _extract_model_name(model_dropdown.selectedItem.name)
+            selected_model = 'gpt-4o'
+            if model_dropdown and model_dropdown.selectedItem:
+                selected_model = _extract_model_name(model_dropdown.selectedItem.name)
             
             config['openai'] = {
-                'enabled': inputs.itemById('openai_enabled').value,
-                'api_key': inputs.itemById('openai_key').value,
+                'enabled': openai_enabled_input.value if openai_enabled_input else False,
+                'api_key': openai_key_input.value if openai_key_input else '',
                 'model': selected_model
             }
             
             # Anthropic - Salva sempre
+            anthropic_enabled_input = inputs.itemById('anthropic_enabled')
+            anthropic_key_input = inputs.itemById('anthropic_key')
             config['anthropic'] = {
-                'enabled': inputs.itemById('anthropic_enabled').value,
-                'api_key': inputs.itemById('anthropic_key').value,
+                'enabled': anthropic_enabled_input.value if anthropic_enabled_input else False,
+                'api_key': anthropic_key_input.value if anthropic_key_input else '',
                 'model': 'claude-3-5-sonnet-20241022'
             }
             
@@ -350,12 +433,16 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             self._save_config(config)
             
             # Conta provider abilitati
-            enabled_count = sum(1 for p in config.values() if p.get('enabled', False))
+            enabled_count = sum(1 for k, v in config.items() if k != 'ia_enabled' and isinstance(v, dict) and v.get('enabled', False))
+            
+            # Stato IA
+            ia_status = "✅ ABILITATE" if config.get('ia_enabled', True) else "❌ DISABILITATE"
             
             # Conferma
             self.app.userInterface.messageBox(
                 '✅ Configurazione salvata con successo!\n\n' +
-                'Provider disponibili: {}\n'.format(len(config)) +
+                f'Funzioni IA: {ia_status}\n' +
+                'Provider disponibili: {}\n'.format(len([k for k in config.keys() if k != 'ia_enabled'])) +
                 'Provider abilitati: {}\n\n'.format(enabled_count) +
                 'Per applicare le modifiche:\n' +
                 '→ Riavvia addon oppure riavvia Fusion 360',
@@ -364,7 +451,7 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
                 adsk.core.MessageBoxIconTypes.InformationIconType
             )
             
-            self.app.log(f"✅ Config salvata: {len(config)} provider disponibili, {enabled_count} abilitati")
+            self.app.log(f"✅ Config salvata: {len([k for k in config.keys() if k != 'ia_enabled'])} provider disponibili, {enabled_count} abilitati, IA {ia_status}")
             
         except Exception as e:
             self.app.log(f"❌ Errore salvataggio: {e}")
@@ -392,5 +479,6 @@ class ConfiguraIADestroyHandler(adsk.core.CommandEventHandler):
         super().__init__()
         
     def notify(self, args):
-        adsk.autoTerminate(True)
-        adsk.core.Application.get().log("🗑️ Comando Configura IA distrutto")
+        # NON chiamare adsk.autoTerminate(True) - questo chiuderebbe l'addon!
+        # In un add-in, non serve autoTerminate
+        adsk.core.Application.get().log("🗑️ Comando Configura IA chiuso")

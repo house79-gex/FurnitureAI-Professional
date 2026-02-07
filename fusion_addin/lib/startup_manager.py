@@ -172,20 +172,23 @@ class StartupManager:
     
     def _do_workspace_setup(self, doc):
         """Logica effettiva di setup workspace"""
-        # Se nessun documento aperto, NON crearne uno
-        # (La dialog di avvio di Fusion è responsabilità dell'utente)
         if not doc:
-            self.app.log("⚠️ Nessun documento aperto - l'utente deve completare la dialog di avvio Fusion")
-            # Non creare documento, solo attiva workspace e tab
-        else:
-            # Imposta modalità Parametrica solo se documento presente
-            design = adsk.fusion.Design.cast(self.app.activeProduct)
-            if design:
-                if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
-                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-                    self.app.log("✓ Modalità Parametrica attivata")
-                else:
-                    self.app.log("✓ Già in modalità Parametrica")
+            self.app.log("📄 Nessun documento aperto - creazione automatica...")
+            try:
+                # Crea nuovo documento Design (questo bypassa la dialog di avvio)
+                doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
+                self.app.log("✓ Nuovo documento Design creato")
+            except Exception as e:
+                self.app.log(f"⚠️ Impossibile creare documento: {e}")
+        
+        # Imposta modalità Parametrica (= Assembly mode in Fusion 360)
+        design = adsk.fusion.Design.cast(self.app.activeProduct)
+        if design:
+            if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
+                design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                self.app.log("✓ Modalità Parametrica (Assieme) attivata")
+            else:
+                self.app.log("✓ Già in modalità Parametrica (Assieme)")
         
         # Attiva workspace e tab (funziona anche senza documento)
         ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
@@ -234,11 +237,10 @@ class StartupManager:
             self.ui.messageBox(
                 '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                '📌 PRIMO PASSO:\n'
-                '   Se vedi la finestra di avvio di Fusion:\n'
-                '   → Crea un "Nuovo Progetto"\n'
-                '   → Tipo: Progetto di Assieme\n'
-                '   → Il tipo "Assieme" è necessario per FurnitureAI\n\n'
+                '✅ SETUP AUTOMATICO COMPLETATO:\n'
+                '   • Documento Design creato\n'
+                '   • Modalità Assieme attivata\n'
+                '   • Tab "Furniture AI" attivo\n\n'
                 '🤖 FUNZIONI IA (Opzionali):\n'
                 '   Per abilitarle:\n'
                 '   → Clicca "Configura IA" nel pannello Impostazioni\n\n'
@@ -250,7 +252,7 @@ class StartupManager:
                 '   • Lista taglio ottimizzata\n'
                 '   • Esportazione produzione\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                'Il tab "Furniture AI" è ora attivo nella toolbar!',
+                'Puoi iniziare subito a creare mobili!',
                 'FurnitureAI Professional - Primo Avvio',
                 adsk.core.MessageBoxButtonTypes.OKButtonType,
                 adsk.core.MessageBoxIconTypes.InformationIconType
