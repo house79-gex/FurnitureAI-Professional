@@ -1,6 +1,6 @@
 """
 Comando FAI_ConfiguraIA - Dialog Nativo Fusion 360 API
-Versione: 4.1 - Fix handler garbage collection
+Versione: 4.2 - Fix tab nesting error + input validation guards
 """
 
 import adsk.core

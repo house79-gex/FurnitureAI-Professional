@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 3.1 - Timer esteso e messaggio first-run migliorato
+Versione: 3.2 - First-run message updated for Assembly project guidance
 """
 
 import adsk.core
