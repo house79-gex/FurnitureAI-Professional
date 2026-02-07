@@ -38,6 +38,9 @@ Thumbs.db
 # Icon generation output (don't commit generated files)
 script_icons/output/
 
+# Temporary icon folders created at runtime
+resources/icons/_fusion_icons/
+
 # Test coverage
 .coverage
 htmlcov/
