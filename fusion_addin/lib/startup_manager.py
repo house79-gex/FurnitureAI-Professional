@@ -57,9 +57,7 @@ class StartupManager:
                 self.app.log("✓ Nuovo documento creato")
             
             # 2. Imposta modalità Assembly (Parametric Design con componenti)
-            design = adsk.fusion.Design.cast(
-                self.app.activeProduct
-            )
+            design = adsk.fusion.Design.cast(self.app.activeProduct)
             if design:
                 if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
                     design.designType = adsk.fusion.DesignTypes.ParametricDesignType
@@ -69,7 +67,7 @@ class StartupManager:
                 
                 # 3. Rinomina componente root per chiarezza
                 root = design.rootComponent
-                if root and root.name == 'Unnamed':
+                if root:
                     root.name = 'FurnitureAI_Assembly'
                     self.app.log("✓ Componente root rinominato")
             
