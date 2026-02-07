@@ -10,6 +10,14 @@ import sys
 import json
 import traceback
 
+def _get_addon_path():
+    """Helper per ottenere path addon"""
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def _get_config_path():
+    """Helper per ottenere path config file"""
+    return os.path.join(_get_addon_path(), 'config', 'ai_config.json')
+
 class ConfiguraIACommand:
     """Entry point comando Configura IA"""
     
@@ -200,8 +208,7 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
     def _load_existing_config(self, inputs):
         """Carica config esistente e popola campi"""
         try:
-            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            config_path = os.path.join(addon_path, 'config', 'ai_config.json')
+            config_path = _get_config_path()
             
             if not os.path.exists(config_path):
                 return
@@ -257,60 +264,61 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             # Costruisci config object
             config = {}
             
-            # Groq
-            if inputs.itemById('groq_enabled').value:
-                config['groq'] = {
-                    'enabled': True,
-                    'api_key': inputs.itemById('groq_key').value,
-                    'base_url': 'https://api.groq.com/openai/v1',
-                    'model': 'llama-3.3-70b-versatile'
-                }
+            # Helper per estrarre model name da dropdown
+            def extract_model_name(dropdown_text):
+                """Estrai model name da testo dropdown (es: 'gpt-4o (Consigliato)' -> 'gpt-4o')"""
+                if ' ' in dropdown_text:
+                    return dropdown_text.split(' ')[0]
+                return dropdown_text
             
-            # Hugging Face
-            if inputs.itemById('hf_enabled').value:
-                config['huggingface'] = {
-                    'enabled': True,
-                    'token': inputs.itemById('hf_token').value,
-                    'base_url': 'https://api-inference.huggingface.co',
-                    'models': {
-                        'text': 'meta-llama/Llama-3.1-8B-Instruct',
-                        'vision': 'Salesforce/blip-image-captioning-large',
-                        'image_gen': 'stabilityai/stable-diffusion-xl-base-1.0'
-                    }
-                }
+            # Groq - Salva sempre, anche se disabilitato
+            config['groq'] = {
+                'enabled': inputs.itemById('groq_enabled').value,
+                'api_key': inputs.itemById('groq_key').value,
+                'base_url': 'https://api.groq.com/openai/v1',
+                'model': 'llama-3.3-70b-versatile'
+            }
             
-            # LM Studio
-            if inputs.itemById('lms_enabled').value:
-                config['lmstudio'] = {
-                    'enabled': True,
-                    'url': inputs.itemById('lms_url').value
+            # Hugging Face - Salva sempre
+            config['huggingface'] = {
+                'enabled': inputs.itemById('hf_enabled').value,
+                'token': inputs.itemById('hf_token').value,
+                'base_url': 'https://api-inference.huggingface.co',
+                'models': {
+                    'text': 'meta-llama/Llama-3.1-8B-Instruct',
+                    'vision': 'Salesforce/blip-image-captioning-large',
+                    'image_gen': 'stabilityai/stable-diffusion-xl-base-1.0'
                 }
+            }
             
-            # Ollama
-            if inputs.itemById('ollama_enabled').value:
-                config['ollama'] = {
-                    'enabled': True,
-                    'url': inputs.itemById('ollama_url').value
-                }
+            # LM Studio - Salva sempre
+            config['lmstudio'] = {
+                'enabled': inputs.itemById('lms_enabled').value,
+                'url': inputs.itemById('lms_url').value
+            }
             
-            # OpenAI
-            if inputs.itemById('openai_enabled').value:
-                model_dropdown = inputs.itemById('openai_model')
-                selected_model = model_dropdown.selectedItem.name.split(' ')[0]  # Extract model name
-                
-                config['openai'] = {
-                    'enabled': True,
-                    'api_key': inputs.itemById('openai_key').value,
-                    'model': selected_model
-                }
+            # Ollama - Salva sempre
+            config['ollama'] = {
+                'enabled': inputs.itemById('ollama_enabled').value,
+                'url': inputs.itemById('ollama_url').value
+            }
             
-            # Anthropic
-            if inputs.itemById('anthropic_enabled').value:
-                config['anthropic'] = {
-                    'enabled': True,
-                    'api_key': inputs.itemById('anthropic_key').value,
-                    'model': 'claude-3-5-sonnet-20241022'
-                }
+            # OpenAI - Salva sempre
+            model_dropdown = inputs.itemById('openai_model')
+            selected_model = extract_model_name(model_dropdown.selectedItem.name)
+            
+            config['openai'] = {
+                'enabled': inputs.itemById('openai_enabled').value,
+                'api_key': inputs.itemById('openai_key').value,
+                'model': selected_model
+            }
+            
+            # Anthropic - Salva sempre
+            config['anthropic'] = {
+                'enabled': inputs.itemById('anthropic_enabled').value,
+                'api_key': inputs.itemById('anthropic_key').value,
+                'model': 'claude-3-5-sonnet-20241022'
+            }
             
             # Salva config
             self._save_config(config)
@@ -334,9 +342,8 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
     
     def _save_config(self, config):
         """Salva config su file JSON"""
-        addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        config_dir = os.path.join(addon_path, 'config')
-        config_path = os.path.join(config_dir, 'ai_config.json')
+        config_path = _get_config_path()
+        config_dir = os.path.dirname(config_path)
         
         # Crea directory se non esiste
         os.makedirs(config_dir, exist_ok=True)
