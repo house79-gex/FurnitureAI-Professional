@@ -178,8 +178,15 @@ class StartupManager:
                 # Crea nuovo documento Design (questo bypassa la dialog di avvio)
                 doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
                 self.app.log("✓ Nuovo documento Design creato")
+                
+                # Verifica che il documento sia stato creato e attivato
+                if not self.app.activeProduct:
+                    self.app.log("⚠️ Documento creato ma non attivo")
+                    return
+                    
             except Exception as e:
                 self.app.log(f"⚠️ Impossibile creare documento: {e}")
+                return
         
         # Imposta modalità Parametrica (= Assembly mode in Fusion 360)
         design = adsk.fusion.Design.cast(self.app.activeProduct)
