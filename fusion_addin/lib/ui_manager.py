@@ -567,7 +567,7 @@ class KeyDownHandler(adsk.core.KeyboardEventHandler):
 # ══════════════════════════════════════════════════════════
 
 class ConfiguraIACommandHandler(adsk.core.CommandCreatedEventHandler):
-    """Handler per comando Configura IA"""
+    """Handler per comando Configura IA - Native Command Dialog"""
     
     def __init__(self):
         super().__init__()
@@ -588,9 +588,10 @@ class ConfiguraIACommandHandler(adsk.core.CommandCreatedEventHandler):
             if commands_path not in sys.path:
                 sys.path.insert(0, commands_path)
             
-            # Import e apri palette
+            # Import e esegui comando nativo
             import configura_ia
-            configura_ia.show_configura_ia()
+            cmd = configura_ia.ConfiguraIACommand()
+            cmd.execute()
             
         except Exception as e:
             self.app.log(f"❌ Errore handler Configura IA: {e}")
