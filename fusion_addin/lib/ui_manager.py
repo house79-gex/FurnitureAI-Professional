@@ -24,6 +24,10 @@ class UIManager:
         self.tab_id = 'FurnitureAI_Tab'
         self.tab_name = 'Furniture AI'
         
+        # Icons base path
+        addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.icons_base_path = os.path.join(addon_path, 'resources', 'icons')
+        
     def create_ui(self):
         """Crea tab e comandi"""
         try:
@@ -550,8 +554,8 @@ class UIManager:
             enabled: Se comando è abilitato
         """
         try:
-            # Verifica icone (non blocking)
-            icon_count = self._verify_icons(icon_folder, cmd_id)
+            # Prepara cartella icone nel formato Fusion
+            actual_icon_folder = self._prepare_icon_folder(cmd_id, self.icons_base_path)
             
             # Crea command definition SENZA dipendere da icone
             cmd_defs = self.ui.commandDefinitions
@@ -561,14 +565,14 @@ class UIManager:
                 cmd_def.deleteMe()
             
             # Se icone trovate, usale; altrimenti crea comando senza icone
-            if icon_count >= 4:
+            if actual_icon_folder and os.path.exists(actual_icon_folder):
                 cmd_def = cmd_defs.addButtonDefinition(
                     cmd_id,
                     cmd_name,
                     tooltip,
-                    icon_folder
+                    actual_icon_folder
                 )
-                self.app.log(f"   ✓ {cmd_id} creato con icone")
+                self.app.log(f"   ✓ {cmd_id} creato CON icone")
             else:
                 # Crea comando SENZA icone (usa default Fusion)
                 cmd_def = cmd_defs.addButtonDefinition(
@@ -611,6 +615,44 @@ class UIManager:
             import traceback
             self.app.log(traceback.format_exc())
             return None
+    
+    def _prepare_icon_folder(self, cmd_id, icons_base_path):
+        """
+        Prepara cartella icone nel formato richiesto da Fusion 360.
+        Fusion vuole una cartella con file: 16x16.png, 32x32.png, etc.
+        Le nostre icone sono: FAI_Wizard_16.png, FAI_Wizard_32.png, etc.
+        """
+        import shutil
+        
+        # Cartella temporanea per questo comando
+        temp_dir = os.path.join(icons_base_path, '_fusion_icons', cmd_id)
+        
+        # Se esiste già, usa quella (cache)
+        if os.path.exists(temp_dir) and os.path.exists(os.path.join(temp_dir, '16x16.png')):
+            return temp_dir
+        
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Mapping dimensioni
+        size_map = {
+            '16': '16x16.png',
+            '32': '32x32.png',
+            '64': '64x64.png',
+            '128': '128x128.png'
+        }
+        
+        found = False
+        for size, target_name in size_map.items():
+            src = os.path.join(icons_base_path, f'{cmd_id}_{size}.png')
+            dst = os.path.join(temp_dir, target_name)
+            if os.path.exists(src):
+                shutil.copy2(src, dst)
+                found = True
+        
+        if found:
+            return temp_dir
+        else:
+            return ''  # Nessuna icona trovata
     
     def _verify_icons(self, icon_folder, cmd_id):
         """Verifica esistenza icone (non blocking)"""
