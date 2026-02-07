@@ -46,24 +46,45 @@ class StartupManager:
 
     
     def _apply_workspace(self):
-        """Applica Assembly mode + attiva tab Furniture AI"""
+        """Crea documento Assembly e configura workspace Furniture AI"""
         try:
-            # 1. Assembly mode
+            # 1. Se nessun documento aperto, creane uno automaticamente
+            #    Questo BYPASSA il dialog di selezione progetto di Fusion
             doc = self.app.activeDocument
-            if doc:
-                design = adsk.fusion.Design.cast(doc.products.itemByProductType('DesignProductType'))
-                if design:
-                    if design.designType != adsk.fusion.DesignTypes.DirectDesignType:
-                        design.designType = adsk.fusion.DesignTypes.DirectDesignType
-                        self.app.log("✓ Assembly mode attivato")
-                    else:
-                        self.app.log("✓ Già in Assembly mode")
-            else:
-                self.app.log("⚠️ Nessun documento aperto, skip Assembly mode")
+            if not doc:
+                self.app.log("📄 Nessun documento aperto, creo documento Assembly...")
+                try:
+                    doc = self.app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
+                    self.app.log("✓ Nuovo documento creato")
+                except Exception as e:
+                    import traceback
+                    self.app.log(f"❌ Errore creazione documento: {e}")
+                    self.app.log(f"   Tipo errore: {type(e).__name__}")
+                    self.app.log(f"   Dettagli: {traceback.format_exc()}")
+                    raise
             
-            # 2. Attiva tab Furniture AI
+            # 2. Imposta modalità Assembly (Parametric Design con componenti)
+            design = adsk.fusion.Design.cast(self.app.activeProduct)
+            if design:
+                if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
+                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                    self.app.log("✓ Modalità Assieme (Parametric) attivata")
+                else:
+                    self.app.log("✓ Già in modalità Assieme")
+                
+                # 3. Rinomina componente root per chiarezza
+                root = design.rootComponent
+                if root:
+                    root.name = 'FurnitureAI_Assembly'
+                    self.app.log("✓ Componente root rinominato")
+            
+            # 4. Attiva workspace Solid (Design)
             ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
             if ws:
+                ws.activate()
+                self.app.log("✓ Workspace Design attivato")
+                
+                # 5. Attiva tab Furniture AI
                 tab = ws.toolbarTabs.itemById('FurnitureAI_Tab')
                 if tab:
                     tab.activate()
@@ -75,7 +96,7 @@ class StartupManager:
         
         except Exception as e:
             import traceback
-            self.app.log(f"❌ Errore workspace: {e}")
+            self.app.log(f"❌ Errore workspace setup: {e}")
             self.app.log(traceback.format_exc())
     
     def _show_first_run_message(self):
