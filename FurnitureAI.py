@@ -15,9 +15,15 @@ lib_path = os.path.join(addon_path, 'fusion_addin', 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
 
+# Global references
+_ui_manager = None
+_config_manager = None
+
 
 def run(context):
     """Entry point addon"""
+    global _ui_manager, _config_manager
+    
     ui = None
     try:
         app = adsk.core.Application.get()
@@ -37,19 +43,15 @@ def run(context):
         from fusion_addin.lib.startup_manager import StartupManager
         
         # Inizializza Config Manager
-        config_manager = ConfigManager()
+        _config_manager = ConfigManager()
         
         # Inizializza UI Manager
-        ui_manager = UIManager(app, config_manager)
-        ui_manager.create_ui()
+        _ui_manager = UIManager(app, _config_manager)
+        _ui_manager.create_ui()
         
         # Inizializza Startup Manager
-        startup_manager = StartupManager(app, config_manager)
+        startup_manager = StartupManager(app, _config_manager)
         startup_manager.apply_startup_settings()
-        
-        # Salva riferimenti globali
-        app.data.setValue('FurnitureAI_UIManager', ui_manager)
-        app.data.setValue('FurnitureAI_ConfigManager', config_manager)
         
         app.log("FurnitureAI: avvio completato con successo")
         
@@ -63,6 +65,8 @@ def run(context):
 
 def stop(context):
     """Cleanup addon"""
+    global _ui_manager, _config_manager
+    
     ui = None
     try:
         app = adsk.core.Application.get()
@@ -72,17 +76,12 @@ def stop(context):
         app.log("  FurnitureAI Professional v3.0 - STOP")
         app.log("=" * 60)
         
-        # Recupera UI Manager
-        ui_manager = app.data.value('FurnitureAI_UIManager')
+        # Cleanup UI Manager
+        if _ui_manager:
+            _ui_manager.cleanup()
+            _ui_manager = None
         
-        if ui_manager:
-            ui_manager.cleanup()
-        
-        # Clear global references
-        if app.data.value('FurnitureAI_UIManager'):
-            app.data.setValue('FurnitureAI_UIManager', None)
-        if app.data.value('FurnitureAI_ConfigManager'):
-            app.data.setValue('FurnitureAI_ConfigManager', None)
+        _config_manager = None
         
         app.log("FurnitureAI: stop completato")
         
