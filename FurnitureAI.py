@@ -38,7 +38,7 @@ def run(context):
         
         # ===== CREA UI MANAGER (senza logger) =====
         from ui_manager import UIManager
-        ui_manager = UIManager(None, ui)  # ← Passa None come logger
+        ui_manager = UIManager(app, config_manager)  
         ui_manager.create_ui()
         
         # ===== STARTUP MANAGER (Logica Intelligente) =====
