@@ -391,9 +391,17 @@ class UIManager:
         else:
             btn.isEnabled = True
         
-        handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled)
-        btn.commandCreated.add(handler)
-        self.handlers.append(handler)
+        # Handler speciale per Configura IA
+        if cmd_id == 'FAI_ConfiguraIA':
+            self.app.log(f"🔧 Registro handler speciale per {cmd_id}")
+            on_command_created = ConfiguraIACommandHandler()
+            btn.commandCreated.add(on_command_created)
+            self.handlers.append(on_command_created)
+        else:
+            handler = CommandHandler(name, cmd_id, self.app, ia_required, self.ia_enabled)
+            btn.commandCreated.add(handler)
+            self.handlers.append(handler)
+        
         panel.controls.addCommand(btn)
 
     def _start_first_run_monitor(self):
@@ -552,3 +560,39 @@ class KeyDownHandler(adsk.core.KeyboardEventHandler):
             self.app.log(f"Apertura guida: {help_url}")
             webbrowser.open(help_url)
             args.isHandled = True
+
+
+# ══════════════════════════════════════════════════════════
+# Handler Configura IA
+# ══════════════════════════════════════════════════════════
+
+class ConfiguraIACommandHandler(adsk.core.CommandCreatedEventHandler):
+    """Handler per comando Configura IA"""
+    
+    def __init__(self):
+        super().__init__()
+        self.app = adsk.core.Application.get()
+    
+    def notify(self, args):
+        """Evento quando comando viene creato"""
+        try:
+            self.app.log("🎯 ConfiguraIACommandHandler.notify() chiamato")
+            
+            # Import modulo
+            import sys
+            import os
+            
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+            
+            if commands_path not in sys.path:
+                sys.path.insert(0, commands_path)
+            
+            # Import e apri palette
+            import configura_ia
+            configura_ia.show_configura_ia()
+            
+        except Exception as e:
+            self.app.log(f"❌ Errore handler Configura IA: {e}")
+            self.app.log(traceback.format_exc())
+

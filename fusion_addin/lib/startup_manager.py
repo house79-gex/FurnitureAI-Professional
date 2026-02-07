@@ -22,149 +22,88 @@ class StartupManager:
         self.is_first_run = config_manager.is_first_run()
     
     def apply_startup_settings(self):
-        """Applica impostazioni startup con logica intelligente"""
+        """Applica impostazioni startup - SEMPLIFICATO"""
         try:
             prefs = self.config_manager.get_preferences()
             startup_prefs = prefs.get('startup', {})
             
-            # ===== APPLICA WORKSPACE SEMPRE se auto_setup_enabled =====
+            # 1. Assembly mode + Tab attivo (SEMPRE se abilitato)
             if startup_prefs.get('auto_setup_enabled', True):
-                self.app.log("🚀 Startup automatico abilitato: applico workspace")
-                self._apply_workspace_settings_always(startup_prefs)
+                self.app.log("🚀 Startup automatico abilitato")
+                self._apply_workspace()
             else:
-                self.app.log("⏸️ Startup automatico disabilitato, skip workspace")
+                self.app.log("⏸️ Startup automatico disabilitato")
             
-            # ===== CHECK FIRST RUN per dialog =====
+            # 2. First run: messaggio avviso
             if self.is_first_run:
-                auto_enabled = startup_prefs.get('auto_setup_enabled', True)
-                
-                if auto_enabled:
-                    # Startup automatico: apri dialog immediatamente
-                    self.app.log("🎯 First Run + Startup AUTO: apro dialog IA")
-                    self._open_config_dialog_immediate()
-                else:
-                    # Startup manuale: dialog al click tab
-                    self.app.log("🎯 First Run + Startup MANUALE: aspetto click tab")
-                    self._register_tab_click_handler()
+                self.app.log("🎉 First run rilevato, mostro messaggio")
+                self._show_first_run_message()
             
         except Exception as e:
             import traceback
-            self.app.log(f"Errore startup manager: {e}")
+            self.app.log(f"❌ Errore startup manager: {e}")
             self.app.log(traceback.format_exc())
+
     
-    def _apply_workspace_settings_always(self, startup_prefs):
-        """Applica impostazioni workspace SEMPRE (non solo first run)"""
+    def _apply_workspace(self):
+        """Applica Assembly mode + attiva tab Furniture AI"""
         try:
-            # 1. Modalità Assembly
-            if startup_prefs.get('force_assembly_mode', True):
-                self._switch_to_assembly_mode()
+            # 1. Assembly mode
+            doc = self.app.activeDocument
+            if doc:
+                design = adsk.fusion.Design.cast(doc.products.itemByProductType('DesignProductType'))
+                if design:
+                    if design.designType != adsk.fusion.DesignTypes.DirectDesignType:
+                        design.designType = adsk.fusion.DesignTypes.DirectDesignType
+                        self.app.log("✓ Assembly mode attivato")
+                    else:
+                        self.app.log("✓ Già in Assembly mode")
+            else:
+                self.app.log("⚠️ Nessun documento aperto, skip Assembly mode")
             
             # 2. Attiva tab Furniture AI
-            if startup_prefs.get('activate_furnitureai_tab', True):
-                self._activate_furnitureai_tab()
-            
-            # 3. Messaggio benvenuto (solo first run)
-            if startup_prefs.get('show_welcome_message', True) and self.is_first_run:
-                self._show_welcome_message()
-            
-        except Exception as e:
-            import traceback
-            self.app.log(f"Errore workspace settings: {e}")
-            self.app.log(traceback.format_exc())
-    
-    def _switch_to_assembly_mode(self):
-        """Passa a modalità Assembly"""
-        try:
-            doc = self.app.activeDocument
-            if not doc:
-                self.app.log("⚠️ Nessun documento aperto, skip assembly mode")
-                return
-            
-            design = adsk.fusion.Design.cast(doc.products.itemByProductType('DesignProductType'))
-            if not design:
-                return
-            
-            # Forza modalità Direct Design (Assembly)
-            if design.designType != adsk.fusion.DesignTypes.DirectDesignType:
-                design.designType = adsk.fusion.DesignTypes.DirectDesignType
-                self.app.log("✓ Modalità Assembly attivata")
-            else:
-                self.app.log("✓ Già in modalità Assembly")
-            
-        except Exception as e:
-            self.app.log(f"Errore switch assembly: {e}")
-    
-    def _activate_furnitureai_tab(self):
-        """Attiva tab Furniture AI"""
-        try:
             ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
-            if not ws:
-                self.app.log("⚠️ Workspace Solid non trovato")
-                return
-            
-            tab = ws.toolbarTabs.itemById('FurnitureAI_Tab')
-            if tab:
-                tab.activate()
-                self.app.log("✓ Tab Furniture AI attivato")
+            if ws:
+                tab = ws.toolbarTabs.itemById('FurnitureAI_Tab')
+                if tab:
+                    tab.activate()
+                    self.app.log("✓ Tab Furniture AI attivato")
+                else:
+                    self.app.log("⚠️ Tab Furniture AI non trovato")
             else:
-                self.app.log("⚠️ Tab Furniture AI non trovato")
-            
-        except Exception as e:
-            self.app.log(f"Errore attivazione tab: {e}")
-    
-    def _open_config_dialog_immediate(self):
-        """Apri Configura IA immediatamente (no thread, no delay)"""
-        self.app.log("🚀 Apertura immediata Configura IA (first run)...")
+                self.app.log("⚠️ Workspace Solid non trovato")
         
-        try:
-            # ✅ CHIAMATA DIRETTA alla classe comando (no thread)
-            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
-            if commands_path not in sys.path:
-                sys.path.insert(0, commands_path)
-            
-            import configura_ia
-            
-            # Esegui direttamente
-            cmd = configura_ia.ConfiguraIACommand()
-            cmd.execute()
-            
-            self.app.log("✓ Dialog Configura IA aperto (immediato)")
-            
-        except Exception as e:
-            self.app.log(f"✗ Errore apertura dialog: {e}")
-            self.app.log(traceback.format_exc())
-    
-    def _register_tab_click_handler(self):
-        """Registra handler per click su tab (startup manuale)"""
-        try:
-            import sys
-            import os
-            
-            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
-            if commands_path not in sys.path:
-                sys.path.insert(0, commands_path)
-            
-            import configura_ia
-            
-            # Esegui SUBITO (no threading)
-            cmd = configura_ia.ConfiguraIACommand()
-            cmd.execute()
-            
-            self.app.log("✓ Dialog Configura IA eseguito")
-            
         except Exception as e:
             import traceback
-            self.app.log(f"✗ Errore apertura dialog: {e}")
+            self.app.log(f"❌ Errore workspace: {e}")
             self.app.log(traceback.format_exc())
     
-    def _register_tab_monitor(self):
-        """Registra monitor tab per modalità manuale"""
-        # Delega a ui_manager
-        if hasattr(self.ui_manager, '_start_first_run_monitor'):
-            self.ui_manager._start_first_run_monitor()
-            self.app.log("✓ Monitor tab registrato")
-        else:
-            self.app.log("⚠️ Monitor tab non disponibile")
+    def _show_first_run_message(self):
+        """Messaggio first run semplice e chiaro"""
+        try:
+            self.ui.messageBox(
+                '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                '🤖 FUNZIONI IA (Opzionali):\n'
+                '   Per abilitarle:\n'
+                '   → Click "Configura IA" nel pannello Impostazioni\n\n'
+                '✅ FUNZIONALITÀ GIÀ DISPONIBILI:\n'
+                '   • Wizard mobili guidato\n'
+                '   • Template predefiniti\n'
+                '   • Componenti (ante, cassetti, ripiani)\n'
+                '   • Distinta materiali\n'
+                '   • Lista taglio ottimizzata\n'
+                '   • Esportazione produzione\n\n'
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                'Il tab "Furniture AI" è ora attivo!',
+                'FurnitureAI Professional - Primo Avvio',
+                adsk.core.MessageBoxButtonTypes.OKButtonType,
+                adsk.core.MessageBoxIconTypes.InformationIconType
+            )
+            
+            self.app.log("✓ Messaggio first run mostrato")
+            
+        except Exception as e:
+            self.app.log(f"❌ Errore messaggio first run: {e}")
+
 
