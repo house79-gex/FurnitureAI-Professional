@@ -545,32 +545,41 @@ class UIManager:
             cmd_id: ID univoco comando
             cmd_name: Nome visualizzato
             tooltip: Descrizione tooltip
-            icon_folder: Cartella icone
+            icon_folder: Cartella icone (opzionale)
             panel: Pannello destinazione
             enabled: Se comando è abilitato
         """
         try:
-            # Verifica icone
+            # Verifica icone (non blocking)
             icon_count = self._verify_icons(icon_folder, cmd_id)
             
-            if icon_count == 0:
-                self.app.log(f"   SKIP {cmd_id}: nessuna icona trovata")
-                return None
-            
-            # Crea command definition
+            # Crea command definition SENZA dipendere da icone
             cmd_defs = self.ui.commandDefinitions
-            btn = cmd_defs.itemById(cmd_id)
+            cmd_def = cmd_defs.itemById(cmd_id)
             
-            if not btn:
-                btn = cmd_defs.addButtonDefinition(
+            if cmd_def:
+                cmd_def.deleteMe()
+            
+            # Se icone trovate, usale; altrimenti crea comando senza icone
+            if icon_count >= 4:
+                cmd_def = cmd_defs.addButtonDefinition(
                     cmd_id,
                     cmd_name,
                     tooltip,
                     icon_folder
                 )
+                self.app.log(f"   ✓ {cmd_id} creato con icone")
+            else:
+                # Crea comando SENZA icone (usa default Fusion)
+                cmd_def = cmd_defs.addButtonDefinition(
+                    cmd_id,
+                    cmd_name,
+                    tooltip
+                )
+                self.app.log(f"   ✓ {cmd_id} creato SENZA icone (placeholder)")
             
             # Imposta stato abilitato/disabilitato
-            btn.isEnabled = enabled
+            cmd_def.isEnabled = enabled
             
             # Determina se comando richiede IA
             ia_required = cmd_id in [
@@ -581,30 +590,33 @@ class UIManager:
             
             # Log se comando IA è disabilitato
             if ia_required and not enabled:
-                self.app.log(f"   >>> {cmd_id} DISABILITATO (IA off)")
+                self.app.log(f"      (IA disabilitato)")
             
             # Log se Configura IA (sempre abilitato)
             if cmd_id == 'FAI_ConfiguraIA':
-                self.app.log(f"   ✓ {cmd_id} SEMPRE ABILITATO")
+                self.app.log(f"      (sempre abilitato)")
             
             # Handler standard per tutti i comandi
             handler = CommandHandler(cmd_name, cmd_id, self.app, ia_required, self.ia_enabled)
-            btn.commandCreated.add(handler)
+            cmd_def.commandCreated.add(handler)
             self.handlers.append(handler)
             
             # Aggiungi al pannello
-            panel.controls.addCommand(btn)
+            panel.controls.addCommand(cmd_def)
             
-            return btn
+            return cmd_def
             
         except Exception as e:
-            self.app.log(f"Errore creazione comando {cmd_id}: {e}")
+            self.app.log(f"❌ Errore creazione comando {cmd_id}: {e}")
             import traceback
             self.app.log(traceback.format_exc())
             return None
     
     def _verify_icons(self, icon_folder, cmd_id):
-        """Verifica esistenza icone"""
+        """Verifica esistenza icone (non blocking)"""
+        if not os.path.exists(icon_folder):
+            return 0
+        
         sizes = ['16', '32', '48', '64']
         found = 0
         
@@ -613,12 +625,7 @@ class UIManager:
             if os.path.exists(icon_file):
                 found += 1
         
-        if found < 4:
-            self.app.log(f"   Icone insufficienti per {cmd_id}: {found}/4")
-        else:
-            self.app.log(f"   Icone copiate per {cmd_id}: {found}/4 risoluzioni")
-        
-        return found
+        return found  # Non logga più qui, viene gestito in _create_command
     
     def cleanup(self):
         """Rimuovi UI"""
@@ -691,13 +698,51 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
     
     def notify(self, args):
         try:
-            self.app.log(f"Comando {self.cmd_id} eseguito")
+            self.app.log(f"🎯 Comando {self.cmd_id} cliccato")
             
-            # Import modulo comando
+            # CASO SPECIALE: Configura IA
+            if self.cmd_id == 'FAI_ConfiguraIA':
+                self.app.log("   → Avvio ConfiguraIA command")
+                try:
+                    # Import diretto
+                    import sys
+                    import os
+                    
+                    addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+                    
+                    if commands_path not in sys.path:
+                        sys.path.insert(0, commands_path)
+                    
+                    # Import modulo configura_ia
+                    import configura_ia
+                    
+                    # Crea ed esegui comando
+                    cmd_instance = configura_ia.ConfiguraIACommand()
+                    cmd_instance.execute()
+                    
+                    self.app.log("   ✓ ConfiguraIA eseguito")
+                    return
+                    
+                except Exception as e:
+                    self.app.log(f"   ❌ Errore ConfiguraIA: {e}")
+                    import traceback
+                    self.app.log(traceback.format_exc())
+                    
+                    # Fallback su messagebox
+                    self.app.userInterface.messageBox(
+                        'Errore apertura Configura IA.\n\n'
+                        f'Dettagli: {str(e)}\n\n'
+                        'Controlla Text Commands per log completo.',
+                        'Errore'
+                    )
+                    return
+            
+            # Import modulo comando generico
             import sys
             import os
             
-            addon_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
             
             if commands_path not in sys.path:
