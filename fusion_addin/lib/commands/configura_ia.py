@@ -18,6 +18,12 @@ def _get_config_path():
     """Helper per ottenere path config file"""
     return os.path.join(_get_addon_path(), 'config', 'ai_config.json')
 
+def _extract_model_name(dropdown_text):
+    """Estrai model name da testo dropdown (es: 'gpt-4o (Consigliato)' -> 'gpt-4o')"""
+    if ' ' in dropdown_text:
+        return dropdown_text.split(' ')[0]
+    return dropdown_text
+
 class ConfiguraIACommand:
     """Entry point comando Configura IA"""
     
@@ -264,13 +270,6 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             # Costruisci config object
             config = {}
             
-            # Helper per estrarre model name da dropdown
-            def extract_model_name(dropdown_text):
-                """Estrai model name da testo dropdown (es: 'gpt-4o (Consigliato)' -> 'gpt-4o')"""
-                if ' ' in dropdown_text:
-                    return dropdown_text.split(' ')[0]
-                return dropdown_text
-            
             # Groq - Salva sempre, anche se disabilitato
             config['groq'] = {
                 'enabled': inputs.itemById('groq_enabled').value,
@@ -305,7 +304,7 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             
             # OpenAI - Salva sempre
             model_dropdown = inputs.itemById('openai_model')
-            selected_model = extract_model_name(model_dropdown.selectedItem.name)
+            selected_model = _extract_model_name(model_dropdown.selectedItem.name)
             
             config['openai'] = {
                 'enabled': inputs.itemById('openai_enabled').value,
@@ -323,10 +322,14 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             # Salva config
             self._save_config(config)
             
+            # Conta provider abilitati
+            enabled_count = sum(1 for p in config.values() if p.get('enabled', False))
+            
             # Conferma
             self.app.userInterface.messageBox(
                 '✅ Configurazione salvata con successo!\n\n' +
-                'Provider configurati: {}\n\n'.format(len(config)) +
+                'Provider disponibili: {}\n'.format(len(config)) +
+                'Provider abilitati: {}\n\n'.format(enabled_count) +
                 'Per applicare le modifiche:\n' +
                 '→ Riavvia addon oppure riavvia Fusion 360',
                 'Configura IA - Salvato',
@@ -334,7 +337,7 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
                 adsk.core.MessageBoxIconTypes.InformationIconType
             )
             
-            self.app.log(f"✅ Config salvata: {len(config)} provider configurati")
+            self.app.log(f"✅ Config salvata: {len(config)} provider disponibili, {enabled_count} abilitati")
             
         except Exception as e:
             self.app.log(f"❌ Errore salvataggio: {e}")
