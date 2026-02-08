@@ -18,11 +18,12 @@ if lib_path not in sys.path:
 # Global references
 _ui_manager = None
 _config_manager = None
+_startup_manager = None
 
 
 def run(context):
     """Entry point addon"""
-    global _ui_manager, _config_manager
+    global _ui_manager, _config_manager, _startup_manager
     
     ui = None
     try:
@@ -50,8 +51,8 @@ def run(context):
         _ui_manager.create_ui()
         
         # Inizializza Startup Manager (passa config e ui_manager)
-        startup_manager = StartupManager(_config_manager, _ui_manager)
-        startup_manager.apply_startup_settings()
+        _startup_manager = StartupManager(_config_manager, _ui_manager)
+        _startup_manager.apply_startup_settings()
         
         app.log("FurnitureAI: avvio completato con successo")
         
@@ -65,7 +66,7 @@ def run(context):
 
 def stop(context):
     """Cleanup addon"""
-    global _ui_manager, _config_manager
+    global _ui_manager, _config_manager, _startup_manager
     
     ui = None
     try:
@@ -75,6 +76,11 @@ def stop(context):
         app.log("=" * 60)
         app.log("  FurnitureAI Professional v3.0 - STOP")
         app.log("=" * 60)
+        
+        # Cleanup Startup Manager
+        if _startup_manager:
+            _startup_manager.cleanup()
+            _startup_manager = None
         
         # Cleanup UI Manager
         if _ui_manager:
@@ -117,16 +123,16 @@ def force_cleanup(app):
             'FAI_Schienale', 'FAI_Cornice', 'FAI_Cappello', 'FAI_Zoccolo',
             'FAI_EditaStruttura', 'FAI_EditaLayout', 'FAI_EditaInterno',
             'FAI_EditaAperture', 'FAI_ApplicaMateriali', 'FAI_DuplicaMobile',
-            'FAI_ModSolido', 'FAI_Ferramenta', 'FAI_Accessori', 'FAI_Cataloghi',
+            'FAI_ModSolido',
+            'FAI_Ferramenta', 'FAI_Accessori', 'FAI_Cataloghi',
             'FAI_Forature', 'FAI_Giunzioni', 'FAI_Scanalature',
             'FAI_Verifica', 'FAI_Render', 'FAI_Viewer',
             'FAI_Preventivo', 'FAI_DistintaMateriali', 'FAI_ListaTaglio',
             'FAI_Nesting', 'FAI_Disegni2D', 'FAI_Etichette', 'FAI_Esporta',
             'FAI_GuidaRapida', 'FAI_TutorialVideo', 'FAI_EsempiProgetti',
             'FAI_DocumentazioneAPI', 'FAI_Community', 'FAI_CheckUpdate', 'FAI_About',
-            'FAI_ConfiguraIA', 'FAI_Preferenze', 'FAI_LibreriaMateriali',
-            'FAI_CataloghiMateriali', 'FAI_ListiniPrezzi',
-            'FAI_ConfiguraIA_Native'
+            'FAI_ConfiguraIA', 'FAI_Preferenze',
+            'FAI_LibreriaMateriali', 'FAI_CataloghiMateriali', 'FAI_ListiniPrezzi'
         ]
         
         for cmd_id in cmd_ids:
@@ -138,4 +144,4 @@ def force_cleanup(app):
         app.log(f"FORCE CLEANUP: rimossi {removed_tabs} tab, {removed_cmds} comandi")
         
     except Exception as e:
-        app.log(f"Errore force cleanup: {e}")
+        app.log(f"FORCE CLEANUP errore: {e}")
