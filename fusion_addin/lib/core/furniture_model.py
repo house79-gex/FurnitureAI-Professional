@@ -4,7 +4,12 @@ Questo è il cuore dell'ecosistema - tutti i pannelli leggono e scrivono su ques
 """
 
 import json
-from .furniture_types import FURNITURE_TYPES, get_type_info
+
+# Try relative import first (for Fusion 360), fallback to absolute (for testing)
+try:
+    from .furniture_types import FURNITURE_TYPES, get_type_info
+except ImportError:
+    from furniture_types import FURNITURE_TYPES, get_type_info
 
 
 class FurniturePiece:
