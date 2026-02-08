@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 3.3 - Auto-create Assembly document on startup
+Versione: 3.3 - Simplified first-run message, no Assembly requirement
 """
 
 import adsk.core
@@ -14,6 +14,7 @@ _custom_event_handler = None
 _retry_count = 0
 _max_retries = 5
 
+
 class DeferredStartupHandler(adsk.core.CustomEventHandler):
     """Handler per evento di startup differito"""
     def __init__(self, startup_manager):
@@ -25,6 +26,7 @@ class DeferredStartupHandler(adsk.core.CustomEventHandler):
             self.startup_manager._apply_workspace_deferred()
         except:
             pass
+
 
 class FirstRunMsgHandler(adsk.core.CustomEventHandler):
     """Handler per mostrare messaggio first-run con delay"""
@@ -42,6 +44,7 @@ class FirstRunMsgHandler(adsk.core.CustomEventHandler):
                 pass
         except:
             pass
+
 
 class StartupManager:
     """Gestore configurazione startup Fusion con logica intelligente"""
@@ -84,7 +87,7 @@ class StartupManager:
             # Se arriviamo qui, Fusion è pronto
             self._do_workspace_setup(doc)
             
-            # ORA mostra first run message (Fusion è pronto e setup completato) con delay
+            # Mostra first run message dopo setup completato
             if self.is_first_run:
                 self._show_first_run_delayed()
                 
@@ -138,7 +141,7 @@ class StartupManager:
             # Cleanup custom event
             self._cleanup_custom_event()
             
-            # ORA mostra first run message (Fusion è pronto) con delay
+            # Mostra first run message dopo setup riuscito
             if self.is_first_run:
                 self._show_first_run_delayed()
                 
@@ -168,27 +171,20 @@ class StartupManager:
             pass
     
     def _do_workspace_setup(self, doc):
-        """Logica effettiva di setup workspace - Crea documento Assembly"""
-        
-        need_new_assembly = True
-        
+        """Logica effettiva di setup workspace"""
         if doc:
-            # Controlla se il documento attuale è già un Assembly/Parametric
+            # Imposta modalità Parametrica se documento presente
             design = adsk.fusion.Design.cast(self.app.activeProduct)
             if design:
-                if design.designType == adsk.fusion.DesignTypes.ParametricDesignType:
-                    # Già in modalità parametrica (assembly), non serve crearne uno nuovo
-                    self.app.log("✓ Documento già in modalità Parametrica/Assembly")
-                    need_new_assembly = False
+                if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
+                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                    self.app.log("✓ Modalità Parametrica attivata")
                 else:
-                    self.app.log("⚠️ Documento attuale in modalità Direct/Parte - creo nuovo Assembly")
+                    self.app.log("✓ Già in modalità Parametrica")
             else:
-                self.app.log("⚠️ Nessun design attivo nel documento corrente")
+                self.app.log("⚠️ Nessun Design attivo - modalità parametrica non applicata")
         else:
-            self.app.log("��️ Nessun documento aperto")
-        
-        if need_new_assembly:
-            self._create_assembly_document(doc)
+            self.app.log("⚠️ Nessun documento aperto - attendo documento utente")
         
         # Attiva workspace e tab (funziona anche senza documento)
         ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
@@ -205,57 +201,6 @@ class StartupManager:
                 self.app.log("⚠️ Tab Furniture AI non trovato")
         else:
             self.app.log("⚠️ Workspace Solid non trovato")
-    
-    def _create_assembly_document(self, old_doc):
-        """Crea nuovo documento Fusion Design e imposta modalità Assembly/Parametrica"""
-        try:
-            self.app.log("📄 Creazione nuovo documento Assembly...")
-            
-            # Salva riferimento al documento "parte" creato automaticamente da Fusion
-            # (quello che appare dopo che la finestra di dialogo si chiude/viene ignorata)
-            doc_to_close = old_doc
-            
-            # 1. Crea nuovo documento Design
-            new_doc = self.app.documents.add(
-                adsk.core.DocumentTypes.FusionDesignDocumentType
-            )
-            self.app.log("✓ Nuovo documento Design creato")
-            
-            # 2. Imposta modalità Parametrica (= Assembly)
-            design = adsk.fusion.Design.cast(self.app.activeProduct)
-            if design:
-                design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-                self.app.log("✓ Modalità Parametrica (Assembly) attivata")
-                
-                # 3. Rinomina componente root per chiarezza
-                root_comp = design.rootComponent
-                if root_comp:
-                    root_comp.name = 'FurnitureAI_Progetto'
-                    self.app.log("✓ Componente root rinominato: FurnitureAI_Progetto")
-            
-            # 4. Chiudi il vecchio documento "parte" (se esiste e non è stato salvato)
-            if doc_to_close and not doc_to_close.isSaved:
-                try:
-                    doc_to_close.close(False)  # False = non salvare
-                    self.app.log("✓ Documento 'parte' automatico chiuso")
-                except Exception as e:
-                    # Non è critico se non riesce a chiuderlo
-                    self.app.log(f"⚠️ Non riuscito a chiudere documento precedente: {e}")
-            
-            self.app.log("✅ Documento Assembly pronto per FurnitureAI!")
-            
-        except Exception as e:
-            self.app.log(f"❌ Errore creazione documento Assembly: {e}")
-            self.app.log(traceback.format_exc())
-            
-            # Fallback: prova almeno a impostare il documento corrente come parametrico
-            try:
-                design = adsk.fusion.Design.cast(self.app.activeProduct)
-                if design:
-                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-                    self.app.log("✓ Fallback: modalità Parametrica impostata sul documento esistente")
-            except:
-                pass
     
     def _show_first_run_delayed(self):
         """Mostra messaggio first-run con un piccolo delay per dare tempo alla UI"""
@@ -288,23 +233,24 @@ class StartupManager:
             self.ui.messageBox(
                 '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                '✅ SETUP AUTOMATICO COMPLETATO:\n'
-                '   • Documento Assembly creato automaticamente\n'
-                '   • Modalità Parametrica attivata\n'
-                '   • Tab Furniture AI pronto nella toolbar\n\n'
+                '✅ PRONTO ALL\'USO:\n'
+                '   Il documento corrente è già configurato.\n'
+                '   Modalità Parametrica attivata automaticamente.\n\n'
                 '🤖 FUNZIONI IA (Opzionali):\n'
                 '   Per abilitarle:\n'
-                '   → Clicca "Configura IA" nel pannello Impostazioni\n\n'
-                '✅ FUNZIONALITÀ GIÀ DISPONIBILI:\n'
-                '   • Wizard mobili guidato\n'
+                '   → Clicca "Configura IA" nel pannello Impostazioni\n'
+                '   → Supporto: Groq (gratis), OpenAI, Anthropic,\n'
+                '     LM Studio, Ollama, Hugging Face\n\n'
+                '🔧 FUNZIONALITÀ DISPONIBILI:\n'
+                '   • Wizard creazione mobili guidata\n'
                 '   • Template predefiniti\n'
-                '   • Componenti (ante, cassetti, ripiani)\n'
-                '   • Distinta materiali\n'
-                '   • Lista taglio ottimizzata\n'
-                '   • Esportazione produzione\n\n'
+                '   • Componenti parametrici (ante, cassetti, ripiani)\n'
+                '   • Distinta materiali e lista taglio\n'
+                '   • Nesting ottimizzato pannelli\n'
+                '   • Disegni 2D ed esportazione produzione\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                'Inizia subito: clicca "Wizard" per creare il tuo primo mobile!',
-                'FurnitureAI Professional - Primo Avvio',
+                'Il tab "Furniture AI" è ora attivo nella toolbar!',
+                'FurnitureAI Professional - Benvenuto',
                 adsk.core.MessageBoxButtonTypes.OKButtonType,
                 adsk.core.MessageBoxIconTypes.InformationIconType
             )
