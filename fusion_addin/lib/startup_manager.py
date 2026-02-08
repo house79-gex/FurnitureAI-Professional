@@ -226,8 +226,7 @@ class StartupManager:
     # ════════════════════════════════════════════
     
     def _on_tab_activated(self):
-        """
-        Chiamato quando l'utente clicca il tab FurnitureAI
+        """Chiamato quando l'utente clicca il tab FurnitureAI
         e il documento corrente non è un progetto FurnitureAI.
         Crea automaticamente un nuovo progetto ibrido.
         """
@@ -347,9 +346,8 @@ class StartupManager:
     # CHECK CONFIGURAZIONE IA
     # ════════════════════════════════════════════
     
-        def _check_ia_config(self):
-        """
-        Controlla se la configurazione IA è stata eseguita.
+    def _check_ia_config(self):
+        """Controlla se la configurazione IA è stata eseguita.
         Verifica toggle globale E provider configurati.
         Se uno dei due è True, IA è considerata configurata.
         Mostra avviso una sola volta per sessione.
