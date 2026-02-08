@@ -1,116 +1,24 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 4.0 - Bypass dialog iniziale con simulazione ESC nativa
+Versione: 4.2 - Proposta progetto FurnitureAI all'avvio e al click tab
 """
 
 import adsk.core
 import adsk.fusion
 import threading
 import traceback
-import sys
-import platform
+from datetime import datetime
 
 # Handler per evento differito
 _custom_event_id = 'FurnitureAI_DeferredStartup'
 _custom_event_handler = None
 _retry_count = 0
-_max_retries = 8
+_max_retries = 30
 
-# Evento per bypass dialog
-_bypass_event_id = 'FurnitureAI_BypassDialog'
-_bypass_handler_ref = None
-
-
-def _send_esc_key():
-    """
-    Simula pressione tasto ESC usando API native del sistema operativo.
-    Nessuna dipendenza esterna richiesta (usa ctypes su Windows, subprocess su Mac).
-    """
-    try:
-        os_name = platform.system()
-        
-        if os_name == 'Windows':
-            import ctypes
-            VK_ESCAPE = 0x1B
-            KEYEVENTF_KEYUP = 0x0002
-            # Key down
-            ctypes.windll.user32.keybd_event(VK_ESCAPE, 0, 0, 0)
-            # Key up
-            ctypes.windll.user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, 0)
-            return True
-            
-        elif os_name == 'Darwin':  # macOS
-            import subprocess
-            # AppleScript per simulare ESC
-            script = 'tell application "System Events" to key code 53'
-            subprocess.Popen(['osascript', '-e', script],
-                           stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL)
-            return True
-            
-        else:
-            return False
-            
-    except Exception:
-        return False
-
-
-def _bring_fusion_to_front():
-    """Porta la finestra di Fusion in primo piano prima di inviare ESC"""
-    try:
-        os_name = platform.system()
-        
-        if os_name == 'Windows':
-            import ctypes
-            # Trova finestra Fusion 360
-            hwnd = ctypes.windll.user32.FindWindowW(None, None)
-            # Enumera tutte le finestre per trovare Fusion
-            EnumWindowsProc = ctypes.WINFUNCTYPE(
-                ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)
-            )
-            
-            fusion_hwnd = None
-            
-            def callback(hwnd, lParam):
-                nonlocal fusion_hwnd
-                length = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
-                if length > 0:
-                    buff = ctypes.create_unicode_buffer(length + 1)
-                    ctypes.windll.user32.GetWindowTextW(hwnd, buff, length + 1)
-                    if 'Fusion' in buff.value or 'Autodesk' in buff.value:
-                        fusion_hwnd = hwnd
-                return True
-            
-            ctypes.windll.user32.EnumWindows(EnumWindowsProc(callback), 0)
-            
-            if fusion_hwnd:
-                ctypes.windll.user32.SetForegroundWindow(fusion_hwnd)
-                return True
-                
-        elif os_name == 'Darwin':
-            import subprocess
-            script = 'tell application "Autodesk Fusion" to activate'
-            subprocess.Popen(['osascript', '-e', script],
-                           stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL)
-            return True
-            
-    except Exception:
-        pass
-    return False
-
-
-class BypassDialogHandler(adsk.core.CustomEventHandler):
-    """Handler per chiudere la dialog iniziale di Fusion via ESC simulato"""
-    def __init__(self, startup_manager):
-        super().__init__()
-        self.startup_manager = startup_manager
-    
-    def notify(self, args):
-        try:
-            self.startup_manager._execute_bypass()
-        except:
-            pass
+# Handler globali per evitare GC
+_tab_handler_ref = None
+_create_project_event_id = 'FurnitureAI_CreateProject'
+_create_project_handler_ref = None
 
 
 class DeferredStartupHandler(adsk.core.CustomEventHandler):
@@ -143,6 +51,40 @@ class FirstRunMsgHandler(adsk.core.CustomEventHandler):
             pass
 
 
+class TabActivatedHandler(adsk.core.WorkspaceEventHandler):
+    """
+    Handler per quando l'utente clicca il tab FurnitureAI.
+    Se il documento corrente non è un progetto FurnitureAI (ibrido/parametrico),
+    propone di crearne uno nuovo.
+    """
+    def __init__(self, startup_manager):
+        super().__init__()
+        self.startup_manager = startup_manager
+    
+    def notify(self, args):
+        try:
+            self.startup_manager._on_furniture_tab_activated()
+        except:
+            pass
+
+
+class CreateProjectEventHandler(adsk.core.CustomEventHandler):
+    """Handler per creare progetto FurnitureAI dal tab click (con delay)"""
+    def __init__(self, startup_manager):
+        super().__init__()
+        self.startup_manager = startup_manager
+    
+    def notify(self, args):
+        try:
+            self.startup_manager._propose_furniture_project()
+            try:
+                self.startup_manager.app.unregisterCustomEvent(_create_project_event_id)
+            except:
+                pass
+        except:
+            pass
+
+
 class StartupManager:
     """Gestore configurazione startup Fusion con logica intelligente"""
     
@@ -151,16 +93,57 @@ class StartupManager:
         self.ui = self.app.userInterface
         self.config_manager = config_manager
         self.ui_manager = ui_manager
-        self.is_first_run = config_manager.is_first_run()
         self._custom_event = None
         self._handler = None
         self._first_run_event = None
         self._first_run_handler = None
-        self._bypass_event = None
-        self._bypass_handler = None
-        self._dialog_dismissed = False
-        self._esc_attempts = 0
-        self._max_esc_attempts = 3
+        self._setup_completed = False
+        self._proposal_shown_this_session = False  # Flag in memoria (non persistente)
+        self._tab_handler = None
+        self._create_project_event = None
+        self._create_project_handler = None
+    
+    def _is_furniture_project_active(self):
+        """
+        Controlla se il documento corrente è un progetto FurnitureAI valido.
+        Un progetto FurnitureAI è: Design in modalità Parametrica (ibrido).
+        """
+        try:
+            doc = self.app.activeDocument
+            if not doc:
+                return False
+            
+            design = adsk.fusion.Design.cast(self.app.activeProduct)
+            if not design:
+                return False
+            
+            # È parametrico (ibrido)?
+            if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
+                return False
+            
+            return True
+            
+        except:
+            return False
+    
+    def _should_show_proposal(self):
+        """
+        Determina se mostrare la proposta di creare un progetto FurnitureAI.
+        NON mostrare se:
+        - Già mostrata in questa sessione (utente ha detto No)
+        - Il documento corrente è già un progetto FurnitureAI valido
+        """
+        if self._proposal_shown_this_session:
+            return False
+        
+        if self._is_furniture_project_active():
+            return False
+        
+        return True
+    
+    # ════════════════════════════════════════════
+    # ENTRY POINT
+    # ════════════════════════════════════════════
     
     def apply_startup_settings(self):
         """Applica impostazioni startup"""
@@ -170,7 +153,12 @@ class StartupManager:
             
             if startup_prefs.get('auto_setup_enabled', True):
                 self.app.log("🚀 Startup automatico abilitato")
-                self._apply_workspace()
+                
+                # Registra handler per click tab FurnitureAI
+                self._register_tab_handler()
+                
+                # Attendi che Fusion sia pronto poi proponi progetto
+                self._schedule_deferred_startup()
             else:
                 self.app.log("⏸️ Startup automatico disabilitato")
             
@@ -178,229 +166,173 @@ class StartupManager:
             self.app.log(f"❌ Errore startup manager: {e}")
             self.app.log(traceback.format_exc())
     
-    def _apply_workspace(self):
-        """Tenta setup workspace. Se Fusion non è pronto, defer."""
-        global _retry_count
-        _retry_count = 0
-        
+    # ════════════════════════════════════════════
+    # TAB CLICK HANDLER
+    # ════════════════════════════════════════════
+    
+    def _register_tab_handler(self):
+        """
+        Registra un handler che intercetta quando l'utente clicca il tab FurnitureAI.
+        Se il documento corrente non è ibrido/parametrico, propone di creare
+        un nuovo progetto FurnitureAI.
+        """
+        global _tab_handler_ref
         try:
-            doc = self.app.activeDocument
-            
-            if doc:
-                # Fusion pronto e documento presente → setup diretto
-                self._do_workspace_setup(doc)
-                if self.is_first_run:
-                    self._show_first_run_delayed()
-            else:
-                # Nessun documento → dialog iniziale probabilmente aperta
-                # Schedula bypass con ESC
-                self.app.log("⚠️ Nessun documento - dialog iniziale Fusion probabilmente aperta")
-                self._schedule_dialog_bypass()
-                
-        except RuntimeError as e:
-            if 'InternalValidationError' in str(e):
-                self.app.log("⏳ Fusion non ancora pronto, programmo avvio differito...")
-                self._schedule_deferred_startup()
-            else:
-                self.app.log(f"❌ Errore workspace: {e}")
-                self.app.log(traceback.format_exc())
+            ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
+            if ws:
+                handler = TabActivatedHandler(self)
+                ws.activated.add(handler)
+                self._tab_handler = handler
+                _tab_handler_ref = handler  # Previeni GC
+                self.app.log("✓ Handler tab FurnitureAI registrato")
         except Exception as e:
-            self.app.log(f"❌ Errore workspace: {e}")
-            self.app.log(traceback.format_exc())
+            self.app.log(f"⚠️ Impossibile registrare tab handler: {e}")
     
-    # ════════════════════════════════════════════
-    # BYPASS DIALOG INIZIALE FUSION (ESC)
-    # ════════════════════════════════════════════
-    
-    def _schedule_dialog_bypass(self):
-        """Schedula il bypass della dialog iniziale con ESC dopo un delay"""
-        global _bypass_handler_ref
+    def _on_furniture_tab_activated(self):
+        """
+        Chiamato quando l'utente clicca sul tab FurnitureAI.
+        Se il documento non è un progetto FurnitureAI, propone di crearne uno.
+        """
+        # Verifica se il tab attivato è quello di FurnitureAI
         try:
-            self._bypass_event = self.app.registerCustomEvent(_bypass_event_id)
-            self._bypass_handler = BypassDialogHandler(self)
-            self._bypass_event.add(self._bypass_handler)
-            _bypass_handler_ref = self._bypass_handler  # Previeni GC
+            ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
+            if not ws:
+                return
             
-            # Aspetta 3 secondi per dare tempo alla dialog di apparire
-            self.app.log("⏰ Bypass dialog programmato (3s)")
-            timer = threading.Timer(3.0, self._fire_bypass_event)
+            active_tab = ws.toolbarTabs.itemById('FurnitureAI_Tab')
+            if not active_tab or not active_tab.isActive:
+                return  # Non è il nostro tab
+        except:
+            return
+        
+        # Se il progetto corrente non è ibrido, proponi
+        if not self._is_furniture_project_active():
+            self.app.log("📐 Tab FurnitureAI cliccato ma documento non è ibrido")
+            
+            # Reset del flag sessione per permettere nuova proposta da tab click
+            self._proposal_shown_this_session = False
+            
+            # Proponi con un piccolo delay per non bloccare l'evento
+            self._schedule_project_proposal()
+    
+    def _schedule_project_proposal(self):
+        """Schedula proposta progetto con delay per non bloccare eventi UI"""
+        global _create_project_handler_ref
+        try:
+            # Cleanup evento precedente se esiste
+            try:
+                self.app.unregisterCustomEvent(_create_project_event_id)
+            except:
+                pass
+            
+            self._create_project_event = self.app.registerCustomEvent(_create_project_event_id)
+            self._create_project_handler = CreateProjectEventHandler(self)
+            self._create_project_event.add(self._create_project_handler)
+            _create_project_handler_ref = self._create_project_handler
+            
+            def _fire():
+                try:
+                    self.app.fireCustomEvent(_create_project_event_id, '')
+                except:
+                    pass
+            
+            timer = threading.Timer(0.5, _fire)
             timer.daemon = True
             timer.start()
             
         except Exception as e:
-            self.app.log(f"❌ Errore scheduling bypass: {e}")
-            self.app.log(traceback.format_exc())
-    
-    def _fire_bypass_event(self):
-        """Fired dal timer - invoca bypass nel thread principale"""
-        try:
-            self.app.fireCustomEvent(_bypass_event_id, '')
-        except:
-            pass
-    
-    def _execute_bypass(self):
-        """Esegue il bypass della dialog iniziale"""
-        self._esc_attempts += 1
-        self.app.log(f"🔑 Tentativo ESC #{self._esc_attempts}/{self._max_esc_attempts}")
-        
-        try:
-            # Verifica se la dialog è ancora aperta (nessun documento)
-            doc = None
-            try:
-                doc = self.app.activeDocument
-            except:
-                pass
-            
-            if doc:
-                # Documento già disponibile → dialog già chiusa
-                self.app.log("✓ Documento già disponibile - dialog non presente")
-                self._dialog_dismissed = True
-                self._cleanup_bypass_event()
-                self._do_workspace_setup(doc)
-                if self.is_first_run:
-                    self._show_first_run_delayed()
-                return
-            
-            # Porta Fusion in primo piano e invia ESC
-            _bring_fusion_to_front()
-            
-            import time
-            time.sleep(0.2)  # Piccola pausa dopo il focus
-            
-            success = _send_esc_key()
-            
-            if success:
-                self.app.log("✓ ESC inviato")
-            else:
-                self.app.log("⚠️ ESC non inviato - piattaforma non supportata")
-            
-            # Aspetta che Fusion processi l'ESC e crei il documento
-            time.sleep(1.0)
-            
-            # Verifica se ha funzionato
-            try:
-                doc = self.app.activeDocument
-            except:
-                doc = None
-            
-            if doc:
-                self.app.log("✓ Dialog chiusa con ESC - documento creato")
-                self._dialog_dismissed = True
-                self._cleanup_bypass_event()
-                self._do_workspace_setup(doc)
-                if self.is_first_run:
-                    self._show_first_run_delayed()
-            elif self._esc_attempts < self._max_esc_attempts:
-                # Riprova dopo 2 secondi
-                self.app.log(f"⏳ Dialog ancora aperta - riprovo tra 2s")
-                timer = threading.Timer(2.0, self._fire_bypass_event)
-                timer.daemon = True
-                timer.start()
-            else:
-                # Esauriti i tentativi → procedi senza bypass
-                self.app.log("⚠️ Esauriti tentativi ESC - procedo con setup parziale")
-                self._cleanup_bypass_event()
-                # Programma deferred startup per quando l'utente chiude la dialog manualmente
-                self._schedule_deferred_startup()
-                
-        except Exception as e:
-            self.app.log(f"❌ Errore bypass: {e}")
-            self.app.log(traceback.format_exc())
-            self._cleanup_bypass_event()
-            self._schedule_deferred_startup()
-    
-    def _cleanup_bypass_event(self):
-        """Rimuovi evento bypass"""
-        try:
-            if self._bypass_event:
-                self.app.unregisterCustomEvent(_bypass_event_id)
-                self._bypass_event = None
-        except:
-            pass
+            self.app.log(f"⚠️ Errore scheduling proposta: {e}")
     
     # ════════════════════════════════════════════
-    # DEFERRED STARTUP (Fusion non pronto)
+    # ATTESA DOCUMENTO (polling)
     # ════════════════════════════════════════════
     
     def _schedule_deferred_startup(self):
-        """Registra custom event + timer per riprovare dopo 6 secondi"""
+        """Registra custom event + timer per controllare se Fusion è pronto"""
         global _custom_event_handler
         try:
-            # Evita registrazione doppia
-            try:
-                self.app.unregisterCustomEvent(_custom_event_id)
-            except:
-                pass
-            
             self._custom_event = self.app.registerCustomEvent(_custom_event_id)
             self._handler = DeferredStartupHandler(self)
             self._custom_event.add(self._handler)
-            _custom_event_handler = self._handler  # Keep reference
+            _custom_event_handler = self._handler
             
-            timer = threading.Timer(6.0, self._fire_deferred_event)
+            timer = threading.Timer(4.0, self._fire_deferred_event)
             timer.daemon = True
             timer.start()
             
-            self.app.log("⏰ Timer avvio differito programmato (6s)")
+            self.app.log("⏰ Monitoraggio avvio Fusion (check ogni 4s)")
+            
         except Exception as e:
             self.app.log(f"❌ Errore scheduling: {e}")
             self.app.log(traceback.format_exc())
     
     def _fire_deferred_event(self):
-        """Fired dal timer - invoca il custom event nel thread principale"""
+        """Fired dal timer"""
         try:
             self.app.fireCustomEvent(_custom_event_id, '')
         except:
             pass
     
     def _apply_workspace_deferred(self):
-        """Chiamato dal custom event handler dopo il delay"""
+        """Polling: aspetta documento aperto poi proponi progetto"""
         global _retry_count
         _retry_count += 1
+        
+        if self._setup_completed:
+            self._cleanup_custom_event()
+            return
         
         try:
             doc = self.app.activeDocument
             
             if not doc:
-                # Ancora nessun documento
                 if _retry_count < _max_retries:
-                    # Se non abbiamo ancora provato ESC, proviamo
-                    if not self._dialog_dismissed and self._esc_attempts == 0:
-                        self.app.log("🔑 Tentativo bypass ESC da deferred startup")
-                        self._cleanup_custom_event()
-                        self._schedule_dialog_bypass()
-                        return
+                    if _retry_count == 1:
+                        self.app.log("⏳ In attesa che l'utente chiuda la dialog iniziale...")
+                    elif _retry_count % 5 == 0:
+                        self.app.log(f"⏳ Ancora in attesa... (check #{_retry_count})")
                     
-                    self.app.log(f"⏳ Tentativo {_retry_count}/{_max_retries} - ancora nessun documento")
                     timer = threading.Timer(4.0, self._fire_deferred_event)
                     timer.daemon = True
                     timer.start()
                     return
                 else:
-                    self.app.log(f"⚠️ Esauriti {_max_retries} tentativi - workspace setup parziale")
+                    self.app.log("⚠️ Timeout attesa dialog (~2 min)")
+                    self._setup_completed = True
                     self._cleanup_custom_event()
-                    # Setup parziale senza documento
-                    self._do_workspace_setup(None)
                     return
             
-            self._do_workspace_setup(doc)
+            # ════════════════════════════════════════════
+            # DOCUMENTO PRESENTE → proponi progetto FurnitureAI
+            # ════════════════════════════════════════════
+            self.app.log(f"✓ Documento aperto rilevato (dopo {_retry_count} check)")
+            
+            self._setup_completed = True
             self._cleanup_custom_event()
             
-            if self.is_first_run:
+            # Controlla se serve proporre il progetto
+            if self._should_show_proposal():
                 self._show_first_run_delayed()
+            else:
+                self.app.log("✓ Progetto FurnitureAI già attivo - nessuna azione")
                 
         except RuntimeError as e:
-            if 'InternalValidationError' in str(e) and _retry_count < _max_retries:
-                self.app.log(f"⏳ Tentativo {_retry_count}/{_max_retries} - Fusion ancora non pronto")
-                timer = threading.Timer(4.0, self._fire_deferred_event)
-                timer.daemon = True
-                timer.start()
+            if 'InternalValidationError' in str(e):
+                if _retry_count < _max_retries:
+                    if _retry_count == 1:
+                        self.app.log("⏳ Fusion non ancora pronto...")
+                    timer = threading.Timer(4.0, self._fire_deferred_event)
+                    timer.daemon = True
+                    timer.start()
+                else:
+                    self.app.log(f"❌ Timeout dopo {_retry_count} tentativi")
+                    self._cleanup_custom_event()
             else:
-                self.app.log(f"❌ Errore dopo {_retry_count} tentativi: {e}")
+                self.app.log(f"❌ Errore: {e}")
                 self.app.log(traceback.format_exc())
                 self._cleanup_custom_event()
         except Exception as e:
-            self.app.log(f"❌ Errore deferred setup: {e}")
+            self.app.log(f"❌ Errore deferred: {e}")
             self.app.log(traceback.format_exc())
             self._cleanup_custom_event()
     
@@ -414,25 +346,66 @@ class StartupManager:
             pass
     
     # ════════════════════════════════════════════
-    # WORKSPACE SETUP
+    # CREAZIONE PROGETTO FURNITUREAI
     # ════════════════════════════════════════════
     
-    def _do_workspace_setup(self, doc):
-        """Logica effettiva di setup workspace"""
-        if doc:
+    def _create_furniture_project(self):
+        """
+        Crea nuovo documento Design ibrido (Parametrico) per FurnitureAI.
+        - Crea nuovo documento
+        - Imposta modalità Parametrica (cronologia)
+        - Rinomina root component con data corrente
+        - Chiude il documento precedente
+        - Attiva workspace Design e tab FurnitureAI
+        """
+        try:
+            # Salva riferimento al vecchio documento
+            old_doc = None
+            try:
+                old_doc = self.app.activeDocument
+            except:
+                pass
+            
+            # 1. Crea nuovo documento Design
+            new_doc = self.app.documents.add(
+                adsk.core.DocumentTypes.FusionDesignDocumentType
+            )
+            self.app.log("✓ Nuovo documento Design creato")
+            
+            # 2. Imposta modalità Parametrica (= Design Ibrido con cronologia)
             design = adsk.fusion.Design.cast(self.app.activeProduct)
             if design:
-                if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
-                    design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-                    self.app.log("✓ Modalità Parametrica attivata")
-                else:
-                    self.app.log("✓ Già in modalità Parametrica")
-            else:
-                self.app.log("⚠️ Nessun Design attivo")
-        else:
-            self.app.log("⚠️ Nessun documento - setup parziale (solo workspace e tab)")
-        
-        # Attiva workspace e tab (funziona anche senza documento)
+                design.designType = adsk.fusion.DesignTypes.ParametricDesignType
+                self.app.log("✓ Modalità Parametrica (Ibrido) attivata")
+                
+                # 3. Rinomina componente root con data corrente
+                today = datetime.now().strftime('%Y-%m-%d')
+                root = design.rootComponent
+                if root:
+                    root.name = f'FurnitureAI_{today}'
+                    self.app.log(f"✓ Progetto rinominato: FurnitureAI_{today}")
+            
+            # 4. Chiudi il vecchio documento (non salvare)
+            if old_doc:
+                try:
+                    old_doc.close(False)
+                    self.app.log("✓ Documento precedente chiuso")
+                except:
+                    self.app.log("⚠️ Non riuscito a chiudere documento precedente")
+            
+            # 5. Attiva workspace Design e tab FurnitureAI
+            self._activate_furniture_workspace()
+            
+            self.app.log("✅ Progetto FurnitureAI pronto!")
+            return True
+            
+        except Exception as e:
+            self.app.log(f"❌ Errore creazione progetto: {e}")
+            self.app.log(traceback.format_exc())
+            return False
+    
+    def _activate_furniture_workspace(self):
+        """Attiva workspace Design e tab FurnitureAI"""
         ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
         if ws:
             ws.activate()
@@ -448,11 +421,11 @@ class StartupManager:
             self.app.log("⚠️ Workspace Solid non trovato")
     
     # ════════════════════════════════════════════
-    # FIRST RUN MESSAGE
-    # ════════════════════════════════════════════
+    # PROPOSTA PROGETTO FURNITUREAI
+    # ══════════════════���═════════════════════════
     
     def _show_first_run_delayed(self):
-        """Mostra messaggio first-run con delay per dare tempo alla UI"""
+        """Mostra proposta progetto FurnitureAI con delay"""
         def _fire():
             try:
                 self.app.fireCustomEvent('FurnitureAI_FirstRunMsg', '')
@@ -466,43 +439,173 @@ class StartupManager:
             self._first_run_event = evt
             self._first_run_handler = handler
             
-            # Delay 4 secondi per assicurarsi che la dialog iniziale sia stata gestita
-            self.app.log("🎉 First run rilevato, mostro messaggio (con delay 4s)")
-            timer = threading.Timer(4.0, _fire)
+            self.app.log("🎉 Proposta progetto FurnitureAI tra 2s")
+            timer = threading.Timer(2.0, _fire)
             timer.daemon = True
             timer.start()
         except:
-            # Fallback: mostra subito
             self._show_first_run_message()
     
-    def _show_first_run_message(self):
-        """Messaggio first run con istruzioni chiare"""
+    def _propose_furniture_project(self):
+        """
+        Proposta creazione progetto (chiamata dal tab click handler).
+        Stessa logica di _show_first_run_message ma senza testo di benvenuto.
+        """
+        if self._proposal_shown_this_session:
+            return
+        
         try:
-            self.ui.messageBox(
-                '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            result = self.ui.messageBox(
+                '📐 DOCUMENTO NON COMPATIBILE\n\n'
+                'Il documento corrente è in modalità "Parte".\n'
+                'FurnitureAI richiede un progetto in modalità\n'
+                '"Design Ibrido" (Parametrico) per funzionare\n'
+                'correttamente con componenti e assiemi.\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                '✅ PRONTO ALL\'USO:\n'
-                '   Modalità Parametrica attivata.\n'
-                '   Il tab "Furniture AI" è nella toolbar.\n\n'
-                '🤖 FUNZIONI IA (Opzionali):\n'
-                '   → Clicca "Configura IA" nel pannello Impostazioni\n'
-                '   → Supporto: Groq, OpenAI, Anthropic,\n'
-                '     LM Studio, Ollama, Hugging Face\n\n'
-                '🔧 FUNZIONALITÀ DISPONIBILI:\n'
-                '   • Wizard creazione mobili\n'
-                '   • Template predefiniti\n'
-                '   • Componenti parametrici\n'
-                '   • Distinta materiali e lista taglio\n'
-                '   • Nesting e disegni 2D\n'
-                '   • Esportazione produzione\n\n'
-                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-                'FurnitureAI Professional - Benvenuto',
-                adsk.core.MessageBoxButtonTypes.OKButtonType,
-                adsk.core.MessageBoxIconTypes.InformationIconType
+                'Vuoi creare un nuovo progetto FurnitureAI?\n\n'
+                f'   • Nome: FurnitureAI_{today}\n'
+                '   • Tipo: Design Ibrido (Parametrico)\n'
+                '   • Cronologia attiva\n\n'
+                '   Sì → Crea progetto e attiva FurnitureAI\n'
+                '   No → Torna a Fusion (puoi riprovare dopo)',
+                'FurnitureAI - Progetto Richiesto',
+                adsk.core.MessageBoxButtonTypes.YesNoButtonType,
+                adsk.core.MessageBoxIconTypes.QuestionIconType
             )
             
-            self.app.log("✓ Messaggio first run mostrato")
+            self._proposal_shown_this_session = True
+            
+            if result == adsk.core.DialogResults.DialogYes:
+                self.app.log("👍 Utente vuole progetto FurnitureAI (da tab click)")
+                success = self._create_furniture_project()
+                
+                if success:
+                    self.ui.messageBox(
+                        f'✅ Progetto FurnitureAI_{today} creato!\n\n'
+                        '• Design Ibrido (Parametrico) attivo\n'
+                        '• Cronologia abilitata\n'
+                        '• Tab "Furniture AI" pronto\n\n'
+                        'Inizia dal pulsante "Wizard" per creare\n'
+                        'il tuo primo mobile!',
+                        'Progetto Creato',
+                        adsk.core.MessageBoxButtonTypes.OKButtonType,
+                        adsk.core.MessageBoxIconTypes.InformationIconType
+                    )
+                else:
+                    self.ui.messageBox(
+                        '⚠️ Errore nella creazione del progetto.\n\n'
+                        'Crea manualmente un nuovo progetto\n'
+                        'dal menu File di Fusion.',
+                        'Attenzione',
+                        adsk.core.MessageBoxButtonTypes.OKButtonType,
+                        adsk.core.MessageBoxIconTypes.WarningIconType
+                    )
+            else:
+                self.app.log("👋 Utente rifiuta progetto FurnitureAI (da tab click)")
+                # Non fare nulla, l'utente può riprovare cliccando di nuovo il tab
+                
+        except Exception as e:
+            self.app.log(f"❌ Errore proposta progetto: {e}")
+            self.app.log(traceback.format_exc())
+    
+    def _show_first_run_message(self):
+        """
+        Proposta creazione progetto FurnitureAI all'avvio.
+        Sì → crea progetto ibrido + attiva workspace FurnitureAI
+        No → lascia Fusion libero (ripropone al prossimo avvio addin o click tab)
+        """
+        try:
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            result = self.ui.messageBox(
+                '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                '📐 VUOI INIZIARE UN PROGETTO FURNITUREAI?\n\n'
+                '   Verrà creato un nuovo progetto ottimizzato\n'
+                '   per la progettazione di mobili:\n\n'
+                f'   • Nome: FurnitureAI_{today}\n'
+                '   • Tipo: Design Ibrido (Parametrico)\n'
+                '   • Cronologia attiva per modifiche\n'
+                '   • Componenti e assiemi supportati\n\n'
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                '🤖 Funzioni IA disponibili in Configura IA\n\n'
+                '🔧 Funzionalità: Wizard, Template, Componenti,\n'
+                '   Distinta materiali, Lista taglio, Export\n\n'
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                '   Sì → Crea progetto e attiva area di lavoro\n'
+                '   No → Usa Fusion normalmente\n'
+                '        (puoi attivare FurnitureAI dal tab\n'
+                '         nella toolbar in qualsiasi momento)',
+                'FurnitureAI Professional - Benvenuto',
+                adsk.core.MessageBoxButtonTypes.YesNoButtonType,
+                adsk.core.MessageBoxIconTypes.QuestionIconType
+            )
+            
+            # Marca che la proposta è stata mostrata in questa sessione
+            self._proposal_shown_this_session = True
+            
+            if result == adsk.core.DialogResults.DialogYes:
+                # ════════════════════════════════════════
+                # SÌ → Crea progetto + attiva FurnitureAI
+                # ════════════════════════════════════════
+                self.app.log("👍 Utente vuole progetto FurnitureAI")
+                
+                success = self._create_furniture_project()
+                
+                if success:
+                    self.ui.messageBox(
+                        f'✅ Progetto FurnitureAI_{today} creato!\n\n'
+                        '• Design Ibrido (Parametrico) attivo\n'
+                        '• Cronologia abilitata\n'
+                        '• Tab "Furniture AI" pronto\n\n'
+                        'Inizia dal pulsante "Wizard" per creare\n'
+                        'il tuo primo mobile!',
+                        'Progetto Creato',
+                        adsk.core.MessageBoxButtonTypes.OKButtonType,
+                        adsk.core.MessageBoxIconTypes.InformationIconType
+                    )
+                else:
+                    self.ui.messageBox(
+                        '⚠️ Errore nella creazione del progetto.\n\n'
+                        'Puoi creare un nuovo progetto manualmente\n'
+                        'dal menu File di Fusion.\n\n'
+                        'Il tab "Furniture AI" è comunque disponibile.',
+                        'Attenzione',
+                        adsk.core.MessageBoxButtonTypes.OKButtonType,
+                        adsk.core.MessageBoxIconTypes.WarningIconType
+                    )
+            else:
+                # ════════════════════════════════════════
+                # NO → Lascia Fusion libero
+                # NON salvare flag persistente!
+                # Al prossimo avvio addin si ripresenta
+                # ════════════════════════════════════════
+                self.app.log("👋 Utente usa Fusion normalmente")
+                self.app.log("ℹ️ Proposta si ripresenterà al prossimo avvio addin")
+                self.app.log("ℹ️ Oppure cliccando il tab FurnitureAI")
+                # NON chiamare mark_first_run_completed()
+                # Il flag _proposal_shown_this_session impedisce di riproporre
+                # nella stessa sessione, ma al riavvio addin si ripresenta
             
         except Exception as e:
-            self.app.log(f"❌ Errore messaggio first run: {e}")
+            self.app.log(f"❌ Errore first run message: {e}")
             self.app.log(traceback.format_exc())
+    
+    def cleanup(self):
+        """Cleanup risorse - chiamato da stop()"""
+        self._cleanup_custom_event()
+        try:
+            if self._bypass_event:
+                self.app.unregisterCustomEvent(_bypass_event_id)
+        except:
+            pass
+        try:
+            self.app.unregisterCustomEvent(_create_project_event_id)
+        except:
+            pass
+        try:
+            self.app.unregisterCustomEvent('FurnitureAI_FirstRunMsg')
+        except:
+            pass
