@@ -347,36 +347,44 @@ class StartupManager:
     # CHECK CONFIGURAZIONE IA
     # ════════════════════════════════════════════
     
-    def _check_ia_config(self):
+        def _check_ia_config(self):
         """
         Controlla se la configurazione IA è stata eseguita.
-        Se no, mostra avviso (una sola volta per sessione).
+        Verifica toggle globale E provider configurati.
+        Se uno dei due è True, IA è considerata configurata.
+        Mostra avviso una sola volta per sessione.
         """
         if self._ia_warning_shown_this_session:
             return
         
         try:
-            if not self.config_manager.is_ai_enabled():
-                self._ia_warning_shown_this_session = True
-                
-                self.ui.messageBox(
-                    '🤖 CONFIGURAZIONE IA NON ATTIVA\n\n'
-                    'Le funzioni di Intelligenza Artificiale non sono\n'
-                    'ancora configurate.\n\n'
-                    'FurnitureAI funziona anche senza IA, ma per\n'
-                    'sfruttare tutte le funzionalità:\n\n'
-                    '   → Clicca "Configura IA" nel pannello Impostazioni\n'
-                    '   → Supporto: Groq (gratis), OpenAI, Anthropic,\n'
-                    '     LM Studio, Ollama, Hugging Face\n\n'
-                    'Puoi configurare l\'IA in qualsiasi momento.',
-                    'FurnitureAI - Configurazione IA',
-                    adsk.core.MessageBoxButtonTypes.OKButtonType,
-                    adsk.core.MessageBoxIconTypes.InformationIconType
-                )
-                
-                self.app.log("ℹ️ Avviso configurazione IA mostrato")
-            else:
-                self.app.log("✓ Configurazione IA già attiva")
+            ia_enabled = self.config_manager.is_ai_enabled()
+            ia_provider = self.config_manager.has_ai_provider_configured()
+            
+            self.app.log(f"🤖 Check IA: toggle={ia_enabled}, provider={ia_provider}")
+            
+            if ia_enabled or ia_provider:
+                self.app.log("✓ Configurazione IA rilevata - nessun avviso")
+                return
+            
+            self._ia_warning_shown_this_session = True
+            
+            self.ui.messageBox(
+                '🤖 CONFIGURAZIONE IA NON ATTIVA\n\n'
+                'Le funzioni di Intelligenza Artificiale non sono\n'
+                'ancora configurate.\n\n'
+                'FurnitureAI funziona anche senza IA, ma per\n'
+                'sfruttare tutte le funzionalità:\n\n'
+                '   → Clicca "Configura IA" nel pannello Impostazioni\n'
+                '   → Supporto: Groq (gratis), OpenAI, Anthropic,\n'
+                '     LM Studio, Ollama, Hugging Face\n\n'
+                'Puoi configurare l\'IA in qualsiasi momento.',
+                'FurnitureAI - Configurazione IA',
+                adsk.core.MessageBoxButtonTypes.OKButtonType,
+                adsk.core.MessageBoxIconTypes.InformationIconType
+            )
+            
+            self.app.log("ℹ️ Avviso configurazione IA mostrato")
                 
         except Exception as e:
             self.app.log(f"⚠️ Errore check IA: {e}")
