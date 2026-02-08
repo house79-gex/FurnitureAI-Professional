@@ -3,6 +3,7 @@ Config Manager - VERSIONE CORRETTA
 - NON crea config default automaticamente
 - Ritorna solo se file esiste
 - First run detection con flag persistente e check configurazione IA
+- Legge ENTRAMBI i file config: api_keys.json E ai_config.json
 """
 
 import json
@@ -25,6 +26,7 @@ class ConfigManager:
         
         # NON creare cartella automaticamente
         self.api_keys_path = os.path.join(self.config_dir, 'api_keys.json')
+        self.ai_config_path = os.path.join(self.config_dir, 'ai_config.json')
         self.preferences_path = os.path.join(self.config_dir, 'preferences.json')
         self.materials_path = os.path.join(self.config_dir, 'materials_base.json')
     
@@ -33,19 +35,15 @@ class ConfigManager:
         Controlla se è il primo avvio
         First run = flag non impostato E nessun provider IA configurato
         """
-        # Controlla flag persistente nelle preferenze
         prefs = self.get_preferences()
         first_run_completed = prefs.get('startup', {}).get('first_run_completed', False)
         
         if first_run_completed:
-            # Utente ha già visto il messaggio
             return False
         
-        # Se IA è già configurata, non è first run
         if self.has_ai_provider_configured():
             return False
         
-        # Altrimenti è first run
         return True
     
     def mark_first_run_completed(self):
@@ -74,27 +72,31 @@ class ConfigManager:
     def get_ai_config(self) -> Optional[Dict[str, Any]]:
         """
         Ottieni configurazione IA
-        Ritorna None se file non esiste (first run)
+        Controlla PRIMA api_keys.json (formato nuovo)
+        POI ai_config.json (formato vecchio)
+        Ritorna None se nessun file esiste
         """
-        if not os.path.exists(self.api_keys_path):
-            return None
-        
-        try:
-            with open(self.api_keys_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
+        # Prova formato nuovo (api_keys.json)
+        if os.path.exists(self.api_keys_path):
             try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log(f"✗ Errore lettura config: {e}")
+                with open(self.api_keys_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
             except:
                 pass
-            return None
+        
+        # Prova formato vecchio (ai_config.json)
+        if os.path.exists(self.ai_config_path):
+            try:
+                with open(self.ai_config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                pass
+        
+        return None
     
     def save_ai_config(self, config: Dict[str, Any]):
         """Salva configurazione IA"""
         try:
-            # Crea cartella se non esiste
             os.makedirs(self.config_dir, exist_ok=True)
             
             with open(self.api_keys_path, 'w', encoding='utf-8') as f:
@@ -231,19 +233,27 @@ class ConfigManager:
     
     def is_ai_enabled(self) -> bool:
         """
-        Controlla se IA è abilitata
-        - Config non esiste? → False (first run, nessuna config)
-        - Config esiste MA toggle OFF? → False
-        - Config esiste E toggle ON? → True
+        Controlla se IA è abilitata.
+        Cerca in ENTRAMBI i formati config:
+        - Formato nuovo (api_keys.json): ai_features_enabled
+        - Formato vecchio (ai_config.json): providers con enabled
         """
         config = self.get_ai_config()
         
         if config is None:
-            # First run, nessuna config
             return False
         
-        # Controlla toggle globale
-        return config.get('ai_features_enabled', False)
+        # Formato nuovo: toggle globale
+        if config.get('ai_features_enabled', False):
+            return True
+        
+        # Formato vecchio: controlla se c'è almeno un provider abilitato
+        providers = config.get('providers', {})
+        for provider_name, provider_config in providers.items():
+            if isinstance(provider_config, dict) and provider_config.get('enabled', False):
+                return True
+        
+        return False
     
     def set_ai_enabled(self, enabled: bool):
         """Abilita/disabilita funzionalità IA globalmente"""
@@ -264,13 +274,35 @@ class ConfigManager:
     
     def has_ai_provider_configured(self) -> bool:
         """
-        Controlla se almeno un provider IA è configurato
-        (non solo toggle, ma effettivamente configurato)
+        Controlla se almeno un provider IA è configurato.
+        Cerca in ENTRAMBI i formati config:
+        - Formato nuovo (api_keys.json): cloud/local_lan/remote_wan
+        - Formato vecchio (ai_config.json): providers
         """
         config = self.get_ai_config()
         
         if config is None:
             return False
+        
+        # ════════════════════════════════════════════
+        # FORMATO VECCHIO (ai_config.json)
+        # Struttura: { "providers": { "lmstudio": { "enabled": true } } }
+        # ════════════════════════════════════════════
+        providers = config.get('providers', {})
+        for provider_name, provider_config in providers.items():
+            if isinstance(provider_config, dict) and provider_config.get('enabled', False):
+                try:
+                    import adsk.core
+                    app = adsk.core.Application.get()
+                    app.log(f"✓ Provider '{provider_name}' abilitato (formato vecchio)")
+                except:
+                    pass
+                return True
+        
+        # ════════════════════════════════════════════
+        # FORMATO NUOVO (api_keys.json)
+        # Struttura: { "local_lan": { "lmstudio": { "enabled": true } } }
+        # ════════════════════════════════════════════
         
         # Check LM Studio
         lmstudio_config = config.get('local_lan', {}).get('lmstudio', {})
@@ -310,16 +342,7 @@ class ConfigManager:
         return False
     
     def test_provider_connection(self, provider_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Test connessione a un provider IA
-        
-        Args:
-            provider_type: Tipo provider (groq, huggingface, lmstudio, ollama, etc.)
-            config: Configurazione del provider
-        
-        Returns:
-            Dict con success, message, details
-        """
+        """Test connessione a un provider IA"""
         try:
             if provider_type == "groq":
                 return self._test_groq_connection(config)
@@ -413,7 +436,6 @@ class ConfigManager:
             
             headers = {"Authorization": f"Bearer {token}"}
             
-            # Test con modello leggero
             response = requests.post(
                 f"{base_url}/models/gpt2",
                 headers=headers,
@@ -508,12 +530,7 @@ class ConfigManager:
             }
     
     def auto_discover_local_servers(self) -> list:
-        """
-        Auto-discovery server locali (LM Studio, Ollama)
-        
-        Returns:
-            Lista di dict con info server trovati
-        """
+        """Auto-discovery server locali (LM Studio, Ollama)"""
         results = []
         
         try:
