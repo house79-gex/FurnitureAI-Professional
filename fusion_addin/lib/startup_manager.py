@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 3.3 - Simplified first-run message, no Assembly requirement
+Versione: 3.3 - Bypass dialog iniziale Fusion con terminateActiveCommand (ESC)
 """
 
 import adsk.core
@@ -14,7 +14,6 @@ _custom_event_handler = None
 _retry_count = 0
 _max_retries = 5
 
-
 class DeferredStartupHandler(adsk.core.CustomEventHandler):
     """Handler per evento di startup differito"""
     def __init__(self, startup_manager):
@@ -26,7 +25,6 @@ class DeferredStartupHandler(adsk.core.CustomEventHandler):
             self.startup_manager._apply_workspace_deferred()
         except:
             pass
-
 
 class FirstRunMsgHandler(adsk.core.CustomEventHandler):
     """Handler per mostrare messaggio first-run con delay"""
@@ -44,7 +42,6 @@ class FirstRunMsgHandler(adsk.core.CustomEventHandler):
                 pass
         except:
             pass
-
 
 class StartupManager:
     """Gestore configurazione startup Fusion con logica intelligente"""
@@ -72,6 +69,9 @@ class StartupManager:
             else:
                 self.app.log("⏸️ Startup automatico disabilitato")
             
+            # NOTA: first_run message viene mostrato SOLO dopo setup workspace
+            # riuscito, NON qui. Verrà chiamato da _apply_workspace_deferred()
+            
         except Exception as e:
             self.app.log(f"❌ Errore startup manager: {e}")
             self.app.log(traceback.format_exc())
@@ -87,7 +87,7 @@ class StartupManager:
             # Se arriviamo qui, Fusion è pronto
             self._do_workspace_setup(doc)
             
-            # Mostra first run message dopo setup completato
+            # ORA mostra first run message (Fusion è pronto e setup completato) con delay
             if self.is_first_run:
                 self._show_first_run_delayed()
                 
@@ -141,7 +141,7 @@ class StartupManager:
             # Cleanup custom event
             self._cleanup_custom_event()
             
-            # Mostra first run message dopo setup riuscito
+            # ORA mostra first run message (Fusion è pronto) con delay
             if self.is_first_run:
                 self._show_first_run_delayed()
                 
@@ -170,10 +170,50 @@ class StartupManager:
         except:
             pass
     
+    def _dismiss_startup_dialog(self):
+        """
+        Chiudi la dialog iniziale di Fusion 360 (scelta tipo progetto).
+        Equivale a premere ESC - Fusion creerà un documento vuoto di default.
+        """
+        try:
+            # terminateActiveCommand() equivale a premere ESC
+            # Chiude qualsiasi dialog/comando attivo, inclusa la dialog di avvio
+            self.ui.terminateActiveCommand()
+            self.app.log("✓ Dialog iniziale Fusion chiusa (ESC)")
+            
+            # Piccola pausa per dare tempo a Fusion di processare
+            import time
+            time.sleep(0.5)
+            
+        except Exception as e:
+            self.app.log(f"⚠️ Impossibile chiudere dialog iniziale: {e}")
+    
     def _do_workspace_setup(self, doc):
         """Logica effettiva di setup workspace"""
+        if not doc:
+            # ════════════════════════════════════════════
+            # BYPASS DIALOG INIZIALE FUSION
+            # ════════════════════════════════════════════
+            # La dialog di avvio Fusion (scelta tipo progetto) blocca l'addon.
+            # Premendo ESC (terminateActiveCommand) Fusion la chiude e crea
+            # un documento vuoto di default, permettendo all'addon di procedere.
+            
+            self.app.log("⚠️ Nessun documento aperto - chiudo dialog iniziale Fusion (ESC)...")
+            self._dismiss_startup_dialog()
+            
+            # Dopo ESC, Fusion dovrebbe avere un documento vuoto
+            # Riprova a ottenere il documento
+            try:
+                doc = self.app.activeDocument
+                if doc:
+                    self.app.log("✓ Documento disponibile dopo chiusura dialog")
+                else:
+                    self.app.log("⚠️ Ancora nessun documento - Fusion potrebbe richiedere azione manuale")
+            except:
+                self.app.log("⚠️ Documento non ancora disponibile dopo ESC")
+        
+        # Imposta modalità Parametrica solo se documento presente
         if doc:
-            # Imposta modalità Parametrica se documento presente
             design = adsk.fusion.Design.cast(self.app.activeProduct)
             if design:
                 if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
@@ -181,10 +221,6 @@ class StartupManager:
                     self.app.log("✓ Modalità Parametrica attivata")
                 else:
                     self.app.log("✓ Già in modalità Parametrica")
-            else:
-                self.app.log("⚠️ Nessun Design attivo - modalità parametrica non applicata")
-        else:
-            self.app.log("⚠️ Nessun documento aperto - attendo documento utente")
         
         # Attiva workspace e tab (funziona anche senza documento)
         ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
@@ -233,24 +269,24 @@ class StartupManager:
             self.ui.messageBox(
                 '🎉 Benvenuto in FurnitureAI Professional v3.0!\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
-                '✅ PRONTO ALL\'USO:\n'
-                '   Il documento corrente è già configurato.\n'
-                '   Modalità Parametrica attivata automaticamente.\n\n'
+                '📌 PRIMO PASSO:\n'
+                '   Se vedi la finestra di avvio di Fusion:\n'
+                '   → Crea un "Nuovo Progetto"\n'
+                '   → Tipo: Progetto di Assieme\n'
+                '   → Il tipo "Assieme" è necessario per FurnitureAI\n\n'
                 '🤖 FUNZIONI IA (Opzionali):\n'
                 '   Per abilitarle:\n'
-                '   → Clicca "Configura IA" nel pannello Impostazioni\n'
-                '   → Supporto: Groq (gratis), OpenAI, Anthropic,\n'
-                '     LM Studio, Ollama, Hugging Face\n\n'
-                '🔧 FUNZIONALITÀ DISPONIBILI:\n'
-                '   • Wizard creazione mobili guidata\n'
+                '   → Clicca "Configura IA" nel pannello Impostazioni\n\n'
+                '✅ FUNZIONALITÀ GIÀ DISPONIBILI:\n'
+                '   • Wizard mobili guidato\n'
                 '   • Template predefiniti\n'
-                '   • Componenti parametrici (ante, cassetti, ripiani)\n'
-                '   • Distinta materiali e lista taglio\n'
-                '   • Nesting ottimizzato pannelli\n'
-                '   • Disegni 2D ed esportazione produzione\n\n'
+                '   • Componenti (ante, cassetti, ripiani)\n'
+                '   • Distinta materiali\n'
+                '   • Lista taglio ottimizzata\n'
+                '   • Esportazione produzione\n\n'
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
                 'Il tab "Furniture AI" è ora attivo nella toolbar!',
-                'FurnitureAI Professional - Benvenuto',
+                'FurnitureAI Professional - Primo Avvio',
                 adsk.core.MessageBoxButtonTypes.OKButtonType,
                 adsk.core.MessageBoxIconTypes.InformationIconType
             )
