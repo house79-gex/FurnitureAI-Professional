@@ -1,6 +1,6 @@
 """
 Comando FAI_ConfiguraIA - Dialog Nativo Fusion 360 API
-Versione: 4.3 - Enlarged dialog size (550x700)
+Versione: 4.3 - Enlarged dialog size (600x800)
 """
 
 import adsk.core
@@ -250,7 +250,7 @@ class ConfiguraIACreatedHandler(adsk.core.CommandCreatedEventHandler):
             # IMPOSTA DIMENSIONI DIALOG PIÙ GRANDI
             # ════════════════════════════════════════════
             cmd.setDialogMinimumSize(500, 600)
-            cmd.setDialogInitialSize(550, 700)
+            cmd.setDialogInitialSize(600, 800)
             
             self.app.log("✅ Dialog UI costruita con dimensioni 550x700")
             
