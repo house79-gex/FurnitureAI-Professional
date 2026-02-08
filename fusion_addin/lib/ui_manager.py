@@ -73,7 +73,7 @@ class UIManager:
         
         panel_names = [
             ('panel_design', '🎨 Design'),
-            ('panel_componenti', '🔧 Componenti'),
+            ('panel_elementi', '📏 Elementi'),
             ('panel_edita', '✏️ Edita'),
             ('panel_hardware', '⚙️ Hardware'),
             ('panel_lavorazioni', '🔨 Lavorazioni'),
@@ -146,17 +146,17 @@ class UIManager:
         )
         
         # ═══════════════════════════════════════════════
-        # COMPONENTI
+        # ELEMENTI
         # ═══════════════════════════════════════════════
         
-        self.app.log("UIManager: creazione comandi Componenti...")
+        self.app.log("UIManager: creazione comandi Elementi...")
         
         self._create_command(
             'FAI_Designer',
             'Designer',
             'Designer componenti parametrici',
             os.path.join(icons_path, 'FAI_Designer'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -164,7 +164,7 @@ class UIManager:
             'Anta',
             'Crea anta',
             os.path.join(icons_path, 'FAI_Anta'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -172,7 +172,7 @@ class UIManager:
             'Cassetto',
             'Crea cassetto',
             os.path.join(icons_path, 'FAI_Cassetto'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -180,7 +180,7 @@ class UIManager:
             'Ripiano',
             'Crea ripiano',
             os.path.join(icons_path, 'FAI_Ripiano'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -188,7 +188,7 @@ class UIManager:
             'Schienale',
             'Crea schienale',
             os.path.join(icons_path, 'FAI_Schienale'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -196,7 +196,7 @@ class UIManager:
             'Cornice',
             'Crea cornice',
             os.path.join(icons_path, 'FAI_Cornice'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -204,7 +204,7 @@ class UIManager:
             'Cappello',
             'Crea cappello',
             os.path.join(icons_path, 'FAI_Cappello'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         self._create_command(
@@ -212,7 +212,7 @@ class UIManager:
             'Zoccolo',
             'Crea zoccolo',
             os.path.join(icons_path, 'FAI_Zoccolo'),
-            panels['panel_componenti']
+            panels['panel_elementi']
         )
         
         # ═══════════════════════════════════════════════
