@@ -1,6 +1,6 @@
 """
 Startup Manager - Gestione intelligente avvio Fusion
-Versione: 4.4 - Propone SEMPRE nuovo progetto FurnitureAI dedicato
+Versione: 4.5 - Fix rinomina documento (non root component)
 """
 
 import adsk.core
@@ -66,7 +66,7 @@ class StartupManager:
         self._handler = None
         self._setup_completed = False
         self._proposal_shown_this_session = False
-        self._furniture_project_active = False  # True SOLO se NOI abbiamo creato il progetto
+        self._furniture_project_active = False
         self._checking_tab = False
         self._tab_check_timer = None
         self._tab_check_event_id = 'FurnitureAI_TabCheck'
@@ -78,8 +78,7 @@ class StartupManager:
     def _is_our_furniture_project(self):
         """
         Controlla se il documento corrente è un progetto creato da FurnitureAI.
-        NON basta che sia Parametrico - deve avere il nome 'FurnitureAI_' nel root.
-        Questo è l'unico modo affidabile per distinguere i nostri progetti.
+        Il nome del documento (non del root component) inizia con 'FurnitureAI_'.
         """
         try:
             doc = self.app.activeDocument
@@ -90,13 +89,11 @@ class StartupManager:
             if not design:
                 return False
             
-            # Controlla che sia Parametrico
             if design.designType != adsk.fusion.DesignTypes.ParametricDesignType:
                 return False
             
-            # Controlla che il root component abbia il nostro nome
-            root = design.rootComponent
-            if root and root.name.startswith('FurnitureAI_'):
+            # Il nome del documento è quello che noi impostiamo
+            if doc.name.startswith('FurnitureAI_'):
                 return True
             
             return False
@@ -129,22 +126,17 @@ class StartupManager:
             
             if startup_prefs.get('auto_setup_enabled', True):
                 self.app.log("🚀 Startup automatico abilitato")
-                
-                # Registra monitoraggio tab
                 self._start_tab_monitoring()
-                
-                # Attendi documento poi proponi
                 self._schedule_deferred_startup()
             else:
                 self.app.log("⏸️ Startup automatico disabilitato")
-                # Anche se disabilitato, monitora tab per proporre quando cliccato
                 self._start_tab_monitoring()
             
         except Exception as e:
             self.app.log(f"❌ Errore startup manager: {e}")
             self.app.log(traceback.format_exc())
     
-    # ══════════════���═════════════════════════════
+    # ════════════════════════════════════════════
     # MONITORAGGIO TAB (polling 2s)
     # ════════════════════════════════════════════
     
@@ -199,7 +191,7 @@ class StartupManager:
         self._tab_check_timer.start()
     
     def _check_tab_state(self):
-        """Controlla se il tab FurnitureAI è attivo e se serve proporre il progetto"""
+        """Controlla se il tab FurnitureAI è attivo e se serve proporre"""
         try:
             ws = self.ui.workspaces.itemById('FusionSolidEnvironment')
             if not ws:
@@ -211,19 +203,15 @@ class StartupManager:
                 self._schedule_tab_check()
                 return
             
-            # Tab FurnitureAI è attivo!
-            
-            # Se è già un nostro progetto, tutto ok
+            # Tab attivo - è un nostro progetto?
             if self._is_our_furniture_project():
                 self._furniture_project_active = True
                 self._schedule_tab_check()
                 return
             
-            # Tab attivo MA non è un nostro progetto → proponi
+            # Tab attivo MA non è un nostro progetto
             if not self._proposal_shown_this_session:
-                self.app.log("📐 Tab FurnitureAI cliccato - documento non è progetto FurnitureAI")
-                # Reset flag per permettere proposta da tab
-                self._proposal_shown_this_session = False
+                self.app.log("📐 Tab FurnitureAI cliccato - documento non compatibile")
                 self._fire_proposal('tab_click')
             
             self._schedule_tab_check()
@@ -236,7 +224,7 @@ class StartupManager:
     # ════════════════════════════════════════════
     
     def _schedule_deferred_startup(self):
-        """Registra custom event + timer per attendere Fusion pronto"""
+        """Registra custom event + timer"""
         global _custom_event_handler
         try:
             self._custom_event = self.app.registerCustomEvent(_custom_event_id)
@@ -290,21 +278,18 @@ class StartupManager:
                     self._cleanup_custom_event()
                     return
             
-            # DOCUMENTO PRESENTE
             self.app.log(f"✓ Documento rilevato (check #{_retry_count})")
             
             self._setup_completed = True
             self._cleanup_custom_event()
             
-            # Verifica se è già un nostro progetto FurnitureAI
             if self._is_our_furniture_project():
-                self.app.log("✓ Progetto FurnitureAI già attivo - nessuna azione")
+                self.app.log("✓ Progetto FurnitureAI già attivo")
                 self._furniture_project_active = True
                 self._activate_furniture_workspace()
                 return
             
-            # Non è un nostro progetto → proponi
-            self.app.log("📋 Documento non è un progetto FurnitureAI - propongo creazione")
+            self.app.log("📋 Documento non è progetto FurnitureAI - propongo creazione")
             self._fire_proposal('startup')
                 
         except RuntimeError as e:
@@ -337,7 +322,7 @@ class StartupManager:
             pass
     
     # ════════════════════════════════════════════
-    # FIRE PROPOSAL (delay)
+    # FIRE PROPOSAL
     # ════════════════════════════════════════════
     
     def _fire_proposal(self, source):
@@ -383,24 +368,40 @@ class StartupManager:
             except:
                 pass
             
-            # 1. Crea nuovo documento
+            today = datetime.now().strftime('%Y-%m-%d')
+            project_name = f'FurnitureAI_{today}'
+            
+            # 1. Crea nuovo documento Design
             new_doc = self.app.documents.add(
                 adsk.core.DocumentTypes.FusionDesignDocumentType
             )
             self.app.log("✓ Nuovo documento creato")
             
-            # 2. Imposta Parametrico
+            # 2. Imposta Parametrico (= Design Ibrido)
             design = adsk.fusion.Design.cast(self.app.activeProduct)
             if design:
                 design.designType = adsk.fusion.DesignTypes.ParametricDesignType
                 self.app.log("✓ Modalità Parametrica attivata")
-                
-                # 3. Rinomina root
-                today = datetime.now().strftime('%Y-%m-%d')
-                root = design.rootComponent
-                if root:
-                    root.name = f'FurnitureAI_{today}'
-                    self.app.log(f"✓ Progetto: FurnitureAI_{today}")
+            
+            # 3. Rinomina il DOCUMENTO (non il root component!)
+            # In Fusion, il root component prende il nome dal documento
+            try:
+                new_doc.name = project_name
+                self.app.log(f"✓ Documento rinominato: {project_name}")
+            except:
+                # Se non riesce a rinominare (doc non ancora salvato)
+                # salviamo con il nome desiderato
+                try:
+                    new_doc.saveAs(
+                        project_name,
+                        self.app.data.activeProject.rootFolder,
+                        '',  # descrizione
+                        ''   # tag
+                    )
+                    self.app.log(f"✓ Documento salvato come: {project_name}")
+                except Exception as save_err:
+                    self.app.log(f"⚠️ Rinomina non riuscita: {save_err}")
+                    self.app.log("ℹ️ Il documento funziona comunque, solo il nome è generico")
             
             # 4. Chiudi vecchio documento
             if old_doc:
@@ -413,7 +414,7 @@ class StartupManager:
             # 5. Attiva workspace e tab
             self._activate_furniture_workspace()
             
-            # 6. Marca come progetto nostro
+            # 6. Marca come nostro progetto
             self._furniture_project_active = True
             
             self.app.log("✅ Progetto FurnitureAI pronto!")
@@ -509,11 +510,11 @@ class StartupManager:
             self.app.log(traceback.format_exc())
     
     def _handle_proposal_result(self, result, source):
-        """Gestisce Sì/No della proposta"""
+        """Gestisce Sì/No"""
         today = datetime.now().strftime('%Y-%m-%d')
         
         if result == adsk.core.DialogResults.DialogYes:
-            self.app.log(f"👍 Utente accetta progetto FurnitureAI (da {source})")
+            self.app.log(f"👍 Utente accetta (da {source})")
             self._proposal_shown_this_session = True
             
             success = self._create_furniture_project()
@@ -548,7 +549,7 @@ class StartupManager:
     # ════════════════════════════════════════════
     
     def cleanup(self):
-        """Cleanup risorse - chiamato da stop()"""
+        """Cleanup risorse"""
         self._checking_tab = False
         
         if self._tab_check_timer:
