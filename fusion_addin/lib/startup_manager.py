@@ -402,7 +402,6 @@ class StartupManager:
                 
         except Exception as e:
             self.app.log(f"❌ Errore check IA: {e}")
-            import traceback
             self.app.log(traceback.format_exc())
     
     # ════════════════════════════════════════════
