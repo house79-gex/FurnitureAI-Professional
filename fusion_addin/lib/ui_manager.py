@@ -784,6 +784,44 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                     )
                     return
             
+            # CASO SPECIALE: Wizard
+            if self.cmd_id == 'FAI_Wizard':
+                self.app.log("   → Avvio Wizard command")
+                try:
+                    import sys
+                    import os
+                    import importlib
+                    
+                    addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    commands_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+                    
+                    if commands_path not in sys.path:
+                        sys.path.insert(0, commands_path)
+                    
+                    import wizard_command
+                    
+                    if 'wizard_command' in sys.modules:
+                        importlib.reload(wizard_command)
+                    
+                    cmd_instance = wizard_command.WizardCommand()
+                    cmd_instance.execute()
+                    
+                    self.app.log("   ✓ Wizard eseguito")
+                    return
+                    
+                except Exception as e:
+                    self.app.log(f"   ❌ Errore Wizard: {e}")
+                    import traceback
+                    self.app.log(traceback.format_exc())
+                    
+                    self.app.userInterface.messageBox(
+                        'Errore apertura Wizard.\n\n'
+                        f'Dettagli: {str(e)}\n\n'
+                        'Controlla Text Commands per log completo.',
+                        'Errore'
+                    )
+                    return
+            
             # Import modulo comando generico
             import sys
             import os
@@ -798,34 +836,39 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
             module_name = self.cmd_id.lower().replace('fai_', '')
             
             try:
-                # Import dinamico
+                # Tentativo 1: import diretto (es. "wizard" → wizard.py)
                 module = __import__(module_name)
-                
-                # Cerca classe comando
-                class_name = self.cmd_id.replace('FAI_', '') + 'Command'
-                
-                if hasattr(module, class_name):
-                    command_class = getattr(module, class_name)
-                    command_instance = command_class()
-                    command_instance.execute()
-                else:
-                    # Fallback su execute() function
-                    if hasattr(module, 'execute'):
-                        module.execute()
-                    else:
-                        self.app.userInterface.messageBox(
-                            f'Comando "{self.name}" non ancora implementato.\n\n'
-                            f'Sarà disponibile nelle prossime versioni.',
-                            'In sviluppo'
-                        )
-            
             except ImportError:
-                # Modulo non trovato
-                self.app.userInterface.messageBox(
-                    f'Comando "{self.name}" non ancora implementato.\n\n'
-                    f'Sarà disponibile nelle prossime versioni.',
-                    'In sviluppo'
-                )
+                try:
+                    # Tentativo 2: con suffisso _command (es. "wizard" → wizard_command.py)
+                    module_name_alt = module_name + '_command'
+                    module = __import__(module_name_alt)
+                except ImportError:
+                    # Modulo non trovato
+                    self.app.userInterface.messageBox(
+                        f'Comando "{self.name}" non ancora implementato.\n\n'
+                        f'Sarà disponibile nelle prossime versioni.',
+                        'In sviluppo'
+                    )
+                    return
+            
+            # Cerca classe comando
+            class_name = self.cmd_id.replace('FAI_', '') + 'Command'
+            
+            if hasattr(module, class_name):
+                command_class = getattr(module, class_name)
+                command_instance = command_class()
+                command_instance.execute()
+            else:
+                # Fallback su execute() function
+                if hasattr(module, 'execute'):
+                    module.execute()
+                else:
+                    self.app.userInterface.messageBox(
+                        f'Comando "{self.name}" non ancora implementato.\n\n'
+                        f'Sarà disponibile nelle prossime versioni.',
+                        'In sviluppo'
+                    )
         
         except Exception as e:
             self.app.log(f"Errore handler {self.cmd_id}: {e}")
