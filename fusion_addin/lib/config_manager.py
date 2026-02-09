@@ -8,18 +8,24 @@ Config Manager - VERSIONE CORRETTA
 
 import json
 import os
+import traceback
 from typing import Dict, Any, Optional
 
 class ConfigManager:
     """Gestore configurazione con first-run detection"""
     
     def __init__(self, addon_path: str):
+        # Assicura path assoluto
+        if not os.path.isabs(addon_path):
+            addon_path = os.path.abspath(addon_path)
+        
         self.addon_path = addon_path
         self.config_dir = os.path.join(addon_path, 'config')
         
         try:
             import adsk.core
             app = adsk.core.Application.get()
+            app.log(f"📁 ConfigManager: addon_path = {addon_path}")
             app.log(f"📁 ConfigManager: config_dir = {self.config_dir}")
         except:
             pass
@@ -95,26 +101,43 @@ class ConfigManager:
         return None
     
     def save_ai_config(self, config: Dict[str, Any]):
-        """Salva configurazione IA"""
+        """Salva configurazione IA con logging dettagliato"""
         try:
-            os.makedirs(self.config_dir, exist_ok=True)
+            import adsk.core
+            app = adsk.core.Application.get()
             
+            app.log(f"💾 save_ai_config() chiamato")
+            app.log(f"   Path config dir: {self.config_dir}")
+            app.log(f"   Path api_keys: {self.api_keys_path}")
+            
+            # Crea cartella se non esiste
+            if not os.path.exists(self.config_dir):
+                app.log(f"   Creo cartella: {self.config_dir}")
+                os.makedirs(self.config_dir, exist_ok=True)
+            else:
+                app.log(f"   Cartella già esiste")
+            
+            app.log(f"   Scrivo file JSON...")
             with open(self.api_keys_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
             
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log(f"✓ Configurazione IA salvata")
-            except:
-                pass
+            # VERIFICA che file esista
+            if os.path.exists(self.api_keys_path):
+                file_size = os.path.getsize(self.api_keys_path)
+                app.log(f"✅ File creato: {self.api_keys_path} ({file_size} bytes)")
+            else:
+                app.log(f"❌ ERRORE: File non esiste dopo scrittura!")
+                raise IOError(f"File non creato: {self.api_keys_path}")
+            
         except Exception as e:
             try:
                 import adsk.core
                 app = adsk.core.Application.get()
-                app.log(f"✗ Errore salvataggio: {e}")
+                app.log(f"❌ Errore save_ai_config: {e}")
+                app.log(traceback.format_exc())
             except:
                 pass
+            raise  # Rilancia eccezione
     
     def get_preferences(self) -> Dict[str, Any]:
         """Ottieni preferenze (crea default se non esiste)"""

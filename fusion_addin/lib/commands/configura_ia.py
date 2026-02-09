@@ -367,6 +367,8 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             # BUILD CONFIG OBJECT
             # ════════════════════════════════════════════
             
+            self.app.log("   📦 Costruzione config object...")
+            
             # Costruisci config object
             config = {}
             
@@ -436,7 +438,27 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             }
             
             # Salva config
+            self.app.log("   💾 Chiamata _save_config()...")
             self._save_config(config)
+            
+            # VERIFICA CHE IL FILE SIA STATO CREATO
+            config_path = _get_config_path()
+            self.app.log(f"   🔍 Verifica file: {config_path}")
+            
+            if os.path.exists(config_path):
+                file_size = os.path.getsize(config_path)
+                self.app.log(f"   ✅ File verificato: {config_path} ({file_size} bytes)")
+            else:
+                self.app.log(f"   ❌ ERRORE: File non creato: {config_path}")
+                self.app.userInterface.messageBox(
+                    '❌ ERRORE: Il file di configurazione non è stato creato.\n\n'
+                    f'Path atteso: {config_path}\n\n'
+                    'Controlla i permessi della cartella o Text Commands per dettagli.',
+                    'Errore Salvataggio',
+                    adsk.core.MessageBoxButtonTypes.OKButtonType,
+                    adsk.core.MessageBoxIconTypes.CriticalIconType
+                )
+                return
             
             # Conta provider abilitati
             enabled_count = sum(1 for k, v in config.items() if k != 'ia_enabled' and isinstance(v, dict) and v.get('enabled', False))
@@ -465,17 +487,31 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
     
     def _save_config(self, config):
         """Salva config su file JSON"""
-        config_path = _get_config_path()
-        config_dir = os.path.dirname(config_path)
-        
-        # Crea directory se non esiste
-        os.makedirs(config_dir, exist_ok=True)
-        
-        # Salva JSON
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
-        
-        self.app.log(f"📁 Config salvata: {config_path}")
+        try:
+            config_path = _get_config_path()
+            config_dir = os.path.dirname(config_path)
+            
+            self.app.log(f"      Path config: {config_path}")
+            self.app.log(f"      Path config dir: {config_dir}")
+            
+            # Crea directory se non esiste
+            if not os.path.exists(config_dir):
+                self.app.log(f"      Creo cartella: {config_dir}")
+                os.makedirs(config_dir, exist_ok=True)
+            else:
+                self.app.log(f"      Cartella esiste: {config_dir}")
+            
+            # Salva JSON
+            self.app.log(f"      Scrivo file JSON...")
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            self.app.log(f"      ✅ File scritto: {config_path}")
+            
+        except Exception as e:
+            self.app.log(f"      ❌ Errore _save_config: {e}")
+            self.app.log(traceback.format_exc())
+            raise  # Rilancia eccezione per farla vedere
 
 
 class ConfiguraIADestroyHandler(adsk.core.CommandEventHandler):
