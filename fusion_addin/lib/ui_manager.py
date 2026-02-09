@@ -810,14 +810,12 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                         sys.modules['fusion_addin.lib.commands.wizard_command'] = module
                         
                         # Assicura che i package parent esistano in sys.modules
+                        import types
                         if 'fusion_addin' not in sys.modules:
-                            import types
                             sys.modules['fusion_addin'] = types.ModuleType('fusion_addin')
                         if 'fusion_addin.lib' not in sys.modules:
-                            import types
                             sys.modules['fusion_addin.lib'] = types.ModuleType('fusion_addin.lib')
                         if 'fusion_addin.lib.commands' not in sys.modules:
-                            import types
                             sys.modules['fusion_addin.lib.commands'] = types.ModuleType('fusion_addin.lib.commands')
                         
                         # Esegui modulo
