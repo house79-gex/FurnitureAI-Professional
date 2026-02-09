@@ -15,7 +15,7 @@ class ConfigManager:
     
     def __init__(self, addon_path: str):
         self.addon_path = addon_path
-        self.config_dir = os.path.join(addon_path, 'config')
+        self.config_dir = os.path.join(addon_path, 'fusion_addin', 'config')
         
         try:
             import adsk.core
@@ -29,6 +29,50 @@ class ConfigManager:
         self.ai_config_path = os.path.join(self.config_dir, 'ai_config.json')
         self.preferences_path = os.path.join(self.config_dir, 'preferences.json')
         self.materials_path = os.path.join(self.config_dir, 'materials_base.json')
+        
+        # Migrate config from old location if needed
+        self._migrate_config_if_needed()
+    
+    def _migrate_config_if_needed(self):
+        """
+        Migrate config files from old location (config/) to new location (fusion_addin/config/)
+        This ensures backward compatibility when upgrading from older versions.
+        """
+        try:
+            import adsk.core
+            app = adsk.core.Application.get()
+        except:
+            app = None
+        
+        try:
+            # Old config directory
+            old_config_dir = os.path.join(self.addon_path, 'config')
+            old_ai_config = os.path.join(old_config_dir, 'ai_config.json')
+            
+            # Only migrate if old file exists and new file doesn't exist
+            if os.path.exists(old_ai_config) and not os.path.exists(self.ai_config_path):
+                if app:
+                    app.log(f"🔄 Migrazione config: trovato file vecchio in {old_config_dir}")
+                
+                # Create new config directory
+                os.makedirs(self.config_dir, exist_ok=True)
+                
+                # Copy ai_config.json
+                import shutil
+                shutil.copy2(old_ai_config, self.ai_config_path)
+                
+                if app:
+                    app.log(f"✅ Migrazione completata: {old_ai_config} → {self.ai_config_path}")
+                
+                # Also copy api_keys.json if it exists
+                old_api_keys = os.path.join(old_config_dir, 'api_keys.json')
+                if os.path.exists(old_api_keys) and not os.path.exists(self.api_keys_path):
+                    shutil.copy2(old_api_keys, self.api_keys_path)
+                    if app:
+                        app.log(f"✅ Migrazione completata: {old_api_keys} → {self.api_keys_path}")
+        except Exception as e:
+            if app:
+                app.log(f"⚠️ Errore migrazione config (non critico): {e}")
     
     def is_first_run(self) -> bool:
         """

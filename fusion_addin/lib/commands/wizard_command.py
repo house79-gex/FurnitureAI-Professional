@@ -93,9 +93,26 @@ class WizardCreatedHandler(adsk.core.CommandCreatedEventHandler):
             cmd.destroy.add(on_destroy)
             _handlers.append(on_destroy)
             
-            # Imposta dimensioni dialog
-            cmd.setDialogMinimumSize(700, 700)
-            cmd.setDialogInitialSize(750, 800)
+            # Imposta dimensioni dialog - limite al 80% dell'altezza schermo
+            # per evitare che i pulsanti OK/Cancel vadano fuori schermo
+            try:
+                # Get screen height
+                screen_height = self.app.userInterface.activeScreen.bounds.height
+                max_height = int(screen_height * 0.8)
+                
+                # Set dialog dimensions
+                dialog_width = 750
+                dialog_height = min(800, max_height)
+                
+                cmd.setDialogMinimumSize(700, min(700, max_height))
+                cmd.setDialogInitialSize(dialog_width, dialog_height)
+                
+                self.logger.info(f"📐 Dialog dimensions: {dialog_width}x{dialog_height} (screen height: {screen_height}, max: {max_height})")
+            except:
+                # Fallback to safe default sizes if screen info not available
+                cmd.setDialogMinimumSize(700, 600)
+                cmd.setDialogInitialSize(750, 700)
+                self.logger.warning("⚠️ Could not get screen height, using default sizes")
             
             # Build UI inputs
             inputs = cmd.commandInputs
