@@ -110,8 +110,8 @@ class WizardCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 self.logger.info(f"📐 Dialog dimensions: {dialog_width}x{dialog_height} (screen height: {screen_height}, max: {max_height})")
             except:
                 # Fallback to safe default sizes if screen info not available
-                cmd.setDialogMinimumSize(700, 600)
-                cmd.setDialogInitialSize(750, 700)
+                cmd.setDialogMinimumSize(700, 500)
+                cmd.setDialogInitialSize(750, 600)
                 self.logger.warning("⚠️ Could not get screen height, using default sizes")
             
             # Build UI inputs
