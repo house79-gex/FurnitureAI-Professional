@@ -15,7 +15,7 @@ class ConfigManager:
     
     def __init__(self, addon_path: str):
         self.addon_path = addon_path
-        self.config_dir = os.path.join(addon_path, 'fusion_addin', 'config')
+        self.config_dir = os.path.join(addon_path, 'config')
         
         try:
             import adsk.core
@@ -46,7 +46,7 @@ class ConfigManager:
         
         try:
             # Old config directory
-            old_config_dir = os.path.join(self.addon_path, 'config')
+            old_config_dir = os.path.join(self.addon_path, 'fusion_addin', 'config')
             old_ai_config = os.path.join(old_config_dir, 'ai_config.json')
             
             # Only migrate if old file exists and new file doesn't exist
