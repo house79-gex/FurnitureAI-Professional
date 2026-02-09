@@ -81,7 +81,7 @@ class ConfigManager:
             try:
                 with open(self.api_keys_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except (IOError, json.JSONDecodeError):
                 pass
         
         # Prova formato vecchio (ai_config.json)
@@ -89,7 +89,7 @@ class ConfigManager:
             try:
                 with open(self.ai_config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except (IOError, json.JSONDecodeError):
                 pass
         
         return None
@@ -256,7 +256,8 @@ class ConfigManager:
     def is_ai_enabled(self) -> bool:
         """
         Controlla se IA è abilitata.
-        Cerca in ENTRAMBI i formati config:
+        Cerca in TUTTI i formati config:
+        - Formato ConfiguraIA flat (ai_config.json): ia_enabled
         - Formato nuovo (api_keys.json): ai_features_enabled
         - Formato vecchio (ai_config.json): providers con enabled
         """
@@ -265,7 +266,11 @@ class ConfigManager:
         if config is None:
             return False
         
-        # Formato nuovo: toggle globale
+        # Formato ConfiguraIA flat: toggle globale 'ia_enabled'
+        if config.get('ia_enabled', False):
+            return True
+        
+        # Formato nuovo: toggle globale 'ai_features_enabled'
         if config.get('ai_features_enabled', False):
             return True
         
@@ -297,7 +302,8 @@ class ConfigManager:
     def has_ai_provider_configured(self) -> bool:
         """
         Controlla se almeno un provider IA è configurato.
-        Cerca in ENTRAMBI i formati config:
+        Cerca in TUTTI i formati config:
+        - Formato ConfiguraIA flat (ai_config.json): groq/lmstudio/openai/etc. direttamente nel root
         - Formato nuovo (api_keys.json): cloud/local_lan/remote_wan
         - Formato vecchio (ai_config.json): providers
         """
@@ -305,6 +311,25 @@ class ConfigManager:
         
         if config is None:
             return False
+        
+        # ════════════════════════════════════════════
+        # FORMATO CONFIGURA IA FLAT (ai_config.json)
+        # Struttura: { "ia_enabled": true, "groq": { "enabled": true, "api_key": "..." } }
+        # ════════════════════════════════════════════
+        
+        # List of providers to check in flat format
+        flat_providers = ['groq', 'lmstudio', 'ollama', 'openai', 'anthropic', 'huggingface']
+        
+        for provider_name in flat_providers:
+            provider_config = config.get(provider_name, {})
+            if isinstance(provider_config, dict) and provider_config.get('enabled'):
+                # Log if possible (Fusion API may not be available)
+                try:
+                    import adsk.core
+                    adsk.core.Application.get().log(f"✓ Provider '{provider_name}' abilitato (formato flat ConfiguraIA)")
+                except (ImportError, Exception):
+                    pass
+                return True
         
         # ════════════════════════════════════════════
         # FORMATO VECCHIO (ai_config.json)
