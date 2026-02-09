@@ -794,15 +794,16 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                     import types
                     
                     addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    commands_dir_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
                     
                     # Path assoluto del file wizard_command.py
-                    wizard_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands', 'wizard_command.py')
+                    wizard_path = os.path.join(commands_dir_path, 'wizard_command.py')
                     
                     # Import con spec per supportare import relativi
                     spec = importlib.util.spec_from_file_location(
                         'fusion_addin.lib.commands.wizard_command',  # Nome modulo completo
                         wizard_path,
-                        submodule_search_locations=[os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')]
+                        submodule_search_locations=[commands_dir_path]
                     )
                     
                     if spec and spec.loader:
@@ -812,17 +813,17 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                         
                         # Assicura che i package parent esistano in sys.modules
                         if 'fusion_addin' not in sys.modules:
-                            parent = types.ModuleType('fusion_addin')
-                            parent.__path__ = [os.path.join(addon_path, 'fusion_addin')]
-                            sys.modules['fusion_addin'] = parent
+                            fusion_addin_module = types.ModuleType('fusion_addin')
+                            fusion_addin_module.__path__ = [os.path.join(addon_path, 'fusion_addin')]
+                            sys.modules['fusion_addin'] = fusion_addin_module
                         if 'fusion_addin.lib' not in sys.modules:
-                            parent = types.ModuleType('fusion_addin.lib')
-                            parent.__path__ = [os.path.join(addon_path, 'fusion_addin', 'lib')]
-                            sys.modules['fusion_addin.lib'] = parent
+                            lib_module = types.ModuleType('fusion_addin.lib')
+                            lib_module.__path__ = [os.path.join(addon_path, 'fusion_addin', 'lib')]
+                            sys.modules['fusion_addin.lib'] = lib_module
                         if 'fusion_addin.lib.commands' not in sys.modules:
-                            parent = types.ModuleType('fusion_addin.lib.commands')
-                            parent.__path__ = [os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')]
-                            sys.modules['fusion_addin.lib.commands'] = parent
+                            commands_module = types.ModuleType('fusion_addin.lib.commands')
+                            commands_module.__path__ = [commands_dir_path]
+                            sys.modules['fusion_addin.lib.commands'] = commands_module
                         
                         # Esegui modulo
                         spec.loader.exec_module(module)
