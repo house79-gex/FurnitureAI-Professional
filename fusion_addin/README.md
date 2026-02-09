@@ -189,17 +189,17 @@ MIT License - vedi [LICENSE](../LICENSE)
 
 ## 🗺️ Roadmap
 
-### v3.1 (Q2 2024)
-- [ ] Disegni tecnici automatici
-- [ ] Export CNC (G-code)
-- [ ] BOM completo con prezzi
-- [ ] Rendering fotorealistico integrato
+### Current Focus (2026)
+- [ ] Advanced technical drawings automation
+- [ ] CNC export (G-code generation)
+- [ ] Complete BOM with pricing integration
+- [ ] Photorealistic rendering integration
 
-### v4.0 (Q3 2024)
+### Future Enhancements (2027+)
 - [ ] Multi-agent AI orchestration
-- [ ] Fine-tuning modelli su dataset mobili
-- [ ] AR preview (HoloLens/Vision Pro)
-- [ ] Cloud sync progetti
+- [ ] Fine-tuning models on furniture datasets
+- [ ] AR preview (HoloLens/Vision Pro support)
+- [ ] Cloud project synchronization
 
 ---
 
