@@ -208,7 +208,8 @@ class CabinetPlacer:
                     face_type: AnchorPoint.from_dict(data)
                     for face_type, data in anchors_data.items()
                 }
-        except:
+        except Exception as e:
+            # Attribute not found or parse error, will calculate from dimensions
             pass
         
         # If not found in attributes, calculate from component dimensions
@@ -233,8 +234,8 @@ class CabinetPlacer:
                     width = 800
                     height = 720
                     depth = 580
-        except:
-            # Default dimensions
+        except Exception as e:
+            # Error reading dimensions, use defaults
             width = 800
             height = 720
             depth = 580
@@ -296,7 +297,8 @@ class CabinetPlacer:
             # Store as attribute
             component.attributes.add('FurnitureAI', 'anchors', anchors_json)
         except Exception as e:
-            # Log error but don't fail
+            # Failed to store anchor metadata, continue without it
+            # This is not critical for cabinet functionality
             pass
 
 

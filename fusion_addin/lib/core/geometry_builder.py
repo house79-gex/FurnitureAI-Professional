@@ -176,8 +176,8 @@ class GeometryBuilder:
             
             return body
         except Exception as e:
-            self.app.log(f"Error creating panel at position: {e}")
-            return None
+            self.app.log(f"Error creating panel at position: {type(e).__name__}: {e}")
+            raise
     
     def create_box_from_dimensions(self, width, height, depth, thickness):
         """

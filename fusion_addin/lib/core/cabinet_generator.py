@@ -126,13 +126,14 @@ class CabinetGenerator:
         effective_height = height - plinth_height if has_plinth else height
         
         # BUG FIX: Start side panels at plinth_height when plinth exists
-        z_start = plinth_height / 10.0 if has_plinth else 0
+        # Convert to cm for Fusion 360 internal units
+        z_start = plinth_height / 10.0 if has_plinth else 0  # cm
         
         # Pannello sinistro
         sketch_left = sketches.add(yz_plane)
         rect_left = sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, z_start, 0),
-            adsk.core.Point3D.create(depth / 10.0, z_start + effective_height / 10.0, 0)  # mm to cm
+            adsk.core.Point3D.create(0, z_start, 0),  # z_start is in cm
+            adsk.core.Point3D.create(depth / 10.0, z_start + effective_height / 10.0, 0)  # All in cm
         )
         
         extrude_input = extrudes.createInput(

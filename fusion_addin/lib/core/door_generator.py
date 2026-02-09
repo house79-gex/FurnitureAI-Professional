@@ -59,13 +59,15 @@ class DoorGenerator:
         
         # Y position: at cabinet front (depth)
         # For copertura_totale, door extends beyond cabinet front
-        # For filo, door is flush with cabinet front
+        # For filo, door is flush with cabinet front (same calculation for now)
         # For semicopertura, door partially covers
         y_position = 0
         if cabinet_depth > 0:
             if mounting_type == 'copertura_totale':
                 y_position = (cabinet_depth - thickness) / 10.0
             elif mounting_type == 'filo':
+                # Filo means flush - in this simplified model, same as copertura_totale
+                # In real implementation, would need cabinet panel thickness offsets
                 y_position = (cabinet_depth - thickness) / 10.0
             else:  # semicopertura
                 y_position = (cabinet_depth - thickness / 2.0) / 10.0

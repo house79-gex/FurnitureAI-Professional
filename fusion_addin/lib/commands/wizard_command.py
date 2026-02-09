@@ -685,6 +685,11 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             design = self.app.activeProduct
             
             # 1. Generate cabinet body
+            # Determine plinth height from piedini if present
+            piedini = furniture.ferramenta.get('piedini', [])
+            has_plinth = len(piedini) > 0
+            plinth_height = piedini[0].get('altezza', 100) if has_plinth and len(piedini) > 0 else 100
+            
             cabinet_params = {
                 'width': dimensioni['larghezza'],
                 'height': dimensioni['altezza'],
@@ -692,8 +697,8 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                 'material_thickness': furniture.elementi['fianchi']['spessore'],
                 'has_back': furniture.elementi['schienale']['presente'],
                 'back_thickness': furniture.elementi['schienale']['spessore'],
-                'has_plinth': len(furniture.ferramenta.get('piedini', [])) > 0,
-                'plinth_height': 100,  # Default plinth height
+                'has_plinth': has_plinth,
+                'plinth_height': plinth_height,
                 'shelves_count': len(furniture.elementi.get('ripiani', [])),
                 'divisions_count': len(furniture.elementi.get('divisori_verticali', []))
             }
@@ -731,7 +736,19 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                 drawer_generator = DrawerGenerator(design)
                 plinth_height = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
                 
+                # Calculate drawer positions
+                # If cassetto has explicit position, use it; otherwise space evenly
                 for i, cassetto in enumerate(cassetti):
+                    # Use explicit position if provided, otherwise calculate based on index and drawer height
+                    if 'posizione_da_top' in cassetto:
+                        z_position = cassetto['posizione_da_top']
+                    else:
+                        # Calculate even spacing: plinth + bottom panel + (drawer_height + gap) * index
+                        drawer_height = cassetto.get('altezza', 150)
+                        gap_between_drawers = 5  # 5mm gap between drawers
+                        bottom_thickness = furniture.elementi['fondo']['spessore']
+                        z_position = plinth_height + bottom_thickness + (drawer_height + gap_between_drawers) * i
+                    
                     drawer_params = {
                         'width': cassetto.get('larghezza', dimensioni['larghezza'] - 2 * furniture.elementi['fianchi']['spessore']),
                         'depth': cassetto.get('profondita', dimensioni['profondita'] - 50),  # Account for slides
@@ -739,7 +756,7 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                         'thickness': cassetto.get('spessore', 18),
                         'drawer_type': 'standard',
                         'parent_component': cabinet_comp,
-                        'posizione_da_top': cassetto.get('posizione_da_top', plinth_height + i * 180)
+                        'posizione_da_top': z_position
                     }
                     drawer_comp = drawer_generator.create_drawer(drawer_params)
                     self.logger.info(f"✅ Drawer {i+1} created: {drawer_comp.name}")
