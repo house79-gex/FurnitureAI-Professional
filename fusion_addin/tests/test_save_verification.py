@@ -52,9 +52,9 @@ def test_save_ai_config_verification():
         with open(api_keys_path, 'r', encoding='utf-8') as f:
             saved_config = json.load(f)
         
-        assert saved_config['ai_features_enabled'] == True
+        assert saved_config['ai_features_enabled'] is True
         assert 'groq' in saved_config['cloud']
-        assert saved_config['cloud']['groq']['enabled'] == True
+        assert saved_config['cloud']['groq']['enabled'] is True
         assert saved_config['cloud']['groq']['api_key'] == "test-key-123"
         
         print("✓ File content verified correctly")
@@ -107,7 +107,7 @@ def test_configura_ia_save_verification():
         with open(ai_config_path, 'r', encoding='utf-8') as f:
             saved_config = json.load(f)
         
-        assert saved_config['ia_enabled'] == True
+        assert saved_config['ia_enabled'] is True
         assert 'groq' in saved_config
         
         print("✓ ConfiguraIA file content verified")

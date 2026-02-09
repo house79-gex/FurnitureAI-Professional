@@ -823,7 +823,7 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                         self.app.log("   ✓ Wizard OK")
                         return
                     else:
-                        raise ImportError("Spec creation failed")
+                        raise ImportError(f"Failed to create spec for wizard_command at {wizard_path}")
                     
                 except Exception as e:
                     self.app.log(f"   ❌ Errore Wizard: {e}")
