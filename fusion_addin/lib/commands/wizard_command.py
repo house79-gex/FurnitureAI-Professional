@@ -677,6 +677,98 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             self.logger.info(f"  Motivo: {drilling['motivo']}")
             self.logger.info("═" * 60)
             
+            # BUG FIX: Generate 3D geometry using CabinetGenerator, DoorGenerator, DrawerGenerator
+            from ..core.cabinet_generator import CabinetGenerator
+            from ..core.door_generator import DoorGenerator
+            from ..core.drawer_generator import DrawerGenerator
+            
+            design = self.app.activeProduct
+            
+            # 1. Generate cabinet body
+            # Determine plinth height from piedini if present
+            piedini = furniture.ferramenta.get('piedini', [])
+            has_plinth = len(piedini) > 0
+            plinth_height = piedini[0].get('altezza', 100) if has_plinth else 100
+            
+            cabinet_params = {
+                'width': dimensioni['larghezza'],
+                'height': dimensioni['altezza'],
+                'depth': dimensioni['profondita'],
+                'material_thickness': furniture.elementi['fianchi']['spessore'],
+                'has_back': furniture.elementi['schienale']['presente'],
+                'back_thickness': furniture.elementi['schienale']['spessore'],
+                'has_plinth': has_plinth,
+                'plinth_height': plinth_height,
+                'shelves_count': len(furniture.elementi.get('ripiani', [])),
+                'divisions_count': len(furniture.elementi.get('divisori_verticali', []))
+            }
+            
+            cabinet_generator = CabinetGenerator(design)
+            cabinet_comp = cabinet_generator.create_cabinet(cabinet_params)
+            
+            self.logger.info(f"✅ Cabinet component created: {cabinet_comp.name}")
+            
+            # 2. Generate doors if configured
+            ante = furniture.elementi.get('ante', [])
+            if len(ante) > 0:
+                door_generator = DoorGenerator(design)
+                plinth_height_for_doors = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
+                
+                for i, anta in enumerate(ante):
+                    door_params = {
+                        'width': anta.get('larghezza', dimensioni['larghezza'] / len(ante)),
+                        'height': anta.get('altezza', dimensioni['altezza'] - plinth_height_for_doors),
+                        'thickness': anta.get('spessore', 18),
+                        'door_type': 'flat',
+                        'position': 'left' if i == 0 else 'right',
+                        'parent_component': cabinet_comp,
+                        'cabinet_depth': dimensioni['profondita'],
+                        'cabinet_plinth_height': plinth_height_for_doors,
+                        'x_offset': i * (dimensioni['larghezza'] / len(ante)),
+                        'mounting_type': anta.get('tipo_montaggio', 'copertura_totale')
+                    }
+                    door_comp = door_generator.create_door(door_params)
+                    self.logger.info(f"✅ Door {i+1} created: {door_comp.name}")
+            
+            # 3. Generate drawers if configured
+            cassetti = furniture.elementi.get('cassetti', [])
+            if len(cassetti) > 0:
+                drawer_generator = DrawerGenerator(design)
+                plinth_height_for_drawers = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
+                
+                # Calculate drawer positions
+                # If cassetto has explicit position, use it; otherwise space evenly
+                for i, cassetto in enumerate(cassetti):
+                    # Use explicit position if provided, otherwise calculate based on index and drawer height
+                    if 'posizione_da_top' in cassetto:
+                        z_position = cassetto['posizione_da_top']
+                    else:
+                        # Calculate even spacing: plinth + bottom panel + (drawer_height + gap) * index
+                        drawer_height = cassetto.get('altezza', 150)
+                        gap_between_drawers = 5  # 5mm gap between drawers
+                        bottom_thickness = furniture.elementi['fondo']['spessore']
+                        z_position = plinth_height_for_drawers + bottom_thickness + (drawer_height + gap_between_drawers) * i
+                    
+                    drawer_params = {
+                        'width': cassetto.get('larghezza', dimensioni['larghezza'] - 2 * furniture.elementi['fianchi']['spessore']),
+                        'depth': cassetto.get('profondita', dimensioni['profondita'] - 50),  # Account for slides
+                        'height': cassetto.get('altezza', 150),
+                        'thickness': cassetto.get('spessore', 18),
+                        'drawer_type': 'standard',
+                        'parent_component': cabinet_comp,
+                        'posizione_da_top': z_position
+                    }
+                    drawer_comp = drawer_generator.create_drawer(drawer_params)
+                    self.logger.info(f"✅ Drawer {i+1} created: {drawer_comp.name}")
+            
+            # 4. Save FurniturePiece model as component attribute
+            try:
+                furniture_json = furniture.to_json()
+                cabinet_comp.attributes.add('FurnitureAI', 'model', furniture_json)
+                self.logger.info("✅ Furniture model saved as component attribute")
+            except Exception as attr_err:
+                self.logger.warning(f"⚠️  Could not save furniture model as attribute: {attr_err}")
+            
             # Mostra messaggio di conferma
             msg = (
                 f"✅ Mobile creato con successo!\n\n"
@@ -686,14 +778,8 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                 f"N° Cassetti: {len(furniture.elementi.get('cassetti', []))}\n"
                 f"N° Ripiani: {len(furniture.elementi.get('ripiani', []))}\n\n"
                 f"System32: {'Sì' if drilling['system32_consigliato'] else 'No'}\n\n"
-                f"Il modello dati è stato creato e validato.\n"
-                f"La generazione 3D verrà implementata in una PR successiva."
+                f"✨ Modello 3D generato e salvato nel componente '{cabinet_comp.name}'"
             )
-            
-            self.app.userInterface.messageBox(msg, "Mobile Creato")
-            
-            # TODO: Salvare il modello come attributo del componente Fusion
-            # per uso futuro dal pannello Edita
             
         except Exception as e:
             self.logger.error(f"❌ Errore esecuzione wizard: {e}\n{traceback.format_exc()}")

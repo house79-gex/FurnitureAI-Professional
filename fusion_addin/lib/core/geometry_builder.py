@@ -116,6 +116,69 @@ class GeometryBuilder:
         
         return validated
     
+    def create_panel_at(self, component, width, height, thickness, origin_x, origin_y, origin_z, name="Panel"):
+        """
+        Create a panel (box) at a specific position
+        
+        Args:
+            component: Target component to create panel in
+            width: Panel width in mm
+            height: Panel height in mm
+            thickness: Panel thickness in mm
+            origin_x: X position in mm
+            origin_y: Y position in mm
+            origin_z: Z position in mm
+            name: Name for the panel body
+        
+        Returns:
+            adsk.fusion.BRepBody: Created panel body
+        """
+        try:
+            sketches = component.sketches
+            extrudes = component.features.extrudeFeatures
+            move_feats = component.features.moveFeatures
+            
+            # Create sketch on XY plane
+            xy_plane = component.xYConstructionPlane
+            sketch = sketches.add(xy_plane)
+            
+            # Draw rectangle
+            rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
+                adsk.core.Point3D.create(0, 0, 0),
+                adsk.core.Point3D.create(width / 10.0, height / 10.0, 0)
+            )
+            
+            # Extrude to create panel
+            extrude_input = extrudes.createInput(
+                sketch.profiles.item(0),
+                adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+            )
+            distance = adsk.core.ValueInput.createByReal(thickness / 10.0)
+            extrude_input.setDistanceExtent(False, distance)
+            extrude = extrudes.add(extrude_input)
+            
+            body = extrude.bodies.item(0)
+            body.name = name
+            
+            # Move to specified position
+            if origin_x != 0 or origin_y != 0 or origin_z != 0:
+                transform = adsk.core.Matrix3D.create()
+                transform.translation = adsk.core.Vector3D.create(
+                    origin_x / 10.0,  # mm to cm
+                    origin_y / 10.0,
+                    origin_z / 10.0
+                )
+                
+                bodies = adsk.core.ObjectCollection.create()
+                bodies.add(body)
+                move_input = move_feats.createInput(bodies, transform)
+                move_feats.add(move_input)
+            
+            return body
+        except Exception as e:
+            self.app.log(f"Error creating panel at position: {type(e).__name__}: {e}")
+            raise
+    
     def create_box_from_dimensions(self, width, height, depth, thickness):
         """
         Create a simple box with given dimensions

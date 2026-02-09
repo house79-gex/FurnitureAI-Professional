@@ -31,6 +31,11 @@ class DoorGenerator:
                 - thickness: Spessore anta (mm, default 18)
                 - door_type: Tipo ('flat', 'frame', default 'flat')
                 - position: Posizione montaggio ('left', 'right', 'top', 'bottom')
+                - parent_component: Componente genitore (cabinet) - opzionale
+                - cabinet_depth: Profondità mobile per posizionamento (mm)
+                - cabinet_plinth_height: Altezza zoccolo per posizionamento Z (mm)
+                - x_offset: Offset X per posizionamento (mm, default 0)
+                - mounting_type: Tipo montaggio ('copertura_totale', 'filo', 'semicopertura')
         
         Returns:
             adsk.fusion.Component: Componente anta
@@ -40,11 +45,43 @@ class DoorGenerator:
         thickness = params.get('thickness', 18)
         door_type = params.get('door_type', 'flat')
         position = params.get('position', 'left')
+        parent_component = params.get('parent_component', None)
+        cabinet_depth = params.get('cabinet_depth', 0)
+        cabinet_plinth_height = params.get('cabinet_plinth_height', 0)
+        x_offset = params.get('x_offset', 0)
+        mounting_type = params.get('mounting_type', 'copertura_totale')
+        
+        # BUG FIX: Create door inside parent component if provided
+        target_comp = parent_component if parent_component else self.root_comp
+        
+        # BUG FIX: Calculate position transform
+        transform = adsk.core.Matrix3D.create()
+        
+        # Y position: at cabinet front (depth)
+        # For copertura_totale, door extends beyond cabinet front
+        # For filo, door is flush with cabinet front (same calculation for now)
+        # For semicopertura, door partially covers
+        y_position = 0
+        if cabinet_depth > 0:
+            if mounting_type == 'copertura_totale':
+                y_position = (cabinet_depth - thickness) / 10.0
+            elif mounting_type == 'filo':
+                # Filo means flush - in this simplified model, same as copertura_totale
+                # In real implementation, would need cabinet panel thickness offsets
+                y_position = (cabinet_depth - thickness) / 10.0
+            else:  # semicopertura
+                y_position = (cabinet_depth - thickness / 2.0) / 10.0
+        
+        # Z position: starts at plinth height
+        z_position = cabinet_plinth_height / 10.0
+        
+        # X position: based on x_offset
+        x_position = x_offset / 10.0
+        
+        transform.translation = adsk.core.Vector3D.create(x_position, y_position, z_position)
         
         # Crea componente anta
-        occurrence = self.root_comp.occurrences.addNewComponent(
-            adsk.core.Matrix3D.create()
-        )
+        occurrence = target_comp.occurrences.addNewComponent(transform)
         door_comp = occurrence.component
         door_comp.name = f"Anta_{position.capitalize()}_{int(width)}x{int(height)}"
         
@@ -66,6 +103,11 @@ class DoorGenerator:
                 - thickness: Spessore (mm, default 18)
                 - gap: Distanza tra le ante (mm, default 3)
                 - door_type: Tipo anta
+                - parent_component: Componente genitore (cabinet) - opzionale
+                - cabinet_depth: Profondità mobile per posizionamento (mm)
+                - cabinet_plinth_height: Altezza zoccolo per posizionamento Z (mm)
+                - x_offset: Offset X iniziale per posizionamento (mm, default 0)
+                - mounting_type: Tipo montaggio ('copertura_totale', 'filo', 'semicopertura')
         
         Returns:
             tuple: (componente_sinistra, componente_destra)
@@ -75,6 +117,11 @@ class DoorGenerator:
         thickness = params.get('thickness', 18)
         gap = params.get('gap', 3)
         door_type = params.get('door_type', 'flat')
+        parent_component = params.get('parent_component', None)
+        cabinet_depth = params.get('cabinet_depth', 0)
+        cabinet_plinth_height = params.get('cabinet_plinth_height', 0)
+        x_offset = params.get('x_offset', 0)
+        mounting_type = params.get('mounting_type', 'copertura_totale')
         
         # Calcola larghezza singola anta
         single_width = (total_width - gap) / 2.0
@@ -85,7 +132,12 @@ class DoorGenerator:
             'height': height,
             'thickness': thickness,
             'door_type': door_type,
-            'position': 'left'
+            'position': 'left',
+            'parent_component': parent_component,
+            'cabinet_depth': cabinet_depth,
+            'cabinet_plinth_height': cabinet_plinth_height,
+            'x_offset': x_offset,
+            'mounting_type': mounting_type
         }
         left_door = self.create_door(left_params)
         
@@ -95,19 +147,14 @@ class DoorGenerator:
             'height': height,
             'thickness': thickness,
             'door_type': door_type,
-            'position': 'right'
+            'position': 'right',
+            'parent_component': parent_component,
+            'cabinet_depth': cabinet_depth,
+            'cabinet_plinth_height': cabinet_plinth_height,
+            'x_offset': x_offset + single_width + gap,
+            'mounting_type': mounting_type
         }
         right_door = self.create_door(right_params)
-        
-        # Posiziona anta destra
-        transform = adsk.core.Matrix3D.create()
-        transform.translation = adsk.core.Vector3D.create((single_width + gap) / 10.0, 0, 0)
-        
-        # Trova l'occurrence dell'anta destra e spostala
-        for occ in self.root_comp.occurrences:
-            if occ.component == right_door:
-                occ.transform = transform
-                break
         
         return left_door, right_door
     

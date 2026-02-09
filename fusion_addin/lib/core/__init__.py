@@ -6,6 +6,9 @@ from .cutlist import CutList
 from .nesting import NestingOptimizer
 from .visualization import NestingVisualizer
 
+# Anchor and Placement System
+from .anchor_system import AnchorPoint, CabinetPlacer, snap_cabinets_horizontal
+
 # Furniture Data Model
 from .furniture_model import FurniturePiece
 from .furniture_types import FURNITURE_TYPES, FURNITURE_CATEGORIES
@@ -17,6 +20,9 @@ __all__ = [
     'CutList',
     'NestingOptimizer',
     'NestingVisualizer',
+    'AnchorPoint',
+    'CabinetPlacer',
+    'snap_cabinets_horizontal',
     'FurniturePiece',
     'FURNITURE_TYPES',
     'FURNITURE_CATEGORIES'

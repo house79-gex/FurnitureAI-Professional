@@ -65,7 +65,7 @@ class CabinetGenerator:
         
         # Crea i pannelli principali
         self._create_side_panels(cabinet_comp, width, height, depth, thickness, has_plinth, plinth_height)
-        self._create_top_bottom_panels(cabinet_comp, width, depth, thickness)
+        self._create_top_bottom_panels(cabinet_comp, width, depth, thickness, height, has_plinth, plinth_height)
         
         # Aggiungi pannello posteriore se richiesto
         if has_back:
@@ -117,6 +117,7 @@ class CabinetGenerator:
         """Crea i pannelli laterali"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         # Piano YZ per pannello sinistro
         yz_plane = component.yZConstructionPlane
@@ -124,11 +125,15 @@ class CabinetGenerator:
         # Calcola altezza effettiva (considera lo zoccolo)
         effective_height = height - plinth_height if has_plinth else height
         
+        # BUG FIX: Start side panels at plinth_height when plinth exists
+        # Convert to cm for Fusion 360 internal units
+        z_start = plinth_height / 10.0 if has_plinth else 0  # cm
+        
         # Pannello sinistro
         sketch_left = sketches.add(yz_plane)
         rect_left = sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, 0, 0),
-            adsk.core.Point3D.create(depth / 10.0, effective_height / 10.0, 0)  # mm to cm
+            adsk.core.Point3D.create(0, z_start, 0),  # z_start is in cm
+            adsk.core.Point3D.create(depth / 10.0, z_start + effective_height / 10.0, 0)  # All in cm
         )
         
         extrude_input = extrudes.createInput(
@@ -143,13 +148,13 @@ class CabinetGenerator:
         # Pannello destro (offset in X)
         sketch_right = sketches.add(yz_plane)
         rect_right = sketch_right.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, 0, 0),
-            adsk.core.Point3D.create(depth / 10.0, effective_height / 10.0, 0)
+            adsk.core.Point3D.create(0, z_start, 0),
+            adsk.core.Point3D.create(depth / 10.0, z_start + effective_height / 10.0, 0)
         )
         
         # Transform per posizionare a destra
-        transform = adsk.core.Matrix3D.create()
-        transform.translation = adsk.core.Vector3D.create((width - thickness) / 10.0, 0, 0)
+        transform_right = adsk.core.Matrix3D.create()
+        transform_right.translation = adsk.core.Vector3D.create((width - thickness) / 10.0, 0, 0)
         
         extrude_input_right = extrudes.createInput(
             sketch_right.profiles.item(0),
@@ -159,20 +164,23 @@ class CabinetGenerator:
         extrude_right = extrudes.add(extrude_input_right)
         
         # Sposta il corpo
-        move_feats = component.features.moveFeatures
-        bodies = adsk.core.ObjectCollection.create()
-        bodies.add(extrude_right.bodies.item(0))
-        move_input = move_feats.createInput(bodies, transform)
-        move_feats.add(move_input)
+        bodies_right = adsk.core.ObjectCollection.create()
+        bodies_right.add(extrude_right.bodies.item(0))
+        move_input_right = move_feats.createInput(bodies_right, transform_right)
+        move_feats.add(move_input_right)
         
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_top_bottom_panels(self, component, width, depth, thickness):
+    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0):
         """Crea i pannelli superiore e inferiore"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         xy_plane = component.xYConstructionPlane
+        
+        # BUG FIX: Calculate Z positions for bottom and top panels
+        z_bottom = plinth_height / 10.0 if has_plinth else 0
         
         # Pannello inferiore
         sketch_bottom = sketches.add(xy_plane)
@@ -190,6 +198,16 @@ class CabinetGenerator:
         extrude_bottom = extrudes.add(extrude_input)
         extrude_bottom.bodies.item(0).name = "Fondo"
         
+        # BUG FIX: Move bottom panel to plinth_height if plinth exists
+        if has_plinth and plinth_height > 0:
+            transform_bottom = adsk.core.Matrix3D.create()
+            transform_bottom.translation = adsk.core.Vector3D.create(0, 0, z_bottom)
+            
+            bodies_bottom = adsk.core.ObjectCollection.create()
+            bodies_bottom.add(extrude_bottom.bodies.item(0))
+            move_input_bottom = move_feats.createInput(bodies_bottom, transform_bottom)
+            move_feats.add(move_input_bottom)
+        
         # Pannello superiore (copia e sposta)
         sketch_top = sketches.add(xy_plane)
         rect_top = sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
@@ -204,11 +222,25 @@ class CabinetGenerator:
         extrude_input_top.setDistanceExtent(False, distance)
         extrude_top = extrudes.add(extrude_input_top)
         extrude_top.bodies.item(0).name = "Cielo"
+        
+        # BUG FIX: Move top panel to correct Z position
+        if height is not None:
+            effective_height = height - plinth_height if has_plinth else height
+            z_top = (plinth_height + effective_height - thickness) / 10.0
+            
+            transform_top = adsk.core.Matrix3D.create()
+            transform_top.translation = adsk.core.Vector3D.create(0, 0, z_top)
+            
+            bodies_top = adsk.core.ObjectCollection.create()
+            bodies_top.add(extrude_top.bodies.item(0))
+            move_input_top = move_feats.createInput(bodies_top, transform_top)
+            move_feats.add(move_input_top)
     
     def _create_back_panel(self, component, width, height, thickness, back_thickness, has_plinth, plinth_height):
         """Crea il pannello posteriore con scasso"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         # Piano XZ per pannello posteriore
         xz_plane = component.xZConstructionPlane
@@ -218,10 +250,13 @@ class CabinetGenerator:
         panel_width = width - 2 * thickness
         panel_height = effective_height - 2 * thickness
         
+        # BUG FIX: Calculate Z offset for back panel
+        z_offset = (plinth_height + thickness) / 10.0 if has_plinth else thickness / 10.0
+        
         sketch = sketches.add(xz_plane)
         rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(thickness / 10.0, thickness / 10.0, 0),
-            adsk.core.Point3D.create((thickness + panel_width) / 10.0, (thickness + panel_height) / 10.0, 0)
+            adsk.core.Point3D.create(thickness / 10.0, z_offset, 0),
+            adsk.core.Point3D.create((thickness + panel_width) / 10.0, z_offset + panel_height / 10.0, 0)
         )
         
         extrude_input = extrudes.createInput(
@@ -229,6 +264,7 @@ class CabinetGenerator:
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         distance = adsk.core.ValueInput.createByReal(back_thickness / 10.0)
+        # BUG FIX: Extrude toward rear (positive direction from XZ plane means toward front, so we keep it positive)
         extrude_input.setDistanceExtent(False, distance)
         extrude_back = extrudes.add(extrude_input)
         extrude_back.bodies.item(0).name = "Retro"
@@ -270,6 +306,7 @@ class CabinetGenerator:
         """Crea ripiani intermedi"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         xy_plane = component.xYConstructionPlane
         
@@ -297,11 +334,21 @@ class CabinetGenerator:
             extrude_input.setDistanceExtent(False, distance)
             extrude_shelf = extrudes.add(extrude_input)
             extrude_shelf.bodies.item(0).name = f"Ripiano_{i+1}"
+            
+            # BUG FIX: Move shelf to correct Z position
+            transform_shelf = adsk.core.Matrix3D.create()
+            transform_shelf.translation = adsk.core.Vector3D.create(0, 0, z_position / 10.0)
+            
+            bodies_shelf = adsk.core.ObjectCollection.create()
+            bodies_shelf.add(extrude_shelf.bodies.item(0))
+            move_input_shelf = move_feats.createInput(bodies_shelf, transform_shelf)
+            move_feats.add(move_input_shelf)
     
     def _create_divisions(self, component, width, height, depth, thickness, count, has_plinth, plinth_height):
         """Crea divisori verticali"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         yz_plane = component.yZConstructionPlane
         
@@ -312,13 +359,16 @@ class CabinetGenerator:
         effective_height = height - plinth_height if has_plinth else height
         panel_height = effective_height - 2 * thickness
         
+        # BUG FIX: Calculate Z offset for dividers
+        z_offset = (plinth_height + thickness) / 10.0 if has_plinth else thickness / 10.0
+        
         for i in range(count):
             x_position = thickness + spacing * (i + 1)
             
             sketch = sketches.add(yz_plane)
             rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(0, thickness / 10.0, 0),
-                adsk.core.Point3D.create(depth / 10.0, (thickness + panel_height) / 10.0, 0)
+                adsk.core.Point3D.create(0, z_offset, 0),
+                adsk.core.Point3D.create(depth / 10.0, z_offset + panel_height / 10.0, 0)
             )
             
             extrude_input = extrudes.createInput(
@@ -329,3 +379,12 @@ class CabinetGenerator:
             extrude_input.setDistanceExtent(False, distance)
             extrude_div = extrudes.add(extrude_input)
             extrude_div.bodies.item(0).name = f"Divisorio_{i+1}"
+            
+            # BUG FIX: Move divider to correct X position
+            transform_div = adsk.core.Matrix3D.create()
+            transform_div.translation = adsk.core.Vector3D.create(x_position / 10.0, 0, 0)
+            
+            bodies_div = adsk.core.ObjectCollection.create()
+            bodies_div.add(extrude_div.bodies.item(0))
+            move_input_div = move_feats.createInput(bodies_div, transform_div)
+            move_feats.add(move_input_div)

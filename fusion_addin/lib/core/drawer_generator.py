@@ -32,6 +32,8 @@ class DrawerGenerator:
                 - bottom_thickness: Spessore fondo (mm, default 3)
                 - front_height: Altezza frontale (mm, default = height)
                 - drawer_type: Tipo ('standard', 'inner', default 'standard')
+                - parent_component: Componente genitore (cabinet) - opzionale
+                - posizione_da_top: Posizione Z dalla cima del mobile (mm) - per posizionamento
         
         Returns:
             adsk.fusion.Component: Componente cassetto
@@ -43,17 +45,27 @@ class DrawerGenerator:
         bottom_thickness = params.get('bottom_thickness', 3)
         front_height = params.get('front_height', height)
         drawer_type = params.get('drawer_type', 'standard')
+        parent_component = params.get('parent_component', None)
+        posizione_da_top = params.get('posizione_da_top', None)
+        
+        # BUG FIX: Create drawer inside parent component if provided
+        target_comp = parent_component if parent_component else self.root_comp
+        
+        # BUG FIX: Calculate position transform if posizione_da_top specified
+        transform = adsk.core.Matrix3D.create()
+        if posizione_da_top is not None:
+            # Z position: measured from top, so it's negative offset from cabinet top
+            z_position = posizione_da_top / 10.0
+            transform.translation = adsk.core.Vector3D.create(0, 0, z_position)
         
         # Crea componente cassetto
-        occurrence = self.root_comp.occurrences.addNewComponent(
-            adsk.core.Matrix3D.create()
-        )
+        occurrence = target_comp.occurrences.addNewComponent(transform)
         drawer_comp = occurrence.component
         drawer_comp.name = f"Cassetto_{int(width)}x{int(depth)}x{int(height)}"
         
         # Crea i componenti del cassetto
         self._create_drawer_sides(drawer_comp, width, depth, height, thickness)
-        self._create_drawer_front_back(drawer_comp, width, height, thickness)
+        self._create_drawer_front_back(drawer_comp, width, height, thickness, depth)
         self._create_drawer_bottom(drawer_comp, width, depth, bottom_thickness, thickness)
         
         if drawer_type == 'standard':
@@ -166,10 +178,11 @@ class DrawerGenerator:
         
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_drawer_front_back(self, component, width, height, thickness):
+    def _create_drawer_front_back(self, component, width, height, thickness, depth=None):
         """Crea fronte e retro del cassetto"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         xz_plane = component.xZConstructionPlane
         
@@ -208,11 +221,24 @@ class DrawerGenerator:
         extrude_input_back.setDistanceExtent(False, distance)
         extrude_back = extrudes.add(extrude_input_back)
         extrude_back.bodies.item(0).name = "Retro"
+        
+        # BUG FIX: Move back panel to correct Y position (at depth of drawer)
+        if depth is not None:
+            transform_back = adsk.core.Matrix3D.create()
+            # Position back at Y = depth - thickness
+            y_back = (depth - thickness) / 10.0
+            transform_back.translation = adsk.core.Vector3D.create(0, y_back, 0)
+            
+            bodies_back = adsk.core.ObjectCollection.create()
+            bodies_back.add(extrude_back.bodies.item(0))
+            move_input_back = move_feats.createInput(bodies_back, transform_back)
+            move_feats.add(move_input_back)
     
     def _create_drawer_bottom(self, component, width, depth, bottom_thickness, side_thickness):
         """Crea il fondo del cassetto"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
         
         xy_plane = component.xYConstructionPlane
         
@@ -233,6 +259,17 @@ class DrawerGenerator:
         extrude_input.setDistanceExtent(False, distance)
         extrude_bottom = extrudes.add(extrude_input)
         extrude_bottom.bodies.item(0).name = "Fondo"
+        
+        # BUG FIX: Position bottom at correct Z (typically 10mm from bottom to allow for groove)
+        # The bottom slides into grooves in the sides, front, and back
+        z_bottom_groove_offset = 1.0  # 10mm converted to cm
+        transform_bottom = adsk.core.Matrix3D.create()
+        transform_bottom.translation = adsk.core.Vector3D.create(0, 0, z_bottom_groove_offset)
+        
+        bodies_bottom = adsk.core.ObjectCollection.create()
+        bodies_bottom.add(extrude_bottom.bodies.item(0))
+        move_input_bottom = move_feats.createInput(bodies_bottom, transform_bottom)
+        move_feats.add(move_input_bottom)
     
     def _create_drawer_face(self, component, width, height, thickness):
         """Crea il frontale del cassetto (parte visibile)"""
