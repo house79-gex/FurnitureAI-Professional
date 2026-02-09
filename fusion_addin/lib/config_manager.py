@@ -29,9 +29,6 @@ class ConfigManager:
         self.ai_config_path = os.path.join(self.config_dir, 'ai_config.json')
         self.preferences_path = os.path.join(self.config_dir, 'preferences.json')
         self.materials_path = os.path.join(self.config_dir, 'materials_base.json')
-        
-        # Migrate config from old location if needed
-        self._migrate_config_if_needed()
        
     def is_first_run(self) -> bool:
         """
