@@ -81,7 +81,7 @@ class ConfigManager:
             try:
                 with open(self.api_keys_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except (IOError, json.JSONDecodeError, Exception):
                 pass
         
         # Prova formato vecchio (ai_config.json)
@@ -89,7 +89,7 @@ class ConfigManager:
             try:
                 with open(self.ai_config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except (IOError, json.JSONDecodeError, Exception):
                 pass
         
         return None
@@ -317,71 +317,21 @@ class ConfigManager:
         # Struttura: { "ia_enabled": true, "groq": { "enabled": true, "api_key": "..." } }
         # ════════════════════════════════════════════
         
-        # Check Groq (flat)
-        groq_flat = config.get('groq', {})
-        if isinstance(groq_flat, dict) and groq_flat.get('enabled'):
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log("✓ Provider 'groq' abilitato (formato flat ConfiguraIA)")
-            except:
-                pass
-            return True
+        # List of providers to check in flat format
+        flat_providers = ['groq', 'lmstudio', 'ollama', 'openai', 'anthropic', 'huggingface']
         
-        # Check LM Studio (flat)
-        lmstudio_flat = config.get('lmstudio', {})
-        if isinstance(lmstudio_flat, dict) and lmstudio_flat.get('enabled'):
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log("✓ Provider 'lmstudio' abilitato (formato flat ConfiguraIA)")
-            except:
-                pass
-            return True
-        
-        # Check Ollama (flat)
-        ollama_flat = config.get('ollama', {})
-        if isinstance(ollama_flat, dict) and ollama_flat.get('enabled'):
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log("✓ Provider 'ollama' abilitato (formato flat ConfiguraIA)")
-            except:
-                pass
-            return True
-        
-        # Check OpenAI (flat)
-        openai_flat = config.get('openai', {})
-        if isinstance(openai_flat, dict) and openai_flat.get('enabled'):
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log("✓ Provider 'openai' abilitato (formato flat ConfiguraIA)")
-            except:
-                pass
-            return True
-        
-        # Check Anthropic (flat)
-        anthropic_flat = config.get('anthropic', {})
-        if isinstance(anthropic_flat, dict) and anthropic_flat.get('enabled'):
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log("✓ Provider 'anthropic' abilitato (formato flat ConfiguraIA)")
-            except:
-                pass
-            return True
-        
-        # Check HuggingFace (flat)
-        hf_flat = config.get('huggingface', {})
-        if isinstance(hf_flat, dict) and hf_flat.get('enabled'):
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log("✓ Provider 'huggingface' abilitato (formato flat ConfiguraIA)")
-            except:
-                pass
-            return True
+        for provider_name in flat_providers:
+            provider_config = config.get(provider_name, {})
+            if isinstance(provider_config, dict) and provider_config.get('enabled'):
+                try:
+                    import adsk.core
+                    app = adsk.core.Application.get()
+                    app.log(f"✓ Provider '{provider_name}' abilitato (formato flat ConfiguraIA)")
+                except ImportError:
+                    pass
+                except Exception:
+                    pass
+                return True
         
         # ════════════════════════════════════════════
         # FORMATO VECCHIO (ai_config.json)
