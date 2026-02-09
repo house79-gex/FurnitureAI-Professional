@@ -262,9 +262,9 @@ class DrawerGenerator:
         
         # BUG FIX: Position bottom at correct Z (typically 10mm from bottom to allow for groove)
         # The bottom slides into grooves in the sides, front, and back
-        z_bottom_offset = 1.0  # 10mm in cm
+        z_bottom_groove_offset = 1.0  # 10mm converted to cm
         transform_bottom = adsk.core.Matrix3D.create()
-        transform_bottom.translation = adsk.core.Vector3D.create(0, 0, z_bottom_offset)
+        transform_bottom.translation = adsk.core.Vector3D.create(0, 0, z_bottom_groove_offset)
         
         bodies_bottom = adsk.core.ObjectCollection.create()
         bodies_bottom.add(extrude_bottom.bodies.item(0))

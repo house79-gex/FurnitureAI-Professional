@@ -688,7 +688,7 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             # Determine plinth height from piedini if present
             piedini = furniture.ferramenta.get('piedini', [])
             has_plinth = len(piedini) > 0
-            plinth_height = piedini[0].get('altezza', 100) if has_plinth and len(piedini) > 0 else 100
+            plinth_height = piedini[0].get('altezza', 100) if has_plinth else 100
             
             cabinet_params = {
                 'width': dimensioni['larghezza'],
@@ -712,18 +712,18 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             ante = furniture.elementi.get('ante', [])
             if len(ante) > 0:
                 door_generator = DoorGenerator(design)
-                plinth_height = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
+                plinth_height_for_doors = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
                 
                 for i, anta in enumerate(ante):
                     door_params = {
                         'width': anta.get('larghezza', dimensioni['larghezza'] / len(ante)),
-                        'height': anta.get('altezza', dimensioni['altezza'] - plinth_height),
+                        'height': anta.get('altezza', dimensioni['altezza'] - plinth_height_for_doors),
                         'thickness': anta.get('spessore', 18),
                         'door_type': 'flat',
                         'position': 'left' if i == 0 else 'right',
                         'parent_component': cabinet_comp,
                         'cabinet_depth': dimensioni['profondita'],
-                        'cabinet_plinth_height': plinth_height,
+                        'cabinet_plinth_height': plinth_height_for_doors,
                         'x_offset': i * (dimensioni['larghezza'] / len(ante)),
                         'mounting_type': anta.get('tipo_montaggio', 'copertura_totale')
                     }
@@ -734,7 +734,7 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             cassetti = furniture.elementi.get('cassetti', [])
             if len(cassetti) > 0:
                 drawer_generator = DrawerGenerator(design)
-                plinth_height = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
+                plinth_height_for_drawers = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
                 
                 # Calculate drawer positions
                 # If cassetto has explicit position, use it; otherwise space evenly
@@ -747,7 +747,7 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                         drawer_height = cassetto.get('altezza', 150)
                         gap_between_drawers = 5  # 5mm gap between drawers
                         bottom_thickness = furniture.elementi['fondo']['spessore']
-                        z_position = plinth_height + bottom_thickness + (drawer_height + gap_between_drawers) * i
+                        z_position = plinth_height_for_drawers + bottom_thickness + (drawer_height + gap_between_drawers) * i
                     
                     drawer_params = {
                         'width': cassetto.get('larghezza', dimensioni['larghezza'] - 2 * furniture.elementi['fianchi']['spessore']),
