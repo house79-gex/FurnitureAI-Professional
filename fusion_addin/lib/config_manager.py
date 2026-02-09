@@ -97,24 +97,40 @@ class ConfigManager:
     def save_ai_config(self, config: Dict[str, Any]):
         """Salva configurazione IA"""
         try:
-            os.makedirs(self.config_dir, exist_ok=True)
+            import adsk.core
+            app = adsk.core.Application.get()
+            app.log(f"💾 save_ai_config() START")
+            app.log(f"   config_dir: {self.config_dir}")
+            app.log(f"   api_keys_path: {self.api_keys_path}")
             
+            # Crea cartella
+            if not os.path.exists(self.config_dir):
+                app.log(f"   Creo cartella...")
+                os.makedirs(self.config_dir, exist_ok=True)
+            
+            # Scrivi file
+            app.log(f"   Scrivo JSON...")
             with open(self.api_keys_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
             
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log(f"✓ Configurazione IA salvata")
-            except:
-                pass
+            # VERIFICA
+            if os.path.exists(self.api_keys_path):
+                size = os.path.getsize(self.api_keys_path)
+                app.log(f"✅ File creato: {size} bytes")
+            else:
+                app.log(f"❌ File NON creato!")
+                raise IOError(f"File non esiste: {self.api_keys_path}")
+                
         except Exception as e:
             try:
                 import adsk.core
                 app = adsk.core.Application.get()
-                app.log(f"✗ Errore salvataggio: {e}")
+                app.log(f"❌ ERRORE save_ai_config: {e}")
+                import traceback
+                app.log(traceback.format_exc())
             except:
                 pass
+            raise
     
     def get_preferences(self) -> Dict[str, Any]:
         """Ottieni preferenze (crea default se non esiste)"""

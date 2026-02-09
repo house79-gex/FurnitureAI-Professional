@@ -356,10 +356,20 @@ class StartupManager:
             return
         
         try:
+            import os
+            api_path = os.path.join(self.config_manager.config_dir, 'api_keys.json')
+            ai_config_path = os.path.join(self.config_manager.config_dir, 'ai_config.json')
+            
+            self.app.log("🔍 Check IA START")
+            self.app.log(f"   api_keys.json path: {api_path}")
+            self.app.log(f"   api_keys.json esiste: {os.path.exists(api_path)}")
+            self.app.log(f"   ai_config.json path: {ai_config_path}")
+            self.app.log(f"   ai_config.json esiste: {os.path.exists(ai_config_path)}")
+            
             ia_enabled = self.config_manager.is_ai_enabled()
             ia_provider = self.config_manager.has_ai_provider_configured()
             
-            self.app.log(f"🤖 Check IA: toggle={ia_enabled}, provider={ia_provider}")
+            self.app.log(f"🤖 Check: toggle={ia_enabled}, provider={ia_provider}")
             
             if ia_enabled or ia_provider:
                 self.app.log("✓ Configurazione IA rilevata - nessun avviso")
@@ -386,6 +396,8 @@ class StartupManager:
                 
         except Exception as e:
             self.app.log(f"⚠️ Errore check IA: {e}")
+            import traceback
+            self.app.log(traceback.format_exc())
     
     # ════════════════════════════════════════════
     # CLEANUP

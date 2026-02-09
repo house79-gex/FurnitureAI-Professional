@@ -476,6 +476,14 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             json.dump(config, f, indent=2, ensure_ascii=False)
         
         self.app.log(f"📁 Config salvata: {config_path}")
+        
+        # Verifica che file esista
+        if os.path.exists(config_path):
+            size = os.path.getsize(config_path)
+            self.app.log(f"✅ File verificato esistente: {size} bytes")
+        else:
+            self.app.log(f"❌ ERRORE: File non trovato dopo save!")
+            raise IOError(f"File non trovato dopo salvataggio: {config_path}")
 
 
 class ConfiguraIADestroyHandler(adsk.core.CommandEventHandler):
