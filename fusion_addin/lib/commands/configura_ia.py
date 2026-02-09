@@ -436,7 +436,14 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
             }
             
             # Salva config
-            self._save_config(config)
+            config_path = self._save_config(config)
+            
+            # Verifica che il file esista dopo il salvataggio
+            if os.path.exists(config_path):
+                file_size = os.path.getsize(config_path)
+                self.app.log(f"✅ Verifica post-save: File esiste ({file_size} bytes)")
+            else:
+                self.app.log(f"❌ ERRORE: File non trovato dopo save: {config_path}")
             
             # Conta provider abilitati
             enabled_count = sum(1 for k, v in config.items() if k != 'ia_enabled' and isinstance(v, dict) and v.get('enabled', False))
@@ -468,14 +475,19 @@ class ConfiguraIAExecuteHandler(adsk.core.CommandEventHandler):
         config_path = _get_config_path()
         config_dir = os.path.dirname(config_path)
         
+        self.app.log(f"💾 Salvataggio config in: {config_path}")
+        
         # Crea directory se non esiste
         os.makedirs(config_dir, exist_ok=True)
+        self.app.log(f"📁 Directory creata/verificata: {config_dir}")
         
         # Salva JSON
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        self.app.log(f"📁 Config salvata: {config_path}")
+        self.app.log(f"✅ Config salvata: {config_path}")
+        
+        return config_path
 
 
 class ConfiguraIADestroyHandler(adsk.core.CommandEventHandler):

@@ -795,15 +795,16 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                     
                     addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     commands_dir_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')
+                    core_dir_path = os.path.join(addon_path, 'fusion_addin', 'lib', 'core')
                     
                     # Path assoluto del file wizard_command.py
                     wizard_path = os.path.join(commands_dir_path, 'wizard_command.py')
                     
                     # Import con spec per supportare import relativi
+                    # NON usare submodule_search_locations - rende wizard_command un package
                     spec = importlib.util.spec_from_file_location(
                         'fusion_addin.lib.commands.wizard_command',  # Nome modulo completo
-                        wizard_path,
-                        submodule_search_locations=[commands_dir_path]
+                        wizard_path
                     )
                     
                     if spec and spec.loader:
@@ -827,6 +828,12 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                             commands_module.__path__ = [commands_dir_path]
                             commands_module.__package__ = 'fusion_addin.lib.commands'
                             sys.modules['fusion_addin.lib.commands'] = commands_module
+                        # CRITICO: Crea anche fusion_addin.lib.core per permettere "from ..core"
+                        if 'fusion_addin.lib.core' not in sys.modules:
+                            core_module = types.ModuleType('fusion_addin.lib.core')
+                            core_module.__path__ = [core_dir_path]
+                            core_module.__package__ = 'fusion_addin.lib.core'
+                            sys.modules['fusion_addin.lib.core'] = core_module
                         
                         # Esegui modulo
                         spec.loader.exec_module(module)
