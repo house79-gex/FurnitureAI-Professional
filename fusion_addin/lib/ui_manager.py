@@ -791,6 +791,7 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                     import sys
                     import os
                     import importlib.util
+                    import types
                     
                     addon_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     
@@ -810,13 +811,18 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                         sys.modules['fusion_addin.lib.commands.wizard_command'] = module
                         
                         # Assicura che i package parent esistano in sys.modules
-                        import types
                         if 'fusion_addin' not in sys.modules:
-                            sys.modules['fusion_addin'] = types.ModuleType('fusion_addin')
+                            parent = types.ModuleType('fusion_addin')
+                            parent.__path__ = [os.path.join(addon_path, 'fusion_addin')]
+                            sys.modules['fusion_addin'] = parent
                         if 'fusion_addin.lib' not in sys.modules:
-                            sys.modules['fusion_addin.lib'] = types.ModuleType('fusion_addin.lib')
+                            parent = types.ModuleType('fusion_addin.lib')
+                            parent.__path__ = [os.path.join(addon_path, 'fusion_addin', 'lib')]
+                            sys.modules['fusion_addin.lib'] = parent
                         if 'fusion_addin.lib.commands' not in sys.modules:
-                            sys.modules['fusion_addin.lib.commands'] = types.ModuleType('fusion_addin.lib.commands')
+                            parent = types.ModuleType('fusion_addin.lib.commands')
+                            parent.__path__ = [os.path.join(addon_path, 'fusion_addin', 'lib', 'commands')]
+                            sys.modules['fusion_addin.lib.commands'] = parent
                         
                         # Esegui modulo
                         spec.loader.exec_module(module)
