@@ -373,6 +373,15 @@ class StartupManager:
             # Check configurazione
             ia_enabled = self.config_manager.is_ai_enabled()
             ia_provider = self.config_manager.has_ai_provider_configured()
+            ia_provider = self.config_manager.has_ai_provider_configured()
+            # DEBUG: stampa contenuto config
+            config = self.config_manager.get_ai_config()
+            self.app.log(f"🔍 DEBUG Config completa:")
+            if config:
+                import json
+                self.app.log(json.dumps(config, indent=2))
+            else:
+                self.app.log("   Config = None (file non esiste o vuoto)")
             
             self.app.log(f"🔍 Toggle IA abilitato: {'✅ TRUE' if ia_enabled else '❌ FALSE'}")
             self.app.log(f"🔍 Provider configurato: {'✅ TRUE' if ia_provider else '❌ FALSE'}")
