@@ -133,18 +133,24 @@ bash install.sh
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ### Development Setup
 ```bash
 # Clone repository
 git clone https://github.com/house79-gex/FurnitureAI-Professional.git
 
-# Install development dependencies
-pip install -r requirements-dev.txt
+# Navigate to repository
+cd FurnitureAI-Professional
 
-# Run tests
-python -m pytest tests/
+# The add-in uses Python libraries available in Fusion 360
+# No additional dependencies need to be installed
 ```
 
 ---
