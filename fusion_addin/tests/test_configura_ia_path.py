@@ -22,22 +22,8 @@ def test_get_addon_path():
         
         os.makedirs(commands_dir)
         
-        # Create a test file at commands/configura_ia.py
-        test_file = os.path.join(commands_dir, 'configura_ia.py')
-        with open(test_file, 'w') as f:
-            f.write("""
-import os
-
-def _get_addon_path():
-    # This should return FurnitureAI-Professional/
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-def _get_config_path():
-    return os.path.join(_get_addon_path(), 'config', 'ai_config.json')
-""")
-        
-        # Now test by simulating what the function does
-        file_path = test_file
+        # Simulate the file path (no need to create actual file)
+        file_path = os.path.join(commands_dir, 'configura_ia.py')
         
         # Test with 3 dirname calls (OLD - should get fusion_addin/)
         result_3 = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file_path))))

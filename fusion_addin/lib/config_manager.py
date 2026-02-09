@@ -81,7 +81,7 @@ class ConfigManager:
             try:
                 with open(self.api_keys_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except (IOError, json.JSONDecodeError, Exception):
+            except (IOError, json.JSONDecodeError):
                 pass
         
         # Prova formato vecchio (ai_config.json)
@@ -89,7 +89,7 @@ class ConfigManager:
             try:
                 with open(self.ai_config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except (IOError, json.JSONDecodeError, Exception):
+            except (IOError, json.JSONDecodeError):
                 pass
         
         return None
@@ -323,13 +323,11 @@ class ConfigManager:
         for provider_name in flat_providers:
             provider_config = config.get(provider_name, {})
             if isinstance(provider_config, dict) and provider_config.get('enabled'):
+                # Log if possible (Fusion API may not be available)
                 try:
                     import adsk.core
-                    app = adsk.core.Application.get()
-                    app.log(f"✓ Provider '{provider_name}' abilitato (formato flat ConfiguraIA)")
-                except ImportError:
-                    pass
-                except Exception:
+                    adsk.core.Application.get().log(f"✓ Provider '{provider_name}' abilitato (formato flat ConfiguraIA)")
+                except (ImportError, Exception):
                     pass
                 return True
         
