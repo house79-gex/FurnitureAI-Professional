@@ -14,8 +14,11 @@ import traceback
 _handlers = []
 
 def _get_addon_path():
-    """Helper per ottenere path addon"""
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    """Helper per ottenere path addon root (FurnitureAI-Professional/)"""
+    # File is at: fusion_addin/lib/commands/configura_ia.py
+    # Need 4 levels up to reach addon root:
+    #   commands/ -> lib/ -> fusion_addin/ -> FurnitureAI-Professional/
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 def _get_config_path():
     """Helper per ottenere path config file"""

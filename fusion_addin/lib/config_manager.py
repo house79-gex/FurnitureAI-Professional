@@ -256,7 +256,8 @@ class ConfigManager:
     def is_ai_enabled(self) -> bool:
         """
         Controlla se IA è abilitata.
-        Cerca in ENTRAMBI i formati config:
+        Cerca in TUTTI i formati config:
+        - Formato ConfiguraIA flat (ai_config.json): ia_enabled
         - Formato nuovo (api_keys.json): ai_features_enabled
         - Formato vecchio (ai_config.json): providers con enabled
         """
@@ -265,7 +266,11 @@ class ConfigManager:
         if config is None:
             return False
         
-        # Formato nuovo: toggle globale
+        # Formato ConfiguraIA flat: toggle globale 'ia_enabled'
+        if config.get('ia_enabled', False):
+            return True
+        
+        # Formato nuovo: toggle globale 'ai_features_enabled'
         if config.get('ai_features_enabled', False):
             return True
         
@@ -297,7 +302,8 @@ class ConfigManager:
     def has_ai_provider_configured(self) -> bool:
         """
         Controlla se almeno un provider IA è configurato.
-        Cerca in ENTRAMBI i formati config:
+        Cerca in TUTTI i formati config:
+        - Formato ConfiguraIA flat (ai_config.json): groq/lmstudio/openai/etc. direttamente nel root
         - Formato nuovo (api_keys.json): cloud/local_lan/remote_wan
         - Formato vecchio (ai_config.json): providers
         """
@@ -305,6 +311,77 @@ class ConfigManager:
         
         if config is None:
             return False
+        
+        # ════════════════════════════════════════════
+        # FORMATO CONFIGURA IA FLAT (ai_config.json)
+        # Struttura: { "ia_enabled": true, "groq": { "enabled": true, "api_key": "..." } }
+        # ════════════════════════════════════════════
+        
+        # Check Groq (flat)
+        groq_flat = config.get('groq', {})
+        if isinstance(groq_flat, dict) and groq_flat.get('enabled'):
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Provider 'groq' abilitato (formato flat ConfiguraIA)")
+            except:
+                pass
+            return True
+        
+        # Check LM Studio (flat)
+        lmstudio_flat = config.get('lmstudio', {})
+        if isinstance(lmstudio_flat, dict) and lmstudio_flat.get('enabled'):
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Provider 'lmstudio' abilitato (formato flat ConfiguraIA)")
+            except:
+                pass
+            return True
+        
+        # Check Ollama (flat)
+        ollama_flat = config.get('ollama', {})
+        if isinstance(ollama_flat, dict) and ollama_flat.get('enabled'):
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Provider 'ollama' abilitato (formato flat ConfiguraIA)")
+            except:
+                pass
+            return True
+        
+        # Check OpenAI (flat)
+        openai_flat = config.get('openai', {})
+        if isinstance(openai_flat, dict) and openai_flat.get('enabled'):
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Provider 'openai' abilitato (formato flat ConfiguraIA)")
+            except:
+                pass
+            return True
+        
+        # Check Anthropic (flat)
+        anthropic_flat = config.get('anthropic', {})
+        if isinstance(anthropic_flat, dict) and anthropic_flat.get('enabled'):
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Provider 'anthropic' abilitato (formato flat ConfiguraIA)")
+            except:
+                pass
+            return True
+        
+        # Check HuggingFace (flat)
+        hf_flat = config.get('huggingface', {})
+        if isinstance(hf_flat, dict) and hf_flat.get('enabled'):
+            try:
+                import adsk.core
+                app = adsk.core.Application.get()
+                app.log("✓ Provider 'huggingface' abilitato (formato flat ConfiguraIA)")
+            except:
+                pass
+            return True
         
         # ════════════════════════════════════════════
         # FORMATO VECCHIO (ai_config.json)
