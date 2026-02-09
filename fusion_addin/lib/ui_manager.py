@@ -815,14 +815,17 @@ class CommandHandler(adsk.core.CommandCreatedEventHandler):
                         if 'fusion_addin' not in sys.modules:
                             fusion_addin_module = types.ModuleType('fusion_addin')
                             fusion_addin_module.__path__ = [os.path.join(addon_path, 'fusion_addin')]
+                            fusion_addin_module.__package__ = 'fusion_addin'
                             sys.modules['fusion_addin'] = fusion_addin_module
                         if 'fusion_addin.lib' not in sys.modules:
                             lib_module = types.ModuleType('fusion_addin.lib')
                             lib_module.__path__ = [os.path.join(addon_path, 'fusion_addin', 'lib')]
+                            lib_module.__package__ = 'fusion_addin.lib'
                             sys.modules['fusion_addin.lib'] = lib_module
                         if 'fusion_addin.lib.commands' not in sys.modules:
                             commands_module = types.ModuleType('fusion_addin.lib.commands')
                             commands_module.__path__ = [commands_dir_path]
+                            commands_module.__package__ = 'fusion_addin.lib.commands'
                             sys.modules['fusion_addin.lib.commands'] = commands_module
                         
                         # Esegui modulo
