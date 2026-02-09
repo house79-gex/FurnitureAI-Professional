@@ -97,24 +97,46 @@ class ConfigManager:
     def save_ai_config(self, config: Dict[str, Any]):
         """Salva configurazione IA"""
         try:
-            os.makedirs(self.config_dir, exist_ok=True)
+            import adsk.core
+            app = adsk.core.Application.get()
+        except:
+            app = None
+        
+        try:
+            # Log inizio operazione
+            if app:
+                app.log(f"💾 Salvataggio config IA...")
+                app.log(f"📁 Config dir: {self.config_dir}")
+                app.log(f"📁 Target file: {self.api_keys_path}")
             
+            # Crea directory se non esiste
+            os.makedirs(self.config_dir, exist_ok=True)
+            if app:
+                app.log(f"✅ Directory config creata/verificata")
+            
+            # Scrivi file
             with open(self.api_keys_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
             
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log(f"✓ Configurazione IA salvata")
-            except:
-                pass
+            # Verifica che il file esista
+            if os.path.exists(self.api_keys_path):
+                file_size = os.path.getsize(self.api_keys_path)
+                if app:
+                    app.log(f"✅ File salvato correttamente: {self.api_keys_path}")
+                    app.log(f"📊 Dimensione file: {file_size} bytes")
+            else:
+                if app:
+                    app.log(f"❌ ERRORE: File non esiste dopo scrittura!")
+                raise Exception("File not created after write")
+            
+            if app:
+                app.log(f"✅ Configurazione IA salvata con successo")
         except Exception as e:
-            try:
-                import adsk.core
-                app = adsk.core.Application.get()
-                app.log(f"✗ Errore salvataggio: {e}")
-            except:
-                pass
+            if app:
+                app.log(f"❌ Errore salvataggio config IA: {e}")
+                import traceback
+                app.log(traceback.format_exc())
+            raise
     
     def get_preferences(self) -> Dict[str, Any]:
         """Ottieni preferenze (crea default se non esiste)"""

@@ -10,6 +10,7 @@ import adsk.core
 import adsk.fusion
 import threading
 import traceback
+import os
 from datetime import datetime
 
 # Handler globali per evitare GC
@@ -356,13 +357,28 @@ class StartupManager:
             return
         
         try:
+            # Log dettagliato dei path config
+            self.app.log(f"🤖 Check configurazione IA...")
+            self.app.log(f"📁 Config dir: {self.config_manager.config_dir}")
+            self.app.log(f"📁 API keys path: {self.config_manager.api_keys_path}")
+            self.app.log(f"📁 AI config path: {self.config_manager.ai_config_path}")
+            
+            # Verifica esistenza file
+            api_keys_exists = os.path.exists(self.config_manager.api_keys_path)
+            ai_config_exists = os.path.exists(self.config_manager.ai_config_path)
+            
+            self.app.log(f"📊 File api_keys.json: {'✅ ESISTE' if api_keys_exists else '❌ NON ESISTE'}")
+            self.app.log(f"📊 File ai_config.json: {'✅ ESISTE' if ai_config_exists else '❌ NON ESISTE'}")
+            
+            # Check configurazione
             ia_enabled = self.config_manager.is_ai_enabled()
             ia_provider = self.config_manager.has_ai_provider_configured()
             
-            self.app.log(f"🤖 Check IA: toggle={ia_enabled}, provider={ia_provider}")
+            self.app.log(f"🔍 Toggle IA abilitato: {'✅ TRUE' if ia_enabled else '❌ FALSE'}")
+            self.app.log(f"🔍 Provider configurato: {'✅ TRUE' if ia_provider else '❌ FALSE'}")
             
             if ia_enabled or ia_provider:
-                self.app.log("✓ Configurazione IA rilevata - nessun avviso")
+                self.app.log("✅ Configurazione IA rilevata - nessun avviso")
                 return
             
             self._ia_warning_shown_this_session = True
@@ -385,7 +401,8 @@ class StartupManager:
             self.app.log("ℹ️ Avviso configurazione IA mostrato")
                 
         except Exception as e:
-            self.app.log(f"⚠️ Errore check IA: {e}")
+            self.app.log(f"❌ Errore check IA: {e}")
+            self.app.log(traceback.format_exc())
     
     # ════════════════════════════════════════════
     # CLEANUP
