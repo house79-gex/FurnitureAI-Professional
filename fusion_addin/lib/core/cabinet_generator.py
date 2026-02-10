@@ -271,6 +271,18 @@ class CabinetGenerator:
         else:  # 'surface'
             return 0
     
+    def _mm_to_cm(self, value_mm):
+        """
+        Converte millimetri in centimetri (per API Fusion 360).
+        
+        Args:
+            value_mm: Valore in millimetri
+        
+        Returns:
+            float: Valore in centimetri
+        """
+        return value_mm / MM_TO_CM
+    
     def _create_user_parameters(self, component, params):
         """
         Crea parametri utente per il mobile
@@ -350,13 +362,13 @@ class CabinetGenerator:
             adsk.core.Point3D.create(depth / MM_TO_CM, z_start + effective_height / MM_TO_CM, 0)  # All in cm
         )
         
-        extrude_input = extrudes.createInput(
+        extrude_input_left = extrudes.createInput(
             sketch_left.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         distance = adsk.core.ValueInput.createByReal(thickness / MM_TO_CM)
-        extrude_input.setDistanceExtent(False, distance)
-        extrude_left = extrudes.add(extrude_input)
+        extrude_input_left.setDistanceExtent(False, distance)
+        extrude_left = extrudes.add(extrude_input_left)
         extrude_left.bodies.item(0).name = "Fianco_Sinistro"
         
         # Pannello destro (offset in X)
@@ -486,13 +498,13 @@ class CabinetGenerator:
         )
         
         # Estrudi lungo X per la larghezza tra i fianchi
-        extrude_input = extrudes.createInput(
+        extrude_input_back = extrudes.createInput(
             sketch.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         distance = adsk.core.ValueInput.createByReal(panel_width / MM_TO_CM)
-        extrude_input.setDistanceExtent(False, distance)
-        extrude_back = extrudes.add(extrude_input)
+        extrude_input_back.setDistanceExtent(False, distance)
+        extrude_back = extrudes.add(extrude_input_back)
         extrude_back.bodies.item(0).name = "Retro"
         
         # Move to correct X position (after side panel thickness)
@@ -539,13 +551,13 @@ class CabinetGenerator:
         lines.addByTwoPoints(p3, p4)
         lines.addByTwoPoints(p4, p1)
         
-        extrude_input = extrudes.createInput(
+        extrude_input_plinth = extrudes.createInput(
             sketch.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         distance = adsk.core.ValueInput.createByReal(plinth_height / MM_TO_CM)
-        extrude_input.setDistanceExtent(False, distance)
-        extrude_plinth = extrudes.add(extrude_input)
+        extrude_input_plinth.setDistanceExtent(False, distance)
+        extrude_plinth = extrudes.add(extrude_input_plinth)
         extrude_plinth.bodies.item(0).name = "Zoccolo"
     
     def _create_shelves(self, component, width, depth, thickness, height, count, has_plinth, plinth_height, params=None):
@@ -669,13 +681,13 @@ class CabinetGenerator:
                 adsk.core.Point3D.create(depth / MM_TO_CM, z_offset + panel_height / MM_TO_CM, 0)
             )
             
-            extrude_input = extrudes.createInput(
+            extrude_input_div = extrudes.createInput(
                 sketch.profiles.item(0),
                 adsk.fusion.FeatureOperations.NewBodyFeatureOperation
             )
             distance = adsk.core.ValueInput.createByReal(thickness / MM_TO_CM)
-            extrude_input.setDistanceExtent(False, distance)
-            extrude_div = extrudes.add(extrude_input)
+            extrude_input_div.setDistanceExtent(False, distance)
+            extrude_div = extrudes.add(extrude_input_div)
             extrude_div.bodies.item(0).name = f"Divisorio_{i+1}"
             
             # Move divider to correct X position
@@ -735,13 +747,13 @@ class CabinetGenerator:
                                     z_door + door_height / MM_TO_CM, 0)
         )
         
-        extrude_input = extrudes.createInput(
+        extrude_input_door = extrudes.createInput(
             sketch_door.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         distance = adsk.core.ValueInput.createByReal(door_width / MM_TO_CM)
-        extrude_input.setDistanceExtent(False, distance)
-        extrude_door = extrudes.add(extrude_input)
+        extrude_input_door.setDistanceExtent(False, distance)
+        extrude_door = extrudes.add(extrude_input_door)
         extrude_door.bodies.item(0).name = "Anta"
         
         # Move door to correct X position
