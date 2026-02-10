@@ -151,6 +151,28 @@ class CabinetGenerator:
         # Store params for later use
         self._params = params
         
+        # Nuovi parametri professionali - raggruppati per chiarezza
+        back_mounting = params.get('back_mounting', 'flush_rabbet')
+        rabbet_width = params.get('rabbet_width', 12)
+        rabbet_depth = params.get('rabbet_depth', back_thickness)
+        groove_width = params.get('groove_width', back_thickness + 0.5)
+        groove_depth = params.get('groove_depth', back_thickness)
+        groove_offset_from_rear = params.get('groove_offset_from_rear', 10)
+        shelf_front_setback = params.get('shelf_front_setback', 3)
+        
+        # Parametri spinatura/foratura
+        dowels_enabled = params.get('dowels_enabled', False)
+        dowel_diameter = params.get('dowel_diameter', 8)
+        dowel_edge_distance = params.get('dowel_edge_distance', 37)
+        dowel_spacing = params.get('dowel_spacing', 32)
+        
+        # Parametri ante (placeholders per uso futuro)
+        door_overlay_left = params.get('door_overlay_left', 0)
+        door_overlay_right = params.get('door_overlay_right', 0)
+        door_overlay_top = params.get('door_overlay_top', 0)
+        door_overlay_bottom = params.get('door_overlay_bottom', 0)
+        door_gap = params.get('door_gap', 2)
+        
         # Crea il componente principale
         occurrence = self.root_comp.occurrences.addNewComponent(
             adsk.core.Matrix3D.create()
@@ -240,7 +262,7 @@ class CabinetGenerator:
         """
         user_params = component.parentDesign.userParameters
         
-        # Parametri dimensionali
+        # Parametri dimensionali base
         param_list = [
             ('Larghezza', params.get('width', 800), 'mm'),
             ('Altezza', params.get('height', 720), 'mm'),
@@ -370,7 +392,8 @@ class CabinetGenerator:
             adsk.core.Point3D.create(depth / MM_TO_CM, z_bottom + thickness / MM_TO_CM, 0)
         )
         
-        extrude_input = extrudes.createInput(
+        # Estrudi lungo X per la larghezza interna
+        extrude_input_bottom = extrudes.createInput(
             sketch_bottom.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
@@ -411,8 +434,11 @@ class CabinetGenerator:
             transform_top = adsk.core.Matrix3D.create()
             transform_top.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
             
+            # Sposta il cielo a X = thickness (tra i fianchi)
+            transform_top = adsk.core.Matrix3D.create()
+            transform_top.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
             bodies_top = adsk.core.ObjectCollection.create()
-            bodies_top.add(extrude_top.bodies.item(0))
+            bodies_top.add(body_top)
             move_input_top = move_feats.createInput(bodies_top, transform_top)
             move_feats.add(move_input_top)
     
@@ -462,6 +488,7 @@ class CabinetGenerator:
                                     z_offset + panel_height / MM_TO_CM, 0)
         )
         
+        # Estrudi lungo X per la larghezza tra i fianchi
         extrude_input = extrudes.createInput(
             sketch.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -558,6 +585,7 @@ class CabinetGenerator:
                                         z_position_cm + thickness / MM_TO_CM, 0)
             )
             
+            # Estrudi lungo X per la larghezza interna
             extrude_input = extrudes.createInput(
                 sketch.profiles.item(0),
                 adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -565,16 +593,61 @@ class CabinetGenerator:
             distance = adsk.core.ValueInput.createByReal(internal_width / MM_TO_CM)
             extrude_input.setDistanceExtent(False, distance)
             extrude_shelf = extrudes.add(extrude_input)
-            extrude_shelf.bodies.item(0).name = f"Ripiano_{i+1}"
+            body_shelf = extrude_shelf.bodies.item(0)
+            body_shelf.name = f"Ripiano_{i+1}"
             
             # Move shelf to X position (after left side panel)
             transform_shelf = adsk.core.Matrix3D.create()
             transform_shelf.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
             
             bodies_shelf = adsk.core.ObjectCollection.create()
-            bodies_shelf.add(extrude_shelf.bodies.item(0))
+            bodies_shelf.add(body_shelf)
             move_input_shelf = move_feats.createInput(bodies_shelf, transform_shelf)
             move_feats.add(move_input_shelf)
+    
+    def _create_rabbet_cuts(self, component, width, height, depth, thickness, back_thickness,
+                           has_plinth, plinth_height, rabbet_width, rabbet_depth):
+        """
+        Crea tagli per battuta (rabbet) sui bordi posteriori interni dei fianchi
+        
+        Placeholder per lavorazioni 3D future
+        La battuta è un taglio rettangolare sul bordo posteriore interno per alloggiare il retro
+        """
+        # TODO: Implementare tagli extrude-cut sui fianchi
+        # Battuta larghezza=rabbet_width, profondità=rabbet_depth
+        # Posizione: bordo posteriore interno dei pannelli laterali
+        pass
+    
+    def _create_groove_cuts(self, component, width, height, depth, thickness, back_thickness,
+                           has_plinth, plinth_height, groove_width, groove_depth, groove_offset_from_rear):
+        """
+        Crea tagli per canale (groove) sulle facce interne dei fianchi
+        
+        Placeholder per lavorazioni 3D future
+        Il canale è una tasca fresata sulla faccia interna per alloggiare il retro
+        """
+        # TODO: Implementare tagli pocket (fresata) sui fianchi
+        # Canale larghezza=groove_width, profondità=groove_depth
+        # Offset da bordo posteriore=groove_offset_from_rear
+        pass
+    
+    def _create_dowel_holes(self, component, width, height, depth, thickness, has_plinth, plinth_height,
+                           dowel_diameter, dowel_edge_distance, dowel_spacing):
+        """
+        Crea forature per spinatura (dowel holes) tra fondo/cielo e fianchi
+        
+        Placeholder per lavorazioni 3D future con sistema 32mm
+        
+        Args:
+            dowel_diameter: Diametro tassello (mm, tipicamente 8)
+            dowel_edge_distance: Distanza dal bordo (mm, tipicamente 37)
+            dowel_spacing: Spaziatura tra fori (mm, tipicamente 32 per sistema 32mm)
+        """
+        # TODO: Implementare fori extrude-cut per spinatura
+        # Pattern: sistema 32mm standard
+        # Posizioni: fondo e cielo nei fianchi
+        # Può essere integrato con fusion_addin/lib/joinery in futuro
+        pass
     
     def _create_divisions(self, component, width, height, depth, thickness, count, has_plinth, plinth_height):
         """Crea divisori verticali"""
@@ -612,7 +685,7 @@ class CabinetGenerator:
             extrude_div = extrudes.add(extrude_input)
             extrude_div.bodies.item(0).name = f"Divisorio_{i+1}"
             
-            # BUG FIX: Move divider to correct X position
+            # Move divider to correct X position
             transform_div = adsk.core.Matrix3D.create()
             transform_div.translation = adsk.core.Vector3D.create(x_position / MM_TO_CM, 0, 0)
             
