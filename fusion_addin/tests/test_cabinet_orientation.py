@@ -78,7 +78,7 @@ class TestCabinetOrientation(unittest.TestCase):
         back_thickness = 3
         shelf_front_setback = 3
         groove_offset_from_rear = 10
-        rabbet_width = 12
+        rabbet_width = 12  # DEFAULT_RABBET_WIDTH from CabinetGenerator
         
         # Test per flush_rabbet (back_inset = rabbet_width)
         back_inset_rabbet = rabbet_width

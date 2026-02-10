@@ -705,7 +705,7 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                 # Professional back mounting parameters
                 'back_mounting': 'flush_rabbet',  # Default: flush_rabbet | groove | surface
                 'rabbet_width': 12,  # mm
-                'rabbet_depth': furniture.elementi['schienale']['spessore'],  # mm, same as back_thickness
+                'rabbet_depth': furniture.elementi['schienale']['spessore'],  # mm
                 'groove_width': furniture.elementi['schienale']['spessore'] + 0.5,  # mm
                 'groove_depth': furniture.elementi['schienale']['spessore'],  # mm
                 'groove_offset_from_rear': 10,  # mm

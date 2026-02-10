@@ -252,7 +252,7 @@ class CabinetGenerator:
             # Default to flush_rabbet for backward compatibility
             return rabbet_width
     
-    def _compute_back_inset(self, back_mounting, groove_offset, back_thickness, rabbet_width=12):
+    def _compute_back_inset(self, back_mounting, groove_offset, rabbet_width=12):
         """
         Helper per calcolare l'arretramento posteriore in base al tipo di montaggio retro.
         Versione semplificata di _calculate_back_inset per uso in _create_shelves.
@@ -260,7 +260,6 @@ class CabinetGenerator:
         Args:
             back_mounting: Tipo montaggio ('flush_rabbet', 'groove', 'surface')
             groove_offset: Offset cava dal retro (mm)
-            back_thickness: Spessore retro (mm)
             rabbet_width: Larghezza scasso (mm, default 12)
         
         Returns:
@@ -566,12 +565,11 @@ class CabinetGenerator:
         # Parametri
         shelf_front_setback = (params or {}).get('shelf_front_setback', 3)  # mm default
         back_mounting = (params or {}).get('back_mounting', 'flush_rabbet')
-        back_thickness = (params or {}).get('back_thickness', thickness)
         groove_offset = (params or {}).get('groove_offset_from_rear', 10)  # mm
         rabbet_width = (params or {}).get('rabbet_width', 12)  # mm
 
         # arretramento posteriore del fronte utile
-        back_inset = self._compute_back_inset(back_mounting, groove_offset, back_thickness, rabbet_width)
+        back_inset = self._compute_back_inset(back_mounting, groove_offset, rabbet_width)
 
         shelf_depth_eff = depth - back_inset - shelf_front_setback
 

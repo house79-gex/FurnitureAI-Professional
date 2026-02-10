@@ -326,12 +326,12 @@ MM_TO_CM = 10.0
 
 ### Helper Functions
 
-#### `_compute_back_inset(back_mounting, groove_offset, back_thickness, rabbet_width=12)`
+#### `_compute_back_inset(back_mounting, groove_offset, rabbet_width=12)`
 
 Calculates the depth reduction for shelves and internal components based on back mounting type.
 
 ```python
-def _compute_back_inset(self, back_mounting, groove_offset, back_thickness, rabbet_width=12):
+def _compute_back_inset(self, back_mounting, groove_offset, rabbet_width=12):
     """
     Helper per calcolare l'arretramento posteriore in base al tipo di montaggio retro.
     
@@ -349,7 +349,7 @@ def _compute_back_inset(self, back_mounting, groove_offset, back_thickness, rabb
 **Usage in shelf creation:**
 ```python
 # Calculate effective shelf depth
-back_inset = self._compute_back_inset(back_mounting, groove_offset, back_thickness, rabbet_width)
+back_inset = self._compute_back_inset(back_mounting, groove_offset, rabbet_width)
 shelf_depth_eff = depth - back_inset - shelf_front_setback
 ```
 
