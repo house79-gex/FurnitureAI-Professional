@@ -366,11 +366,11 @@ class CabinetGenerator:
         
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0, back_inset=0, back_mounting=None):
+    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0, **kwargs):
     """
-    Crea i pannelli superiore (Cielo) e inferiore (Fondo) allineati ai fianchi:
+    Crea Fondo e Cielo:
     - Sketch su YZ
-    - Estrusione lungo X pari alla larghezza interna (W_in)
+    - Estrusione lungo X pari a larghezza interna (W_in = width - 2*thickness)
     """
     sketches = component.sketches
     extrudes = component.features.extrudeFeatures
@@ -378,52 +378,47 @@ class CabinetGenerator:
     yz_plane = component.yZConstructionPlane
 
     # Larghezza interna (X)
-    W_in = width - 2 * thickness
+    W_in_mm = width - 2 * thickness
+    W_in = W_in_mm / 10.0  # cm
 
     # Quote Z
-    Z_bottom = plinth_height  # mm
-    Z_bottom_cm = Z_bottom / 10.0
-    if height is not None:
-        H_eff = height - plinth_height  # mm
-        Z_top = plinth_height + H_eff - thickness  # mm
-        Z_top_cm = Z_top / 10.0
+    Z_bottom_mm = plinth_height
+    Z_bottom = Z_bottom_mm / 10.0
 
-    # Fondo: profilo depth × thickness su YZ, a Z = plinth_height
+    H_eff_mm = (height - plinth_height) if height is not None else None
+    Z_top_mm = (plinth_height + H_eff_mm - thickness) if H_eff_mm is not None else None
+    Z_top = (Z_top_mm / 10.0) if Z_top_mm is not None else None
+
+    # Fondo
     sketch_bottom = sketches.add(yz_plane)
-    rect_bottom = sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
-        adsk.core.Point3D.create(0, Z_bottom_cm, 0),
-        adsk.core.Point3D.create(depth / 10.0, (Z_bottom + thickness) / 10.0, 0)
+    sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
+        adsk.core.Point3D.create(0, Z_bottom, 0),
+        adsk.core.Point3D.create(depth / 10.0, (Z_bottom_mm + thickness) / 10.0, 0)
     )
     extrude_input_bottom = extrudes.createInput(
         sketch_bottom.profiles.item(0),
         adsk.fusion.FeatureOperations.NewBodyFeatureOperation
     )
-    extrude_input_bottom.setDistanceExtent(
-        False,
-        adsk.core.ValueInput.createByReal(W_in / 10.0)
-    )
+    extrude_input_bottom.setDistanceExtent(False, adsk.core.ValueInput.createByReal(W_in))
     extrude_bottom = extrudes.add(extrude_input_bottom)
     body_bottom = extrude_bottom.bodies.item(0)
     body_bottom.name = "Fondo"
 
-    # Cielo: profilo depth × thickness su YZ, a Z = plinth_height + H_eff - thickness
-    if height is not None:
+    # Cielo
+    if Z_top is not None:
         sketch_top = sketches.add(yz_plane)
-        rect_top = sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, Z_top_cm, 0),
-            adsk.core.Point3D.create(depth / 10.0, (Z_top + thickness) / 10.0, 0)
+        sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
+            adsk.core.Point3D.create(0, Z_top, 0),
+            adsk.core.Point3D.create(depth / 10.0, (Z_top_mm + thickness) / 10.0, 0)
         )
         extrude_input_top = extrudes.createInput(
             sketch_top.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
-        extrude_input_top.setDistanceExtent(
-            False,
-            adsk.core.ValueInput.createByReal(W_in / 10.0)
-        )
+        extrude_input_top.setDistanceExtent(False, adsk.core.ValueInput.createByReal(W_in))
         extrude_top = extrudes.add(extrude_input_top)
         body_top = extrude_top.bodies.item(0)
-        body_top.name = "Cielo""
+        body_top.name = "Cielo"
     
     def _create_back_panel(self, component, width, height, thickness, back_thickness, has_plinth, 
                           plinth_height, back_mounting='flush_rabbet', rabbet_width=12, rabbet_depth=3,
