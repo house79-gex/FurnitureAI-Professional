@@ -366,7 +366,7 @@ class CabinetGenerator:
         
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0):
+    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0, back_inset=0, back_mounting=None):
     """
     Crea i pannelli superiore (Cielo) e inferiore (Fondo) allineati ai fianchi:
     - Sketch su YZ
