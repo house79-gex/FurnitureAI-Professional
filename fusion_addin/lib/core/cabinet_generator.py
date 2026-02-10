@@ -450,7 +450,7 @@ class CabinetGenerator:
             move_input_top = move_feats.createInput(col_top, transform_top)
             move_feats.add(move_input_top)
 
-    def _create_back_panel(
+        def _create_back_panel(
         self,
         component,
         width,
@@ -469,6 +469,15 @@ class CabinetGenerator:
     ):
         """
         Crea il pannello posteriore con supporto per diversi tipi di montaggio.
+
+        height = altezza TOTALE (pavimento → top).
+
+        Geometria desiderata:
+        - carcassa: Z ∈ [plinth_height, height]
+        - schienale interno: Z ∈ [plinth_height + thickness, height - thickness]
+          (cioè appoggiato sul fondo e sotto al cielo)
+        - larghezza schienale = width - 2*thickness
+        - profondità / posizione Y in funzione di back_mounting
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -476,46 +485,69 @@ class CabinetGenerator:
 
         yz_plane = component.yZConstructionPlane
 
-        effective_height = height - plinth_height if has_plinth else height
-        panel_width = width - 2 * thickness
-        panel_height = effective_height - 2 * thickness
+        # Altezza interna carcassa (senza zoccolo)
+        carcass_height = height - plinth_height  # mm
 
-        z_offset = (plinth_height + thickness) / MM_TO_CM if has_plinth else thickness / MM_TO_CM
+        # Dimensioni schienale
+        panel_width_mm = width - 2 * thickness
+        panel_height_mm = carcass_height - 2 * thickness  # tra fondo e cielo
 
+        # Z: appoggiato su fondo, sotto il cielo
+        z_base_mm = plinth_height + thickness
+        z_base = z_base_mm / MM_TO_CM
+        z_top = (z_base_mm + panel_height_mm) / MM_TO_CM
+
+        # Posizione Y in base al tipo di montaggio
         if back_mounting == "flush_rabbet":
+            # incassato in battuta
             y_position = (depth - rabbet_width) / MM_TO_CM
         elif back_mounting == "groove":
+            # in scanalatura
             y_position = (depth - groove_offset) / MM_TO_CM
         elif back_mounting == "surface":
+            # sovrapposto dietro
             y_position = (depth - back_thickness) / MM_TO_CM
         else:
             y_position = (depth - rabbet_width) / MM_TO_CM
 
+        # Sketch schienale su piano YZ
         sketch = sketches.add(yz_plane)
         sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(y_position, z_offset, 0),
-            adsk.core.Point3D.create(y_position + back_thickness / MM_TO_CM, z_offset + panel_height / MM_TO_CM, 0),
+            adsk.core.Point3D.create(y_position, z_base, 0),
+            adsk.core.Point3D.create(y_position + back_thickness / MM_TO_CM, z_top, 0),
         )
 
+        # Estrudi lungo X per coprire lo spazio tra i fianchi
         extrude_input_back = extrudes.createInput(
             sketch.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
-        distance = adsk.core.ValueInput.createByReal(panel_width / MM_TO_CM)
+        distance = adsk.core.ValueInput.createByReal(panel_width_mm / MM_TO_CM)
         extrude_input_back.setDistanceExtent(False, distance)
         extrude_back = extrudes.add(extrude_input_back)
-        extrude_back.bodies.item(0).name = "Retro"
+        back_body = extrude_back.bodies.item(0)
+        back_body.name = "Retro"
 
+        # Sposta lo schienale in X dopo il fianco sinistro (come fondo/cielo)
         transform_back = adsk.core.Matrix3D.create()
         transform_back.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
-
         bodies_back = adsk.core.ObjectCollection.create()
-        bodies_back.add(extrude_back.bodies.item(0))
+        bodies_back.add(back_body)
         move_input_back = move_feats.createInput(bodies_back, transform_back)
         move_feats.add(move_input_back)
 
+        # Placeholder lavorazioni
         if back_mounting == "flush_rabbet":
             self._create_rabbet_cuts(
-                component, width, height, depth, thickness, back_thickness, has_plinth, plinth_height, rabbet_width, rabbet_depth
+                component,
+                width,
+                height,
+                depth,
+                thickness,
+                back_thickness,
+                has_plinth,
+                plinth_height,
+                rabbet_width,
+                rabbet_depth,
             )
         elif back_mounting == "groove":
             self._create_groove_cuts(
@@ -723,7 +755,7 @@ class CabinetGenerator:
     # -------------------------------------------------------------------------
     # ANTA E FERRAMENTA (placeholder, logica invariata)
     # -------------------------------------------------------------------------
-    def _create_door_panel(
+        def _create_door_panel(
         self,
         component,
         width,
@@ -741,52 +773,118 @@ class CabinetGenerator:
         params,
     ):
         """
-        Crea pannello anta con overlay e gap.
+        Crea pannello anta a copertura carcassa, leggermente PIÙ PICCOLO
+        dell'ingombro esterno per i giochi.
+
+        Convenzioni:
+        - height = altezza totale (pavimento → top)
+        - carcassa esterna in Z: [plinth_height, height]
+        - carcassa esterna in X: [0, width]
+
+        Giochi tipici (per ora hard-coded, poi parametri):
+        - laterali: 1.5 mm per lato
+        - superiore: 2 mm
+        - inferiore: 0 mm (anta a filo con carcassa in basso)
         """
+
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
 
-        effective_height = height - plinth_height if has_plinth else height
-        internal_width = width - 2 * thickness
+        # --- GIOCHI (puoi trasformarli in parametri utente) ---
+        side_gap_mm = 1.5   # gioco per lato
+        top_gap_mm = 2.0    # gioco sopra
+        bottom_gap_mm = 0.0 # filo in basso
 
-        door_width = internal_width + door_overlay_left + door_overlay_right
-        door_height = effective_height + door_overlay_top + door_overlay_bottom
+        # --- CARCASSA ---
+        # Altezza totale carcassa
+        carcass_base_mm = plinth_height
+        carcass_top_mm = height
+        carcass_height_mm = carcass_top_mm - carcass_base_mm
 
-        x_door = -door_overlay_left / MM_TO_CM
+        # Larghezza totale carcassa (da fianco sinistro a destro)
+        carcass_width_mm = width
+
+        # --- DIMENSIONI ANTA ---
+        door_width_mm = carcass_width_mm - 2 * side_gap_mm
+        door_height_mm = carcass_height_mm - top_gap_mm - bottom_gap_mm
+
+        # --- POSIZIONE ANTA ---
+        # X: centrata sui fianchi con il gioco laterale
+        x_door_mm = side_gap_mm
+
+        # Y: davanti al mobile (spessore anta sporge dal fronte carcassa)
         y_door = depth / MM_TO_CM
-        z_door = (plinth_height - door_overlay_bottom) / MM_TO_CM if has_plinth else -door_overlay_bottom / MM_TO_CM
 
+        # Z: base anta = base carcassa + bottom_gap_mm
+        z_door_mm = carcass_base_mm + bottom_gap_mm
+
+        # --- SKETCH SU YZ ---
         yz_plane = component.yZConstructionPlane
         sketch_door = sketches.add(yz_plane)
+
         sketch_door.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(y_door, z_door, 0),
-            adsk.core.Point3D.create(y_door + door_thickness / MM_TO_CM, z_door + door_height / MM_TO_CM, 0),
+            adsk.core.Point3D.create(y_door, z_door_mm / MM_TO_CM, 0),
+            adsk.core.Point3D.create(
+                y_door + door_thickness / MM_TO_CM,
+                (z_door_mm + door_height_mm) / MM_TO_CM,
+                0,
+            ),
         )
 
+        # --- ESTRUSIONE LUNGO X ---
         extrude_input_door = extrudes.createInput(
-            sketch_door.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+            sketch_door.profiles.item(0),
+            adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
         )
-        distance = adsk.core.ValueInput.createByReal(door_width / MM_TO_CM)
+        distance = adsk.core.ValueInput.createByReal(door_width_mm / MM_TO_CM)
         extrude_input_door.setDistanceExtent(False, distance)
         extrude_door = extrudes.add(extrude_input_door)
-        extrude_door.bodies.item(0).name = "Anta"
+        door_body = extrude_door.bodies.item(0)
+        door_body.name = "Anta"
 
+        # Sposta l'anta in X alla posizione corretta rispetto ai fianchi
         transform_door = adsk.core.Matrix3D.create()
-        transform_door.translation = adsk.core.Vector3D.create(x_door, 0, 0)
+        transform_door.translation = adsk.core.Vector3D.create(x_door_mm / MM_TO_CM, 0, 0)
 
         bodies_door = adsk.core.ObjectCollection.create()
-        bodies_door.add(extrude_door.bodies.item(0))
+        bodies_door.add(door_body)
         move_input_door = move_feats.createInput(bodies_door, transform_door)
         move_feats.add(move_input_door)
 
-        door_body = extrude_door.bodies.item(0)
-        self._create_hinge_cup_holes(component, door_body, door_height, door_thickness, params)
+        # --- BORDI SMUSSATI / RAGGIO ---
+        # Applichiamo un fillet R=2mm su tutti gli spigoli liberi dell'anta.
+        try:
+            fillet_feats = component.features.filletFeatures
+            edge_collection = adsk.core.ObjectCollection.create()
+
+            for edge in door_body.edges:
+                edge_collection.add(edge)
+
+            if edge_collection.count > 0:
+                fillet_input = fillet_feats.createInput()
+                radius_val = adsk.core.ValueInput.createByReal(2.0 / MM_TO_CM)  # 2 mm
+                fillet_input.addConstantRadiusEdgeSet(edge_collection, radius_val, True)
+                fillet_feats.add(fillet_input)
+        except:
+            # Se qualcosa va storto nel fillet, non blocchiamo la generazione del mobile
+            pass
+
+        # --- Placeholder fori tazza cerniera / piastra ---
+        self._create_hinge_cup_holes(component, door_body, door_height_mm, door_thickness, params)
 
         for body in component.bRepBodies:
             if body.name == "Fianco_Sinistro":
+                effective_height = height - plinth_height if has_plinth else height
                 self._create_mounting_plate_holes(
-                    component, body, effective_height, depth, thickness, has_plinth, plinth_height, params
+                    component,
+                    body,
+                    effective_height,
+                    depth,
+                    thickness,
+                    has_plinth,
+                    plinth_height,
+                    params,
                 )
                 break
 
