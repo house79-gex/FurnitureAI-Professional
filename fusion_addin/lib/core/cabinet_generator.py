@@ -534,59 +534,61 @@ class CabinetGenerator:
         extrude_plinth = extrudes.add(extrude_input)
         extrude_plinth.bodies.item(0).name = "Zoccolo"
     
-    def _create_shelves(self, component, width, depth, thickness, height, count, has_plinth, plinth_height,
-                       shelf_front_setback=3, back_inset=0, back_mounting='flush_rabbet'):
-        """
-        Crea ripiani intermedi
-        Modellati su piano YZ ed estrusi lungo X per consistenza con altri pannelli
-        Applica front setback e back inset
-        """
-        sketches = component.sketches
-        extrudes = component.features.extrudeFeatures
-        move_feats = component.features.moveFeatures
-        
-        # Piano YZ per ripiani - consistente con bottom/top
-        yz_plane = component.yZConstructionPlane
-        
-        # Calcola spaziatura ripiani
-        effective_height = height - plinth_height if has_plinth else height
-        usable_height = effective_height - 2 * thickness
-        spacing = usable_height / (count + 1)
-        
-        # Calculate shelf dimensions accounting for setbacks
-        internal_width = width - 2 * thickness
-        shelf_depth = depth - shelf_front_setback - back_inset
-        
-        for i in range(count):
-            z_position = (plinth_height if has_plinth else 0) + thickness + spacing * (i + 1)
-            z_position_cm = z_position / MM_TO_CM
-            
-            sketch = sketches.add(yz_plane)
-            rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(shelf_front_setback / MM_TO_CM, z_position_cm, 0),
-                adsk.core.Point3D.create((shelf_front_setback + shelf_depth) / MM_TO_CM, 
-                                        z_position_cm + thickness / MM_TO_CM, 0)
-            )
-            
-            # Estrudi lungo X per la larghezza interna
-            extrude_input = extrudes.createInput(
-                sketch.profiles.item(0),
-                adsk.fusion.FeatureOperations.NewBodyFeatureOperation
-            )
-            distance = adsk.core.ValueInput.createByReal(internal_width / MM_TO_CM)
-            extrude_input.setDistanceExtent(False, distance)
-            extrude_shelf = extrudes.add(extrude_input)
-            body_shelf = extrude_shelf.bodies.item(0)
-            body_shelf.name = f"Ripiano_{i+1}"
-            
-            # Move shelf to X position (after left side panel)
-            transform_shelf = adsk.core.Matrix3D.create()
-            transform_shelf.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
-            
-            bodies_shelf = adsk.core.ObjectCollection.create()
-            bodies_shelf.add(body_shelf)
-            move_input_shelf = move_feats.createInput(bodies_shelf, transform_shelf)
-            move_feats.add(move_input_shelf)
+    def _create_shelves(self, component, width, depth, thickness, height, count, has_plinth, plinth_height, params=None):
+    """
+    Crea ripiani su YZ con estrusione lungo X = W_in.
+    Considera rientro frontale e arretramento dovuto allo schienale.
+    """
+    sketches = component.sketches
+    extrudes = component.features.extrudeFeatures
+
+    yz_plane = component.yZConstructionPlane
+
+    W_in = width - 2 * thickness
+    H_eff = height - plinth_height
+
+    # Parametri
+    shelf_front_setback = (params or {}).get('shelf_front_setback', 3)  # mm default
+    back_mounting = (params or {}).get('back_mounting', 'flush_rabbet')
+    back_thickness = (params or {}).get('back_thickness', thickness)
+    groove_offset = (params or {}).get('groove_offset_from_rear', 10)  # mm
+
+    # arretramento posteriore del fronte utile
+    if back_mounting == 'flush_rabbet':
+        back_inset = 0
+    elif back_mounting == 'groove':
+        back_inset = groove_offset
+    else:
+        # surface (applicata in superficie dietro i fianchi): arretra di spessore schiena
+        back_inset = back_thickness
+
+    shelf_depth_eff = depth - back_inset - shelf_front_setback
+
+    usable_height = H_eff - 2 * thickness
+    spacing = usable_height / (count + 1)
+
+    for i in range(count):
+        Z_pos_mm = plinth_height + thickness + spacing * (i + 1)
+        Z_pos_cm = Z_pos_mm / 10.0
+
+        # Profilo ripiano su YZ
+        sketch = sketches.add(yz_plane)
+        rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
+            adsk.core.Point3D.create(shelf_front_setback / 10.0, Z_pos_cm, 0),
+            adsk.core.Point3D.create((shelf_front_setback + shelf_depth_eff) / 10.0, (Z_pos_mm + thickness) / 10.0, 0)
+        )
+
+        extrude_input_shelf = extrudes.createInput(
+            sketch.profiles.item(0),
+            adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+        )
+        extrude_input_shelf.setDistanceExtent(
+            False,
+            adsk.core.ValueInput.createByReal(W_in / 10.0)
+        )
+        extrude_shelf = extrudes.add(extrude_input_shelf)
+        shelf_body = extrude_shelf.bodies.item(0)
+        shelf_body.name = f"Ripiano_{i+1}"
     
     def _create_rabbet_cuts(self, component, width, height, depth, thickness, back_thickness,
                            has_plinth, plinth_height, rabbet_width, rabbet_depth):
