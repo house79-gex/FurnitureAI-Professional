@@ -322,6 +322,127 @@ MM_TO_CM = 10.0
 
 ---
 
+## Implementation Details
+
+### Helper Functions
+
+#### `_compute_back_inset(back_mounting, groove_offset, rabbet_width=12)`
+
+Calculates the depth reduction for shelves and internal components based on back mounting type.
+
+```python
+def _compute_back_inset(self, back_mounting, groove_offset, rabbet_width=12):
+    """
+    Calculates the back inset based on the back mounting type.
+    
+    Returns:
+        float: Inset in mm
+    """
+    if back_mounting == 'flush_rabbet':
+        return rabbet_width  # 12mm default
+    elif back_mounting == 'groove':
+        return groove_offset  # 10mm default
+    else:  # 'surface'
+        return 0  # No depth reduction
+```
+
+**Usage in shelf creation:**
+```python
+# Calculate effective shelf depth
+back_inset = self._compute_back_inset(back_mounting, groove_offset, rabbet_width)
+shelf_depth_eff = depth - back_inset - shelf_front_setback
+```
+
+**Examples:**
+- Cabinet depth: 500mm, back_mounting: 'flush_rabbet', shelf_front_setback: 3mm
+  - back_inset = 12mm → shelf_depth = 500 - 12 - 3 = **485mm**
+- Cabinet depth: 500mm, back_mounting: 'groove', groove_offset: 10mm, shelf_front_setback: 3mm
+  - back_inset = 10mm → shelf_depth = 500 - 10 - 3 = **487mm**
+- Cabinet depth: 500mm, back_mounting: 'surface', shelf_front_setback: 3mm
+  - back_inset = 0mm → shelf_depth = 500 - 0 - 3 = **497mm**
+
+### Unit Conversion
+
+All inputs use millimeters (mm). Fusion 360 API requires centimeters (cm).
+
+```python
+MM_TO_CM = 10.0
+
+# Convert dimension
+width_cm = width_mm / MM_TO_CM
+
+# Alternative inline conversion
+value_cm = value_mm / 10.0
+```
+
+### Panel Orientation (YZ Plane)
+
+All horizontal panels (Top, Bottom, Shelves, Back) are modeled on the YZ plane and extruded along X:
+
+```python
+# Bottom panel on YZ, extrude along X by internal width
+W_in_mm = width - 2 * thickness  # Internal width
+W_in_cm = W_in_mm / 10.0
+
+sketch_bottom = sketches.add(yz_plane)
+sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
+    adsk.core.Point3D.create(0, Z_bottom_cm, 0),
+    adsk.core.Point3D.create(depth_cm, (Z_bottom_mm + thickness) / 10.0, 0)
+)
+extrude_input = extrudes.createInput(sketch_bottom.profiles.item(0), ...)
+extrude_input.setDistanceExtent(False, adsk.core.ValueInput.createByReal(W_in_cm))
+```
+
+**Z Coordinate Calculations:**
+```python
+# Bottom panel Z position
+Z_bottom_mm = plinth_height  # e.g., 100mm
+
+# Top panel Z position
+H_eff_mm = height - plinth_height  # Effective height above plinth
+Z_top_mm = plinth_height + H_eff_mm - thickness  # e.g., 100 + 800 - 18 = 882mm
+```
+
+### Wizard Parameter Passing
+
+The wizard passes all professional parameters with defaults to the cabinet generator:
+
+```python
+cabinet_params = {
+    # Basic dimensions
+    'width': dimensioni['larghezza'],
+    'height': dimensioni['altezza'],
+    'depth': dimensioni['profondita'],
+    'material_thickness': furniture.elementi['fianchi']['spessore'],
+    
+    # Back mounting
+    'back_mounting': 'flush_rabbet',
+    'rabbet_width': 12,
+    'groove_offset_from_rear': 10,
+    
+    # Shelves
+    'shelf_front_setback': 3,
+    'shelf_bore_enabled': False,
+    
+    # Dowels
+    'dowels_enabled': False,
+    'dowel_diameter': 8,
+    
+    # Doors/Hinges (Blum Clip-top 110°)
+    'door_gap': 2,
+    'door_overlay_left': 18,
+    'door_overlay_right': 18,
+    'hinge_cup_diameter': 35,
+    'hinge_offset_top': 100,
+    # ... additional parameters
+}
+
+cabinet_generator = CabinetGenerator(design)
+cabinet_comp = cabinet_generator.create_cabinet(cabinet_params)
+```
+
+---
+
 ## References
 
 - **Blum Clip-top 110°**: Industry standard concealed hinge

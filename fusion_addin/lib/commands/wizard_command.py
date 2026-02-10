@@ -700,7 +700,44 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                 'has_plinth': has_plinth,
                 'plinth_height': plinth_height,
                 'shelves_count': len(furniture.elementi.get('ripiani', [])),
-                'divisions_count': len(furniture.elementi.get('divisori_verticali', []))
+                'divisions_count': len(furniture.elementi.get('divisori_verticali', [])),
+                
+                # Professional back mounting parameters
+                'back_mounting': 'flush_rabbet',  # Default: flush_rabbet | groove | surface
+                'rabbet_width': 12,  # mm
+                'rabbet_depth': furniture.elementi.get('schienale', {}).get('spessore', 3),  # mm
+                'groove_width': furniture.elementi.get('schienale', {}).get('spessore', 3) + 0.5,  # mm
+                'groove_depth': furniture.elementi.get('schienale', {}).get('spessore', 3),  # mm
+                'groove_offset_from_rear': 10,  # mm
+                
+                # Professional shelf parameters
+                'shelf_front_setback': 3,  # mm
+                'shelf_bore_enabled': False,  # Enable adjustable shelf holes
+                'shelf_bore_diameter': 5,  # mm
+                'shelf_bore_front_distance': 37,  # mm (System 32)
+                'shelf_bore_pattern': 32,  # mm (System 32 spacing)
+                
+                # Professional dowel parameters
+                'dowels_enabled': False,  # Enable dowel joinery
+                'dowel_diameter': 8,  # mm
+                'dowel_edge_distance': 35,  # mm
+                'dowel_spacing': 64,  # mm (multiple of 32mm)
+                
+                # Professional door and hinge parameters (Blum Clip-top 110°)
+                'door_gap': 2,  # mm
+                'door_overlay_left': 18,  # mm
+                'door_overlay_right': 18,  # mm
+                'door_overlay_top': 18,  # mm
+                'door_overlay_bottom': 18,  # mm
+                'door_thickness': 18,  # mm
+                'hinge_cup_diameter': 35,  # mm (Blum Clip-top)
+                'hinge_cup_depth': 12.5,  # mm
+                'hinge_k': 21.5,  # mm (K dimension - cup center offset from edge)
+                'hinge_offset_top': 100,  # mm
+                'hinge_offset_bottom': 100,  # mm
+                'mounting_plate_system_line': 37,  # mm (System 32)
+                'mounting_plate_hole_spacing': 32,  # mm (System 32)
+                'mounting_plate_hole_diameter': 5,  # mm
             }
             
             cabinet_generator = CabinetGenerator(design)
