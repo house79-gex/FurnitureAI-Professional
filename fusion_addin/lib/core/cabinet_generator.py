@@ -366,81 +366,64 @@ class CabinetGenerator:
         
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, 
-                                  plinth_height=0, back_inset=0, back_mounting='flush_rabbet'):
-        """
-        Crea i pannelli superiore e inferiore
-        Modellati su piano YZ ed estrusi lungo X per consistenza con i pannelli laterali
-        """
-        sketches = component.sketches
-        extrudes = component.features.extrudeFeatures
-        move_feats = component.features.moveFeatures
-        
-        # Piano YZ per bottom e top panels - consistente con side panels
-        yz_plane = component.yZConstructionPlane
-        
-        # BUG FIX: Calculate Z positions for bottom and top panels
-        z_bottom = plinth_height / MM_TO_CM if has_plinth else 0
-        
-        # Calculate internal width (between side panels)
-        internal_width = width - 2 * thickness
-        
-        # Pannello inferiore - modellato su YZ, estruso lungo X
-        sketch_bottom = sketches.add(yz_plane)
-        rect_bottom = sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, z_bottom, 0),
-            adsk.core.Point3D.create(depth / MM_TO_CM, z_bottom + thickness / MM_TO_CM, 0)
+    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0):
+    """
+    Crea i pannelli superiore (Cielo) e inferiore (Fondo) allineati ai fianchi:
+    - Sketch su YZ
+    - Estrusione lungo X pari alla larghezza interna (W_in)
+    """
+    sketches = component.sketches
+    extrudes = component.features.extrudeFeatures
+
+    yz_plane = component.yZConstructionPlane
+
+    # Larghezza interna (X)
+    W_in = width - 2 * thickness
+
+    # Quote Z
+    Z_bottom = plinth_height  # mm
+    Z_bottom_cm = Z_bottom / 10.0
+    if height is not None:
+        H_eff = height - plinth_height  # mm
+        Z_top = plinth_height + H_eff - thickness  # mm
+        Z_top_cm = Z_top / 10.0
+
+    # Fondo: profilo depth × thickness su YZ, a Z = plinth_height
+    sketch_bottom = sketches.add(yz_plane)
+    rect_bottom = sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
+        adsk.core.Point3D.create(0, Z_bottom_cm, 0),
+        adsk.core.Point3D.create(depth / 10.0, (Z_bottom + thickness) / 10.0, 0)
+    )
+    extrude_input_bottom = extrudes.createInput(
+        sketch_bottom.profiles.item(0),
+        adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+    )
+    extrude_input_bottom.setDistanceExtent(
+        False,
+        adsk.core.ValueInput.createByReal(W_in / 10.0)
+    )
+    extrude_bottom = extrudes.add(extrude_input_bottom)
+    body_bottom = extrude_bottom.bodies.item(0)
+    body_bottom.name = "Fondo"
+
+    # Cielo: profilo depth × thickness su YZ, a Z = plinth_height + H_eff - thickness
+    if height is not None:
+        sketch_top = sketches.add(yz_plane)
+        rect_top = sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
+            adsk.core.Point3D.create(0, Z_top_cm, 0),
+            adsk.core.Point3D.create(depth / 10.0, (Z_top + thickness) / 10.0, 0)
         )
-        
-        # Estrudi lungo X per la larghezza interna
-        extrude_input_bottom = extrudes.createInput(
-            sketch_bottom.profiles.item(0),
+        extrude_input_top = extrudes.createInput(
+            sketch_top.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
-        distance = adsk.core.ValueInput.createByReal(internal_width / MM_TO_CM)
-        extrude_input.setDistanceExtent(False, distance)
-        extrude_bottom = extrudes.add(extrude_input)
-        extrude_bottom.bodies.item(0).name = "Fondo"
-        
-        # Move bottom panel to X position (thickness offset)
-        transform_bottom = adsk.core.Matrix3D.create()
-        transform_bottom.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
-        
-        bodies_bottom = adsk.core.ObjectCollection.create()
-        bodies_bottom.add(extrude_bottom.bodies.item(0))
-        move_input_bottom = move_feats.createInput(bodies_bottom, transform_bottom)
-        move_feats.add(move_input_bottom)
-        
-        # Pannello superiore - modellato su YZ, estruso lungo X
-        if height is not None:
-            effective_height = height - plinth_height if has_plinth else height
-            z_top = (plinth_height + effective_height - thickness) / MM_TO_CM
-            
-            sketch_top = sketches.add(yz_plane)
-            rect_top = sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(0, z_top, 0),
-                adsk.core.Point3D.create(depth / MM_TO_CM, z_top + thickness / MM_TO_CM, 0)
-            )
-            
-            extrude_input_top = extrudes.createInput(
-                sketch_top.profiles.item(0),
-                adsk.fusion.FeatureOperations.NewBodyFeatureOperation
-            )
-            extrude_input_top.setDistanceExtent(False, distance)
-            extrude_top = extrudes.add(extrude_input_top)
-            extrude_top.bodies.item(0).name = "Cielo"
-            
-            # Move top panel to X position (thickness offset)
-            transform_top = adsk.core.Matrix3D.create()
-            transform_top.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
-            
-            # Sposta il cielo a X = thickness (tra i fianchi)
-            transform_top = adsk.core.Matrix3D.create()
-            transform_top.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
-            bodies_top = adsk.core.ObjectCollection.create()
-            bodies_top.add(body_top)
-            move_input_top = move_feats.createInput(bodies_top, transform_top)
-            move_feats.add(move_input_top)
+        extrude_input_top.setDistanceExtent(
+            False,
+            adsk.core.ValueInput.createByReal(W_in / 10.0)
+        )
+        extrude_top = extrudes.add(extrude_input_top)
+        body_top = extrude_top.bodies.item(0)
+        body_top.name = "Cielo""
     
     def _create_back_panel(self, component, width, height, thickness, back_thickness, has_plinth, 
                           plinth_height, back_mounting='flush_rabbet', rabbet_width=12, rabbet_depth=3,
