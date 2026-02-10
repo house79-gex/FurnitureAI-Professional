@@ -78,21 +78,22 @@ class TestCabinetOrientation(unittest.TestCase):
         back_thickness = 3
         shelf_front_setback = 3
         groove_offset_from_rear = 10
+        rabbet_width = 12
         
-        # Test per flush_rabbet (retro_inset = 0)
-        retro_inset_rabbet = 0
-        shelf_depth_rabbet = depth - retro_inset_rabbet - shelf_front_setback
-        self.assertEqual(shelf_depth_rabbet, 497)
+        # Test per flush_rabbet (back_inset = rabbet_width)
+        back_inset_rabbet = rabbet_width
+        shelf_depth_rabbet = depth - back_inset_rabbet - shelf_front_setback
+        self.assertEqual(shelf_depth_rabbet, 485)
         
-        # Test per groove (retro_inset = groove_offset_from_rear)
-        retro_inset_groove = groove_offset_from_rear
-        shelf_depth_groove = depth - retro_inset_groove - shelf_front_setback
+        # Test per groove (back_inset = groove_offset_from_rear)
+        back_inset_groove = groove_offset_from_rear
+        shelf_depth_groove = depth - back_inset_groove - shelf_front_setback
         self.assertEqual(shelf_depth_groove, 487)
         
-        # Test per surface (retro_inset = back_thickness)
-        retro_inset_surface = back_thickness
-        shelf_depth_surface = depth - retro_inset_surface - shelf_front_setback
-        self.assertEqual(shelf_depth_surface, 494)
+        # Test per surface (back_inset = 0)
+        back_inset_surface = 0
+        shelf_depth_surface = depth - back_inset_surface - shelf_front_setback
+        self.assertEqual(shelf_depth_surface, 497)
     
     def test_back_mounting_types(self):
         """Test tipi di montaggio retro"""
