@@ -189,8 +189,7 @@ class CabinetGenerator:
         
         # Crea i pannelli principali
         self._create_side_panels(cabinet_comp, width, height, depth, thickness, has_plinth, plinth_height)
-        self._create_top_bottom_panels(cabinet_comp, width, depth, thickness, height, has_plinth, plinth_height, 
-                                       back_inset, back_mounting)
+        self._create_top_bottom_panels(cabinet_comp, width, depth, thickness, height, has_plinth, plinth_height)
         
         # Aggiungi pannello posteriore se richiesto
         if has_back:
@@ -204,8 +203,15 @@ class CabinetGenerator:
         
         # Aggiungi ripiani
         if shelves_count > 0:
+            # Pass shelf parameters via params dict
+            shelf_params = {
+                'shelf_front_setback': shelf_front_setback,
+                'back_mounting': back_mounting,
+                'back_thickness': back_thickness,
+                'groove_offset_from_rear': groove_offset
+            }
             self._create_shelves(cabinet_comp, width, depth, thickness, height, shelves_count, has_plinth, 
-                                plinth_height, shelf_front_setback, back_inset, back_mounting)
+                                plinth_height, shelf_params)
         
         # Aggiungi divisori verticali
         if divisions_count > 0:
