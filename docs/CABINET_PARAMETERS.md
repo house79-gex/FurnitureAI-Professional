@@ -1,269 +1,334 @@
-# Cabinet Generator - Professional Parameters
+# Cabinet Parameters Documentation
 
-## Overview
+Complete reference for professional cabinet generator parameters including door, hinge, back mounting, shelf, and dowel configurations.
 
-The cabinet generator now supports professional cabinetry parameters for accurate furniture manufacturing, including proper panel orientation, back mounting options, and machining preparations.
+## Table of Contents
+- [Basic Cabinet Parameters](#basic-cabinet-parameters)
+- [Door Parameters](#door-parameters)
+- [Hinge Parameters (Blum Clip-top 110°)](#hinge-parameters-blum-clip-top-110)
+- [Back Mounting Parameters](#back-mounting-parameters)
+- [Shelf Parameters](#shelf-parameters)
+- [Dowel/Joinery Parameters](#doweljoinery-parameters)
+- [Usage Examples](#usage-examples)
 
-## Panel Orientation (Fixed in v2.0)
+---
 
-### Previous Issue
-Bottom, Top, Shelves, and Back panels were misoriented, causing alignment issues with side panels.
+## Basic Cabinet Parameters
 
-### Current Implementation
-All panels are now correctly oriented:
-- **Side panels (Fianco_Sinistro/Fianco_Destro)**: Modeled on YZ plane, extruded along X (thickness)
-- **Bottom (Fondo)**: Modeled on YZ plane, extruded along X (internal width = W_in)
-- **Top (Cielo)**: Modeled on YZ plane, extruded along X (internal width = W_in)
-- **Shelves (Ripiani)**: Modeled on YZ plane, extruded along X (internal width = W_in)
-- **Back (Retro)**: Modeled on YZ plane, extruded along X (width between sides)
+### Dimensions
+- **width** (mm): Total cabinet width (default: 800)
+- **height** (mm): Total cabinet height (default: 720)
+- **depth** (mm): Total cabinet depth (default: 580)
 
-This ensures all panels have consistent orientation with normals aligned properly.
+### Material
+- **material_thickness** (mm): Panel thickness for sides, top, bottom (default: 18)
+- **back_thickness** (mm): Back panel thickness (default: 3)
 
-## Parameters Reference
+### Structure
+- **has_back** (bool): Include back panel (default: True)
+- **has_plinth** (bool): Include plinth/base (default: True)
+- **plinth_height** (mm): Plinth height (default: 100)
+- **shelves_count** (int): Number of internal shelves (default: 0)
+- **divisions_count** (int): Number of vertical dividers (default: 0)
 
-### Basic Dimensions
-```python
-params = {
-    'width': 800,           # Total cabinet width (mm)
-    'height': 720,          # Total cabinet height (mm)
-    'depth': 580,           # Total cabinet depth (mm)
-    'material_thickness': 18,  # Panel thickness (mm)
-    'plinth_height': 100,   # Plinth/base height (mm)
-    'has_plinth': True,     # Include plinth
-}
+---
+
+## Door Parameters
+
+### Basic Door Configuration
+- **has_door** (bool): Include door panel (default: False)
+- **door_gap** (mm): Gap between double doors or door edge (default: 2)
+- **door_thickness** (mm): Door panel thickness (default: 18)
+
+### Door Overlay (Full Overlay Default)
+The door extends beyond the cabinet opening by these amounts:
+
+- **door_overlay_left** (mm): Left side overlay (default: 18)
+- **door_overlay_right** (mm): Right side overlay (default: 18)
+- **door_overlay_top** (mm): Top overlay (default: 18)
+- **door_overlay_bottom** (mm): Bottom overlay (default: 18)
+
+**Calculation:**
+```
+door_width = (width - 2×material_thickness) + door_overlay_left + door_overlay_right
+door_height = (height - plinth_height) + door_overlay_top + door_overlay_bottom
 ```
 
-### Back Panel Mounting
+**Example:** For a 600mm wide cabinet with 18mm sides and 18mm overlays:
+- Internal opening: 600 - 36 = 564mm
+- Door width: 564 + 18 + 18 = 600mm
 
-#### back_mounting
-Type: `string` (enum)  
-Default: `'flush_rabbet'`  
-Options:
-- `'flush_rabbet'`: Rabbet joint (battuta) - back sits flush in rabbet cut
-- `'groove'`: Groove joint (canale) - back sits in routed groove
-- `'surface'`: Surface mount - back panel overlaid on interior
+---
 
-#### Rabbet Parameters (for flush_rabbet)
-```python
-params = {
-    'back_mounting': 'flush_rabbet',
-    'rabbet_width': 12,     # Width of rabbet cut (mm) - default 12mm
-    'rabbet_depth': 3,      # Depth of rabbet cut (mm) - default = back_thickness
-}
+## Hinge Parameters (Blum Clip-top 110°)
+
+Professional cabinet hinges using the industry-standard Blum Clip-top 110° system with self-closing spring.
+
+### Hinge Cup Parameters
+- **hinge_type**: "clip_top_110" (Blum Clip-top 110° with spring)
+- **cup_diameter** (mm): Hinge cup hole diameter (default: 35)
+- **cup_depth** (mm): Hinge cup hole depth (default: 12.5)
+- **cup_center_offset_from_edge** (mm): K dimension - distance from door edge to cup center (default: 21.5)
+
+### Hinge Positioning
+- **hinge_offset_top** (mm): Distance from top edge to first hinge center (default: 100)
+- **hinge_offset_bottom** (mm): Distance from bottom edge to last hinge center (default: 100)
+
+### Auto Hinge Count
+The system automatically determines hinge quantity based on door height:
+- **≤ 900 mm**: 2 hinges
+- **901-1500 mm**: 3 hinges
+- **> 1500 mm**: 4 hinges
+
+**Thresholds (configurable):**
+- **hinge_threshold_2** (mm): Maximum height for 2 hinges (default: 900)
+- **hinge_threshold_3** (mm): Maximum height for 3 hinges (default: 1500)
+
+### Mounting Plate Parameters (System 32)
+- **mounting_plate_system_line** (mm): Distance from front edge to mounting holes (default: 37)
+- **mounting_plate_hole_spacing** (mm): Vertical spacing between holes (default: 32)
+- **mounting_plate_hole_diameter** (mm): Hole diameter (default: 5)
+- **screw_depth** (mm): Screw hole depth for euro-screw (default: 13)
+
+**System 32 Standard:**
+The mounting plate holes follow the System 32 standard with 32mm vertical spacing and 37mm offset from the front edge (system line).
+
+---
+
+## Back Mounting Parameters
+
+Three mounting methods are supported for the back panel:
+
+### 1. Flush Rabbet (Default)
+Back panel sits in a rabbet cut, flush with the rear surface.
+
+- **back_mounting**: "flush_rabbet"
+- **rabbet_width** (mm): Rabbet width (default: 12)
+- **rabbet_depth** (mm): Rabbet depth (default: back_thickness)
+
+**Effect:** Shelves and internal components are shortened by `rabbet_width`.
+
+### 2. Groove
+Back panel slides into a groove cut into the side panels.
+
+- **back_mounting**: "groove"
+- **groove_width** (mm): Groove width (default: back_thickness + 0.5)
+- **groove_depth** (mm): Groove depth (default: back_thickness)
+- **groove_offset_from_rear** (mm): Distance from rear edge to groove (default: 10)
+
+**Effect:** Shelves and internal components are shortened by `groove_offset_from_rear`.
+
+### 3. Surface Mount
+Back panel is attached to the rear surface without cuts.
+
+- **back_mounting**: "surface"
+
+**Effect:** No reduction in shelf depth; back sits on the rear face.
+
+---
+
+## Shelf Parameters
+
+### Shelf Positioning
+- **shelf_front_setback** (mm): Distance shelves are set back from front edge (default: 3)
+
+**Shelf Depth Calculation:**
+```
+shelf_depth = depth - shelf_front_setback - back_inset
+
+where back_inset depends on back_mounting type:
+  - flush_rabbet: back_inset = rabbet_width (12mm)
+  - groove: back_inset = groove_offset_from_rear (10mm)
+  - surface: back_inset = 0
 ```
 
-The rabbet is a rectangular cut on the inner rear edge of side panels (and optionally top/bottom) to seat the back panel flush with the exterior.
+### Adjustable Shelf Holes (System 32)
+Optional drilling pattern for adjustable shelves:
 
-#### Groove Parameters (for groove)
-```python
-params = {
-    'back_mounting': 'groove',
-    'groove_width': 3.5,    # Width of groove (mm) - default = back_thickness + 0.5mm clearance
-    'groove_depth': 3,      # Depth of groove (mm) - default = back_thickness
-    'groove_offset_from_rear': 10,  # Distance from rear edge (mm) - default 10mm
-}
-```
+- **shelf_bore_enabled** (bool): Enable shelf pin holes (default: False)
+- **shelf_bore_diameter** (mm): Hole diameter (default: 5)
+- **shelf_bore_front_distance** (mm): Distance from front edge (default: 37)
+- **shelf_bore_pattern** (mm): Vertical spacing between holes (default: 32)
 
-The groove is a routed pocket (fresata) on the inner face of side panels to accept the back panel with proper clearance.
+---
 
-#### Back Thickness
-```python
-params = {
-    'back_thickness': 3,    # Thickness of back panel (mm) - default 3mm
-    'has_back': True,       # Include back panel
-}
-```
+## Dowel/Joinery Parameters
 
-### Shelf Parameters
+Placeholder for future integration with Lavorazioni machining system:
 
-#### shelf_front_setback
-Type: `float`  
-Default: `3` (mm)  
-Description: Distance shelves are set back from the front edge
+- **dowels_enabled** (bool): Enable dowel joinery (default: False)
+- **dowel_diameter** (mm): Dowel hole diameter (default: 8)
+- **dowel_edge_distance** (mm): Distance from panel edge (default: 35)
+- **dowel_spacing** (mm): Spacing between dowels (default: 64, multiple of 32mm)
 
-```python
-params = {
-    'shelves_count': 2,           # Number of shelves
-    'shelf_front_setback': 3,     # Setback from front (mm) - default 3mm
-}
-```
+---
 
-Effective shelf depth is calculated as:
-```
-shelf_depth_eff = depth - retro_inset - shelf_front_setback
-```
+## Usage Examples
 
-Where `retro_inset` depends on back mounting:
-- `flush_rabbet`: 0mm (back is flush)
-- `groove`: groove_offset_from_rear (default 10mm)
-- `surface`: back_thickness (default 3mm)
-
-### Dowel/Joint Parameters (Placeholders)
-
-```python
-params = {
-    'dowels_enabled': False,      # Enable dowel drilling
-    'dowel_diameter': 8,          # Dowel diameter (mm) - default 8mm
-    'dowel_edge_distance': 37,    # Distance from edge (mm) - default 37mm
-    'dowel_spacing': 32,          # Spacing between dowels (mm) - default 32mm (32mm system)
-}
-```
-
-Note: Dowel holes are prepared as placeholders. Full implementation will integrate with the `fusion_addin/lib/joinery` module.
-
-### Door Parameters (Placeholders)
-
-```python
-params = {
-    'door_overlay_left': 0,       # Left overlay (mm)
-    'door_overlay_right': 0,      # Right overlay (mm)
-    'door_overlay_top': 0,        # Top overlay (mm)
-    'door_overlay_bottom': 0,     # Bottom overlay (mm)
-    'door_gap': 2,                # Gap between doors (mm) - default 2mm
-}
-```
-
-These parameters prepare the API for door generator integration.
-
-## Position Calculations
-
-### Example: 600×900×500mm cabinet with 100mm plinth, 18mm thickness
-
-```
-Internal Width (W_in) = 600 - 2×18 = 564mm
-
-Side Panels:
-  - Start Z: 100mm (plinth_height)
-  - End Z: 900mm (total height)
-  - Height: 800mm (effective_height)
-
-Bottom Panel:
-  - Z position: 100mm
-  - X span: 18mm → 582mm (positioned between sides)
-  - Y span: 0 → 500mm (full depth)
-
-Top Panel:
-  - Z position: 882mm (plinth_height + effective_height - thickness)
-  - X span: 18mm → 582mm (positioned between sides)
-  - Y span: 0 → 500mm (full depth)
-
-Shelves (with 3mm front setback, flush_rabbet back):
-  - X span: 18mm → 582mm (positioned between sides)
-  - Y span: 3mm → 500mm (depth - 0 - 3)
-  - Effective depth: 497mm
-```
-
-## Machining Placeholders
-
-### Rabbet Cuts
-Function: `_create_rabbet_cuts()`
-
-Creates extrude-cut features on the inner rear edges of side panels for rabbet joints.
-
-**Status**: Placeholder - to be implemented with full 3D machining
-
-### Groove Cuts
-Function: `_create_groove_cuts()`
-
-Creates pocket (fresata) features on the inner faces of side panels for groove joints.
-
-**Status**: Placeholder - to be implemented with full 3D machining
-
-### Dowel Holes
-Function: `_create_dowel_holes()`
-
-Creates cylindrical extrude-cut features for dowel joints using the 32mm system.
-
-**Status**: Placeholder - to be integrated with `fusion_addin/lib/joinery`
-
-## Future Integration
-
-### Lavorazioni Module
-The placeholder functions provide clean API hooks for future integration with a dedicated machining module:
-- Rabbet and groove cutting with CNC paths
-- Shelf pin holes (32mm system)
-- Dowel drilling with precise positioning
-- Hinge boring
-- Handle drilling
-
-### Door Generator
-Door parameters expose the necessary interface for the door generator to:
-- Calculate door dimensions with proper overlays
-- Position doors with correct gaps
-- Mount hinges at appropriate positions
-
-## User Parameters in Fusion 360
-
-All professional parameters are exposed as Fusion 360 User Parameters (Italian names):
-- `Larghezza` - Width
-- `Altezza` - Height
-- `Profondita` - Depth
-- `Spessore` - Panel thickness
-- `SpessoreRetro` - Back thickness
-- `AltezzaZoccolo` - Plinth height
-- `LarghezzaBattuta` - Rabbet width
-- `ProfonditaBattuta` - Rabbet depth
-- `LarghezzaCanale` - Groove width
-- `ProfonditaCanale` - Groove depth
-- `OffsetCanaleRetro` - Groove offset from rear
-- `ArretamentoRipianiFronte` - Shelf front setback
-- `DiametroTassello` - Dowel diameter
-- `DistanzaTasselloBordo` - Dowel edge distance
-- `SpaziaturaTasselli` - Dowel spacing
-
-These parameters can be modified in Fusion 360's Parameter dialog to update the cabinet parametrically.
-
-## Example Usage
-
+### Example 1: Basic Cabinet with Door and Hinges
 ```python
 from fusion_addin.lib.core.cabinet_generator import CabinetGenerator
 
-# Initialize generator
-generator = CabinetGenerator(design)
-
-# Create cabinet with professional parameters
+# Create cabinet with door
 params = {
-    # Basic dimensions
-    'width': 600,
-    'height': 900,
-    'depth': 500,
+    'width': 600,          # 600mm wide
+    'height': 900,         # 900mm tall
+    'depth': 500,          # 500mm deep
     'material_thickness': 18,
-    'plinth_height': 100,
     'has_plinth': True,
-    
-    # Back mounting with rabbet
+    'plinth_height': 100,
     'has_back': True,
-    'back_thickness': 3,
     'back_mounting': 'flush_rabbet',
-    'rabbet_width': 12,
-    'rabbet_depth': 3,
-    
-    # Shelves with setback
-    'shelves_count': 2,
-    'shelf_front_setback': 3,
-    
-    # Dowels (optional)
-    'dowels_enabled': False,
-    'dowel_diameter': 8,
-    'dowel_edge_distance': 37,
-    'dowel_spacing': 32,
+    'has_door': True,      # Add door
+    'door_gap': 2,
+    'door_overlay_left': 18,
+    'door_overlay_right': 18,
+    'door_overlay_top': 18,
+    'door_overlay_bottom': 18
+}
+
+generator = CabinetGenerator(design)
+cabinet = generator.create_cabinet(params)
+```
+
+**Result:**
+- Side panels: Z range 100mm to 900mm (800mm effective height)
+- Bottom panel: at Z=100mm
+- Top panel: at Z=882mm (100 + 800 - 18)
+- Internal width: X from 18mm to 582mm (564mm span)
+- Door: 600mm wide × 836mm tall with 2 hinges (auto-calculated)
+
+### Example 2: Cabinet with Shelves and Groove Back
+```python
+params = {
+    'width': 800,
+    'height': 1200,
+    'depth': 580,
+    'material_thickness': 18,
+    'has_back': True,
+    'back_mounting': 'groove',       # Use groove mounting
+    'groove_offset_from_rear': 10,
+    'shelves_count': 3,              # 3 internal shelves
+    'shelf_front_setback': 3,        # 3mm front setback
+    'shelf_bore_enabled': True,      # Add adjustment holes
 }
 
 cabinet = generator.create_cabinet(params)
 ```
 
-## Testing
+**Result:**
+- Shelves depth: 580 - 3 - 10 = 567mm
+- Back panel in groove 10mm from rear
+- 3 evenly-spaced shelves with System 32 holes
 
-Test suite: `fusion_addin/tests/test_cabinet_orientation.py`
+### Example 3: Tall Cabinet with Custom Hinge Configuration
+```python
+params = {
+    'width': 600,
+    'height': 1800,        # Tall cabinet
+    'depth': 500,
+    'has_door': True,
+    'hinge_offset_top': 120,      # Custom top offset
+    'hinge_offset_bottom': 120,   # Custom bottom offset
+    # Will auto-generate 4 hinges for 1800mm height
+}
 
-Run tests:
-```bash
-python -m unittest fusion_addin/tests/test_cabinet_orientation.py
+cabinet = generator.create_cabinet(params)
 ```
 
-Tests validate:
-- Panel position calculations
-- Internal width calculations
-- Shelf depth with setback and inset
-- Retro inset for different mounting types
-- Parameter defaults and ranges
+**Result:**
+- Door height: ~1700mm (after plinth)
+- 4 hinges auto-calculated (height > 1500mm)
+- Custom spacing: 120mm from edges
+
+### Example 4: Override All Hinge Parameters
+```python
+params = {
+    'width': 600,
+    'height': 900,
+    'depth': 500,
+    'has_door': True,
+    # Blum parameters (custom)
+    'cup_diameter': 35,
+    'cup_depth': 12.5,
+    'cup_center_offset_from_edge': 21.5,  # K dimension
+    'hinge_offset_top': 100,
+    'hinge_offset_bottom': 100,
+    # Mounting plate (System 32)
+    'mounting_plate_system_line': 37,
+    'mounting_plate_hole_spacing': 32,
+    'mounting_plate_hole_diameter': 5,
+}
+
+cabinet = generator.create_cabinet(params)
+```
+
+---
+
+## Parameter Validation
+
+All parameters have sensible defaults. The generator validates:
+- Dimensions must be positive
+- Overlays must not create negative opening sizes
+- Hinge offsets must leave room for multiple hinges
+- Material thickness must be compatible with cabinet size
+
+---
+
+## Units
+
+**All input parameters use millimeters (mm).**
+
+The generator internally converts to centimeters (cm) for Fusion 360 API using the constant:
+```python
+MM_TO_CM = 10.0
+```
+
+---
+
+## Coordinate System
+
+- **X axis**: Width (left to right)
+- **Y axis**: Depth (front to back, Y=0 is back)
+- **Z axis**: Height (bottom to top)
+
+**Panel Orientations:**
+- Side panels: YZ plane, extrude along X
+- Top/Bottom panels: YZ plane, extrude along X
+- Back panel: YZ plane, extrude along X
+- Shelves: YZ plane, extrude along X
+- Plinth: XY plane, extrude along Z
+
+---
+
+## Notes
+
+### Production-Ready Features
+- ✅ Full overlay door calculation
+- ✅ Auto hinge count based on height
+- ✅ Blum Clip-top 110° preset
+- ✅ System 32 mounting plate holes
+- ✅ Three back mounting methods
+- ✅ Shelf front setback and back inset
+- 🚧 Actual hole drilling (placeholder)
+- 🚧 Rabbet/groove machining cuts (placeholder)
+
+### Future Enhancements
+- Dowel joinery integration with Lavorazioni
+- Double door support with separate left/right panels
+- Soft-close hinge variants
+- Additional hinge types (Salice, Grass, Häfele)
+- CNC drilling patterns export
+
+---
+
+## References
+
+- **Blum Clip-top 110°**: Industry standard concealed hinge
+- **System 32**: European standard for hole spacing (32mm grid)
+- **K Dimension**: Standard measurement for hinge cup offset (21.5mm for Clip-top)
+- **Full Overlay**: Door covers the entire cabinet front with 18mm standard overlay
+
+---
+
+*Last updated: 2026-02-10*
