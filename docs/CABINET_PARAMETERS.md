@@ -361,17 +361,33 @@ shelf_depth_eff = depth - back_inset - shelf_front_setback
 - Cabinet depth: 500mm, back_mounting: 'surface', shelf_front_setback: 3mm
   - back_inset = 0mm → shelf_depth = 500 - 0 - 3 = **497mm**
 
-### Unit Conversion
+### Unit Conversion Helper
 
-All inputs use millimeters (mm). Fusion 360 API requires centimeters (cm).
+#### `_mm_to_cm(value_mm)`
+
+Converts millimeters to centimeters for Fusion 360 API.
 
 ```python
-MM_TO_CM = 10.0
+def _mm_to_cm(self, value_mm):
+    """
+    Converts millimeters to centimeters (for Fusion 360 API).
+    
+    Args:
+        value_mm: Value in millimeters
+    
+    Returns:
+        float: Value in centimeters
+    """
+    return value_mm / MM_TO_CM  # MM_TO_CM = 10.0
+```
 
-# Convert dimension
-width_cm = width_mm / MM_TO_CM
+**Usage:**
+```python
+# Convert dimension for Fusion API
+width_cm = self._mm_to_cm(width_mm)
 
-# Alternative inline conversion
+# Alternative inline conversion (also valid)
+value_cm = value_mm / MM_TO_CM
 value_cm = value_mm / 10.0
 ```
 
