@@ -75,48 +75,7 @@ class CabinetGenerator:
         Crea un mobile completo con parametri utente
         
         Args:
-            params: Dizionario con parametri del mobile
-                - width: Larghezza totale (mm)
-                - height: Altezza totale (mm)
-                - depth: Profondità totale (mm)
-                - material_thickness: Spessore pannello (mm, default 18)
-                - has_back: Include pannello posteriore (bool, default True)
-                - back_thickness: Spessore pannello post. (mm, default 3)
-                - back_mounting: Tipo montaggio retro ('flush_rabbet', 'groove', 'surface', default 'flush_rabbet')
-                - rabbet_width: Larghezza scasso (mm, default 12)
-                - rabbet_depth: Profondità scasso (mm, default = back_thickness)
-                - groove_width: Larghezza cava (mm, default = back_thickness + 0.5)
-                - groove_depth: Profondità cava (mm, default = back_thickness)
-                - groove_offset_from_rear: Distanza dalla faccia posteriore (mm, default 10)
-                - has_plinth: Include zoccolo (bool, default True)
-                - plinth_height: Altezza zoccolo (mm, default 100)
-                - shelves_count: Numero ripiani (int, default 0)
-                - shelf_front_setback: Rientro ripiani dal fronte (mm, default 3)
-                - shelf_bore_enabled: Abilita fori per ripiani regolabili (bool, default False)
-                - shelf_bore_diameter: Diametro fori ripiani (mm, default 5)
-                - shelf_bore_front_distance: Distanza fori dal fronte (mm, default 37)
-                - shelf_bore_pattern: Passo fori ripiani (mm, default 32)
-                - divisions_count: Numero divisori verticali (int, default 0)
-                - has_door: Include anta (bool, default False)
-                - door_gap: Spazio tra ante (mm, default 2)
-                - door_overlay_left: Sovrapposizione sinistra (mm, default 18)
-                - door_overlay_right: Sovrapposizione destra (mm, default 18)
-                - door_overlay_top: Sovrapposizione superiore (mm, default 18)
-                - door_overlay_bottom: Sovrapposizione inferiore (mm, default 18)
-                - door_thickness: Spessore anta (mm, default 18)
-                - hinge_type: Tipo cerniera (default 'clip_top_110')
-                - cup_diameter: Diametro tazza cerniera (mm, default 35)
-                - cup_depth: Profondità tazza (mm, default 12.5)
-                - cup_center_offset_from_edge: Offset K tazza dal bordo (mm, default 21.5)
-                - hinge_offset_top: Distanza prima cerniera dal top (mm, default 100)
-                - hinge_offset_bottom: Distanza ultima cerniera dal bottom (mm, default 100)
-                - mounting_plate_system_line: Linea sistema piastra (mm, default 37)
-                - mounting_plate_hole_spacing: Passo fori piastra (mm, default 32)
-                - mounting_plate_hole_diameter: Diametro fori piastra (mm, default 5)
-                - dowels_enabled: Abilita spinotti (bool, default False)
-                - dowel_diameter: Diametro spinotto (mm, default 8)
-                - dowel_edge_distance: Distanza spinotto dal bordo (mm, default 35)
-                - dowel_spacing: Passo spinotti (mm, default 64)
+            params: Dizionario con parametri del mobile (tutti in mm)
         
         Returns:
             adsk.fusion.Component: Componente del mobile creato
@@ -148,30 +107,14 @@ class CabinetGenerator:
         door_overlay_bottom = params.get('door_overlay_bottom', self.DEFAULT_DOOR_OVERLAY_BOTTOM)
         door_thickness = params.get('door_thickness', self.DEFAULT_DOOR_THICKNESS)
         
-        # Store params for later use
-        self._params = params
-        
-        # Nuovi parametri professionali - raggruppati per chiarezza
-        back_mounting = params.get('back_mounting', 'flush_rabbet')
-        rabbet_width = params.get('rabbet_width', 12)
-        rabbet_depth = params.get('rabbet_depth', back_thickness)
-        groove_width = params.get('groove_width', back_thickness + 0.5)
-        groove_depth = params.get('groove_depth', back_thickness)
-        groove_offset_from_rear = params.get('groove_offset_from_rear', 10)
-        shelf_front_setback = params.get('shelf_front_setback', 3)
-        
         # Parametri spinatura/foratura
         dowels_enabled = params.get('dowels_enabled', False)
         dowel_diameter = params.get('dowel_diameter', 8)
         dowel_edge_distance = params.get('dowel_edge_distance', 37)
         dowel_spacing = params.get('dowel_spacing', 32)
         
-        # Parametri ante (placeholders per uso futuro)
-        door_overlay_left = params.get('door_overlay_left', 0)
-        door_overlay_right = params.get('door_overlay_right', 0)
-        door_overlay_top = params.get('door_overlay_top', 0)
-        door_overlay_bottom = params.get('door_overlay_bottom', 0)
-        door_gap = params.get('door_gap', 2)
+        # Store params for later use
+        self._params = params
         
         # Crea il componente principale
         occurrence = self.root_comp.occurrences.addNewComponent(
@@ -189,8 +132,14 @@ class CabinetGenerator:
         
         # Crea i pannelli principali
         self._create_side_panels(cabinet_comp, width, height, depth, thickness, has_plinth, plinth_height)
-        self._create_top_bottom_panels(cabinet_comp, width, depth, thickness, height, has_plinth, plinth_height, 
-                                       back_inset, back_mounting)
+        self._create_top_bottom_panels(
+            cabinet_comp, width, depth, thickness,
+            height=height,
+            has_plinth=has_plinth,
+            plinth_height=plinth_height,
+            back_inset=back_inset,
+            back_mounting=back_mounting,
+        )
         
         # Aggiungi pannello posteriore se richiesto
         if has_back:
@@ -204,8 +153,14 @@ class CabinetGenerator:
         
         # Aggiungi ripiani
         if shelves_count > 0:
-            self._create_shelves(cabinet_comp, width, depth, thickness, height, shelves_count, has_plinth, 
-                                plinth_height, shelf_front_setback, back_inset, back_mounting)
+            self._create_shelves(
+                cabinet_comp, width, depth, thickness, height, shelves_count,
+                has_plinth=has_plinth,
+                plinth_height=plinth_height,
+                shelf_front_setback=shelf_front_setback,
+                back_inset=back_inset,
+                back_mounting=back_mounting,
+            )
         
         # Aggiungi divisori verticali
         if divisions_count > 0:
@@ -232,55 +187,20 @@ class CabinetGenerator:
         
         Returns:
             float: Rientro retro in mm
-        
-        Raises:
-            ValueError: If back_mounting type is not recognized
         """
         if back_mounting == 'flush_rabbet':
-            # Retro a filo con scasso: rientra di rabbet_width
             return rabbet_width
         elif back_mounting == 'groove':
-            # Retro in cava: rientra di groove_offset
             return groove_offset
         elif back_mounting == 'surface':
-            # Retro in superficie: a filo con il retro
             return 0
         else:
-            # Unrecognized back_mounting type
             if self.logger:
                 self.logger.warning(f"Unrecognized back_mounting type '{back_mounting}', defaulting to 'flush_rabbet'")
-            # Default to flush_rabbet for backward compatibility
             return rabbet_width
-    
-    def _compute_back_inset(self, back_mounting, groove_offset, rabbet_width=12):
-        """
-        Calcola l'arretramento posteriore in base al tipo di montaggio retro.
-        
-        Args:
-            back_mounting: Tipo montaggio ('flush_rabbet', 'groove', 'surface')
-            groove_offset: Offset cava dal retro (mm)
-            rabbet_width: Larghezza scasso (mm, default 12)
-        
-        Returns:
-            float: Arretramento in mm
-        """
-        if back_mounting == 'flush_rabbet':
-            return rabbet_width
-        elif back_mounting == 'groove':
-            return groove_offset
-        else:  # 'surface'
-            return 0
     
     def _mm_to_cm(self, value_mm):
-        """
-        Converte millimetri in centimetri (per API Fusion 360).
-        
-        Args:
-            value_mm: Valore in millimetri
-        
-        Returns:
-            float: Valore in centimetri
-        """
+        """Converte millimetri in centimetri (per API Fusion 360)."""
         return value_mm / MM_TO_CM
     
     def _create_user_parameters(self, component, params):
@@ -351,15 +271,14 @@ class CabinetGenerator:
         # Calcola altezza effettiva (considera lo zoccolo)
         effective_height = height - plinth_height if has_plinth else height
         
-        # BUG FIX: Start side panels at plinth_height when plinth exists
-        # Convert to cm for Fusion 360 internal units
+        # Start side panels at plinth_height when plinth exists
         z_start = plinth_height / MM_TO_CM if has_plinth else 0  # cm
         
         # Pannello sinistro
         sketch_left = sketches.add(yz_plane)
         rect_left = sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, z_start, 0),  # z_start is in cm
-            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + effective_height / MM_TO_CM, 0)  # All in cm
+            adsk.core.Point3D.create(0, z_start, 0),
+            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + effective_height / MM_TO_CM, 0)
         )
         
         extrude_input_left = extrudes.createInput(
@@ -397,11 +316,24 @@ class CabinetGenerator:
         
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_top_bottom_panels(self, component, width, depth, thickness, height=None, has_plinth=False, plinth_height=0, **kwargs):
+    def _create_top_bottom_panels(self, component, width, depth, thickness,
+                                  height=None, has_plinth=False, plinth_height=0,
+                                  back_inset=0, back_mounting='flush_rabbet'):
         """
         Crea Fondo e Cielo:
         - Sketch su YZ
         - Estrusione lungo X pari a larghezza interna (W_in = width - 2*thickness)
+        
+        Args:
+            component: Componente Fusion
+            width: Larghezza totale (mm)
+            depth: Profondità totale (mm)
+            thickness: Spessore pannello (mm)
+            height: Altezza totale (mm)
+            has_plinth: Se ha zoccolo
+            plinth_height: Altezza zoccolo (mm)
+            back_inset: Arretramento posteriore calcolato (mm)
+            back_mounting: Tipo montaggio retro
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -410,21 +342,21 @@ class CabinetGenerator:
 
         # Larghezza interna (X)
         W_in_mm = width - 2 * thickness
-        W_in = W_in_mm / 10.0  # cm
+        W_in = W_in_mm / MM_TO_CM  # cm
 
         # Quote Z
         Z_bottom_mm = plinth_height
-        Z_bottom = Z_bottom_mm / 10.0
+        Z_bottom = Z_bottom_mm / MM_TO_CM
 
         H_eff_mm = (height - plinth_height) if height is not None else None
         Z_top_mm = (plinth_height + H_eff_mm - thickness) if H_eff_mm is not None else None
-        Z_top = (Z_top_mm / 10.0) if Z_top_mm is not None else None
+        Z_top = (Z_top_mm / MM_TO_CM) if Z_top_mm is not None else None
 
         # Fondo
         sketch_bottom = sketches.add(yz_plane)
         sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, Z_bottom, 0),
-            adsk.core.Point3D.create(depth / 10.0, (Z_bottom_mm + thickness) / 10.0, 0)
+            adsk.core.Point3D.create(depth / MM_TO_CM, (Z_bottom_mm + thickness) / MM_TO_CM, 0)
         )
         extrude_input_bottom = extrudes.createInput(
             sketch_bottom.profiles.item(0),
@@ -440,7 +372,7 @@ class CabinetGenerator:
             sketch_top = sketches.add(yz_plane)
             sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
                 adsk.core.Point3D.create(0, Z_top, 0),
-                adsk.core.Point3D.create(depth / 10.0, (Z_top_mm + thickness) / 10.0, 0)
+                adsk.core.Point3D.create(depth / MM_TO_CM, (Z_top_mm + thickness) / MM_TO_CM, 0)
             )
             extrude_input_top = extrudes.createInput(
                 sketch_top.profiles.item(0),
@@ -465,7 +397,6 @@ class CabinetGenerator:
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
         
-        # Piano YZ per pannello posteriore - consistente con altri pannelli
         yz_plane = component.yZConstructionPlane
         
         # Calcola dimensioni
@@ -473,21 +404,16 @@ class CabinetGenerator:
         panel_width = width - 2 * thickness
         panel_height = effective_height - 2 * thickness
         
-        # BUG FIX: Calculate Z offset for back panel
         z_offset = (plinth_height + thickness) / MM_TO_CM if has_plinth else thickness / MM_TO_CM
         
         # Calculate Y position based on mounting type
         if back_mounting == 'flush_rabbet':
-            # Retro a filo: posizionato a depth - rabbet_width
             y_position = (depth - rabbet_width) / MM_TO_CM
         elif back_mounting == 'groove':
-            # Retro in cava: posizionato a depth - groove_offset
             y_position = (depth - groove_offset) / MM_TO_CM
         elif back_mounting == 'surface':
-            # Retro in superficie: a filo con il retro
             y_position = (depth - back_thickness) / MM_TO_CM
         else:
-            # Default: flush_rabbet
             y_position = (depth - rabbet_width) / MM_TO_CM
         
         sketch = sketches.add(yz_plane)
@@ -497,7 +423,6 @@ class CabinetGenerator:
                                     z_offset + panel_height / MM_TO_CM, 0)
         )
         
-        # Estrudi lungo X per la larghezza tra i fianchi
         extrude_input_back = extrudes.createInput(
             sketch.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -516,31 +441,24 @@ class CabinetGenerator:
         move_input_back = move_feats.createInput(bodies_back, transform_back)
         move_feats.add(move_input_back)
         
-        # TODO: Implementare lavorazioni per scassi/cave sui pannelli laterali/top/bottom
         # Placeholder per feature di machining (rabbet/groove cuts)
         if back_mounting == 'flush_rabbet':
-            # Crea scasso sui pannelli laterali, top e bottom
-            self._create_rabbet_cuts(component, width, height, depth, thickness, has_plinth, 
-                                    plinth_height, rabbet_width, rabbet_depth)
+            self._create_rabbet_cuts(component, width, height, depth, thickness, back_thickness,
+                                    has_plinth, plinth_height, rabbet_width, rabbet_depth)
         elif back_mounting == 'groove':
-            # Crea cava sui pannelli laterali
-            self._create_groove_cuts(component, width, height, depth, thickness, has_plinth,
-                                    plinth_height, groove_width, groove_depth, groove_offset)
+            self._create_groove_cuts(component, width, height, depth, thickness, back_thickness,
+                                    has_plinth, plinth_height, groove_width, groove_depth, groove_offset)
     
     def _create_plinth(self, component, width, depth, thickness, plinth_height):
         """Crea lo zoccolo"""
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         
-        # Piano XY per zoccolo
         xy_plane = component.xYConstructionPlane
         
-        # Profilo a U dello zoccolo
         sketch = sketches.add(xy_plane)
         lines = sketch.sketchCurves.sketchLines
         
-        # Crea profilo U (fronte + 2 lati)
-        # Fronte
         p1 = adsk.core.Point3D.create(0, 0, 0)
         p2 = adsk.core.Point3D.create(width / MM_TO_CM, 0, 0)
         p3 = adsk.core.Point3D.create(width / MM_TO_CM, (thickness * 2) / MM_TO_CM, 0)
@@ -560,10 +478,25 @@ class CabinetGenerator:
         extrude_plinth = extrudes.add(extrude_input_plinth)
         extrude_plinth.bodies.item(0).name = "Zoccolo"
     
-    def _create_shelves(self, component, width, depth, thickness, height, count, has_plinth, plinth_height, params=None):
+    def _create_shelves(self, component, width, depth, thickness, height, count,
+                        has_plinth=False, plinth_height=0, shelf_front_setback=3,
+                        back_inset=0, back_mounting='flush_rabbet'):
         """
         Crea ripiani su YZ con estrusione lungo X = W_in.
         Considera rientro frontale e arretramento dovuto allo schienale.
+        
+        Args:
+            component: Componente Fusion
+            width: Larghezza totale (mm)
+            depth: Profondità totale (mm)
+            thickness: Spessore pannello (mm)
+            height: Altezza totale (mm)
+            count: Numero di ripiani
+            has_plinth: Se ha zoccolo
+            plinth_height: Altezza zoccolo (mm)
+            shelf_front_setback: Rientro frontale ripiani (mm)
+            back_inset: Arretramento posteriore calcolato (mm)
+            back_mounting: Tipo montaggio retro
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -573,15 +506,6 @@ class CabinetGenerator:
         W_in = width - 2 * thickness
         H_eff = height - plinth_height
 
-        # Parametri
-        shelf_front_setback = (params or {}).get('shelf_front_setback', 3)  # mm default
-        back_mounting = (params or {}).get('back_mounting', 'flush_rabbet')
-        groove_offset = (params or {}).get('groove_offset_from_rear', 10)  # mm
-        rabbet_width = (params or {}).get('rabbet_width', 12)  # mm
-
-        # arretramento posteriore del fronte utile
-        back_inset = self._compute_back_inset(back_mounting, groove_offset, rabbet_width)
-
         shelf_depth_eff = depth - back_inset - shelf_front_setback
 
         usable_height = H_eff - 2 * thickness
@@ -589,13 +513,13 @@ class CabinetGenerator:
 
         for i in range(count):
             Z_pos_mm = plinth_height + thickness + spacing * (i + 1)
-            Z_pos_cm = Z_pos_mm / 10.0
+            Z_pos_cm = Z_pos_mm / MM_TO_CM
 
             # Profilo ripiano su YZ
             sketch = sketches.add(yz_plane)
             rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(shelf_front_setback / 10.0, Z_pos_cm, 0),
-                adsk.core.Point3D.create((shelf_front_setback + shelf_depth_eff) / 10.0, (Z_pos_mm + thickness) / 10.0, 0)
+                adsk.core.Point3D.create(shelf_front_setback / MM_TO_CM, Z_pos_cm, 0),
+                adsk.core.Point3D.create((shelf_front_setback + shelf_depth_eff) / MM_TO_CM, (Z_pos_mm + thickness) / MM_TO_CM, 0)
             )
 
             extrude_input_shelf = extrudes.createInput(
@@ -604,7 +528,7 @@ class CabinetGenerator:
             )
             extrude_input_shelf.setDistanceExtent(
                 False,
-                adsk.core.ValueInput.createByReal(W_in / 10.0)
+                adsk.core.ValueInput.createByReal(W_in / MM_TO_CM)
             )
             extrude_shelf = extrudes.add(extrude_input_shelf)
             shelf_body = extrude_shelf.bodies.item(0)
@@ -614,44 +538,27 @@ class CabinetGenerator:
                            has_plinth, plinth_height, rabbet_width, rabbet_depth):
         """
         Crea tagli per battuta (rabbet) sui bordi posteriori interni dei fianchi
-        
         Placeholder per lavorazioni 3D future
-        La battuta è un taglio rettangolare sul bordo posteriore interno per alloggiare il retro
         """
         # TODO: Implementare tagli extrude-cut sui fianchi
-        # Battuta larghezza=rabbet_width, profondità=rabbet_depth
-        # Posizione: bordo posteriore interno dei pannelli laterali
         pass
     
     def _create_groove_cuts(self, component, width, height, depth, thickness, back_thickness,
                            has_plinth, plinth_height, groove_width, groove_depth, groove_offset_from_rear):
         """
         Crea tagli per canale (groove) sulle facce interne dei fianchi
-        
         Placeholder per lavorazioni 3D future
-        Il canale è una tasca fresata sulla faccia interna per alloggiare il retro
         """
         # TODO: Implementare tagli pocket (fresata) sui fianchi
-        # Canale larghezza=groove_width, profondità=groove_depth
-        # Offset da bordo posteriore=groove_offset_from_rear
         pass
     
     def _create_dowel_holes(self, component, width, height, depth, thickness, has_plinth, plinth_height,
                            dowel_diameter, dowel_edge_distance, dowel_spacing):
         """
         Crea forature per spinatura (dowel holes) tra fondo/cielo e fianchi
-        
         Placeholder per lavorazioni 3D future con sistema 32mm
-        
-        Args:
-            dowel_diameter: Diametro tassello (mm, tipicamente 8)
-            dowel_edge_distance: Distanza dal bordo (mm, tipicamente 37)
-            dowel_spacing: Spaziatura tra fori (mm, tipicamente 32 per sistema 32mm)
         """
         # TODO: Implementare fori extrude-cut per spinatura
-        # Pattern: sistema 32mm standard
-        # Posizioni: fondo e cielo nei fianchi
-        # Può essere integrato con fusion_addin/lib/joinery in futuro
         pass
     
     def _create_divisions(self, component, width, height, depth, thickness, count, has_plinth, plinth_height):
@@ -662,14 +569,12 @@ class CabinetGenerator:
         
         yz_plane = component.yZConstructionPlane
         
-        # Calcola spaziatura divisori
         usable_width = width - 2 * thickness
         spacing = usable_width / (count + 1)
         
         effective_height = height - plinth_height if has_plinth else height
         panel_height = effective_height - 2 * thickness
         
-        # BUG FIX: Calculate Z offset for dividers
         z_offset = (plinth_height + thickness) / MM_TO_CM if has_plinth else thickness / MM_TO_CM
         
         for i in range(count):
@@ -704,41 +609,21 @@ class CabinetGenerator:
                           door_overlay_bottom, door_thickness, params):
         """
         Crea pannello anta con overlay e gap
-        
-        Args:
-            component: Componente mobile
-            width: Larghezza totale mobile (mm)
-            height: Altezza totale mobile (mm)
-            depth: Profondità mobile (mm)
-            thickness: Spessore pannelli laterali (mm)
-            has_plinth: Se ha zoccolo
-            plinth_height: Altezza zoccolo (mm)
-            door_gap: Spazio tra ante (mm)
-            door_overlay_*: Sovrapposizioni (mm)
-            door_thickness: Spessore anta (mm)
-            params: Parametri originali per hinge machining
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
         
-        # Calculate carcass opening dimensions
         effective_height = height - plinth_height if has_plinth else height
         internal_width = width - 2 * thickness
         
-        # Calculate door dimensions from opening with overlay
         door_width = internal_width + door_overlay_left + door_overlay_right
         door_height = effective_height + door_overlay_top + door_overlay_bottom
         
-        # Calculate door position
-        # X: starts at left edge minus overlay
         x_door = -door_overlay_left / MM_TO_CM
-        # Y: at front of cabinet (depth), extending forward by door_thickness
         y_door = depth / MM_TO_CM
-        # Z: starts at plinth minus overlay
         z_door = (plinth_height - door_overlay_bottom) / MM_TO_CM if has_plinth else -door_overlay_bottom / MM_TO_CM
         
-        # Create door on YZ plane
         yz_plane = component.yZConstructionPlane
         sketch_door = sketches.add(yz_plane)
         rect_door = sketch_door.sketchCurves.sketchLines.addTwoPointRectangle(
@@ -770,7 +655,6 @@ class CabinetGenerator:
         self._create_hinge_cup_holes(component, door_body, door_height, door_thickness, params)
         
         # Add mounting plate holes to side panels
-        # Find left side panel body
         for body in component.bRepBodies:
             if body.name == "Fianco_Sinistro":
                 self._create_mounting_plate_holes(component, body, effective_height, depth, thickness, 
@@ -778,15 +662,7 @@ class CabinetGenerator:
                 break
     
     def _calculate_hinge_count(self, door_height):
-        """
-        Calcola numero automatico di cerniere in base all'altezza anta
-        
-        Args:
-            door_height: Altezza anta (mm)
-        
-        Returns:
-            int: Numero di cerniere
-        """
+        """Calcola numero automatico di cerniere in base all'altezza anta"""
         if door_height <= self.DEFAULT_HINGE_THRESHOLD_2:
             return 2
         elif door_height <= self.DEFAULT_HINGE_THRESHOLD_3:
@@ -796,35 +672,16 @@ class CabinetGenerator:
     
     def _create_hinge_cup_holes(self, component, door_body, door_height, door_thickness, params):
         """
-        Crea fori tazza cerniera sull'anta
-        
-        Args:
-            component: Componente mobile
-            door_body: Body dell'anta
-            door_height: Altezza anta (mm)
-            door_thickness: Spessore anta (mm)
-            params: Parametri configurazione cerniera
-        
-        Note:
-            This is a placeholder method. Actual hole drilling will be implemented
-            in a future update using Fusion 360's holeFeatures API. The method
-            calculates positions for future use.
-        
-        TODO: Implement actual hole drilling using component.features.holeFeatures
-              Each hole should be: diameter = cup_diameter, depth = cup_depth,
-              centerline at K offset from edge
+        Crea fori tazza cerniera sull'anta (placeholder)
         """
-        # Get hinge parameters
         cup_diameter = params.get('cup_diameter', self.DEFAULT_CUP_DIAMETER)
         cup_depth = params.get('cup_depth', self.DEFAULT_CUP_DEPTH)
         cup_offset_k = params.get('cup_center_offset_from_edge', self.DEFAULT_CUP_CENTER_OFFSET_FROM_EDGE)
         hinge_offset_top = params.get('hinge_offset_top', self.DEFAULT_HINGE_OFFSET_TOP)
         hinge_offset_bottom = params.get('hinge_offset_bottom', self.DEFAULT_HINGE_OFFSET_BOTTOM)
         
-        # Calculate hinge count
         hinge_count = self._calculate_hinge_count(door_height)
         
-        # Calculate hinge positions along door height
         hinge_positions = []
         if hinge_count == 2:
             hinge_positions = [hinge_offset_top, door_height - hinge_offset_bottom]
@@ -840,89 +697,21 @@ class CabinetGenerator:
                 door_height - hinge_offset_bottom
             ]
         
-        # Store calculated positions for future implementation
-        # When implemented, create cup holes at each position:
-        # - Diameter: cup_diameter (35mm)
-        # - Depth: cup_depth (12.5mm) 
-        # - Centerline: cup_offset_k (21.5mm) from door edge
         self._hinge_positions = hinge_positions
-        
-        # Placeholder - actual implementation will use Fusion API to create holes
+        # TODO: Implement actual hole drilling using component.features.holeFeatures
         pass
     
     def _create_mounting_plate_holes(self, component, side_body, effective_height, depth, thickness,
                                     has_plinth, plinth_height, params):
         """
-        Crea fori per piastra di montaggio sul pannello laterale
-        
-        Args:
-            component: Componente mobile
-            side_body: Body del pannello laterale
-            effective_height: Altezza effettiva carcassa (mm)
-            depth: Profondità mobile (mm)
-            thickness: Spessore pannello (mm)
-            has_plinth: Se ha zoccolo
-            plinth_height: Altezza zoccolo (mm)
-            params: Parametri configurazione
-        
-        Note:
-            This is a placeholder method. Actual hole drilling will be implemented
-            in a future update using Fusion 360's holeFeatures API.
-            
-        Hole Pattern:
-            - Vertical line at system_line distance (37mm) from front edge
-            - Holes spaced vertically at 32mm intervals (System 32 standard)
-            - Holes aligned with hinge positions on door
-            - Diameter: 5mm, Depth: 13mm (for euro-screw 5×13)
-        
-        TODO: Implement actual hole drilling using component.features.holeFeatures
+        Crea fori per piastra di montaggio sul pannello laterale (placeholder)
         """
-        # Get mounting plate parameters
         system_line = params.get('mounting_plate_system_line', self.DEFAULT_MOUNTING_PLATE_SYSTEM_LINE)
         hole_spacing = params.get('mounting_plate_hole_spacing', self.DEFAULT_MOUNTING_PLATE_HOLE_SPACING)
         hole_diameter = params.get('mounting_plate_hole_diameter', self.DEFAULT_MOUNTING_PLATE_HOLE_DIAMETER)
         screw_depth = params.get('screw_depth', self.DEFAULT_SCREW_DEPTH)
         
-        # Calculate hole positions
-        # System line is at 37mm from front edge
-        # Holes spaced vertically at 32mm intervals
-        # Aligned with hinge positions on door
-        
-        # Store calculated pattern for future implementation
-        # When implemented, create holes at:
-        # - Y position: system_line (37mm from front)
-        # - Z positions: aligned with hinge positions, plus additional holes in 32mm grid
-        # - X position: on side panel face
-        # - Diameter: hole_diameter (5mm)
-        # - Depth: screw_depth (13mm)
         self._mounting_plate_system_line = system_line
         self._mounting_plate_hole_spacing = hole_spacing
-        
-        # Placeholder - actual implementation will use Fusion API to create holes
-        pass
-    
-    def _create_rabbet_cuts(self, component, width, height, depth, thickness, has_plinth,
-                           plinth_height, rabbet_width, rabbet_depth):
-        """
-        Crea scassi per montaggio retro a filo (flush_rabbet)
-        
-        Args:
-            component: Componente mobile
-            Placeholder per implementazione futura con extrude cuts
-        """
-        # TODO: Implement rabbet cuts on side panels, top and bottom
-        # Use extrude cuts to create grooves for back panel insertion
-        pass
-    
-    def _create_groove_cuts(self, component, width, height, depth, thickness, has_plinth,
-                           plinth_height, groove_width, groove_depth, groove_offset):
-        """
-        Crea cave per montaggio retro in scanalatura (groove)
-        
-        Args:
-            component: Componente mobile
-            Placeholder per implementazione futura con extrude cuts
-        """
-        # TODO: Implement groove cuts on side panels
-        # Use extrude cuts to create grooves at specified offset from back
+        # TODO: Implement actual hole drilling using component.features.holeFeatures
         pass
