@@ -259,28 +259,32 @@ class CabinetGenerator:
                 # Il parametro esiste già
                 pass
     
-    def _create_side_panels(self, component, width, height, depth, thickness, has_plinth, plinth_height):
-        """Crea i pannelli laterali"""
+        def _create_side_panels(self, component, width, height, depth, thickness, has_plinth, plinth_height):
+        """Crea i pannelli laterali.
+
+        height = altezza totale (pavimento → top).
+        La carcassa sta sopra lo zoccolo: Z ∈ [plinth_height, height].
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
-        
+
         # Piano YZ per pannello sinistro
         yz_plane = component.yZConstructionPlane
-        
-        # Calcola altezza effettiva (considera lo zoccolo)
-        effective_height = height - plinth_height if has_plinth else height
-        
-        # Start side panels at plinth_height when plinth exists
-        z_start = plinth_height / MM_TO_CM if has_plinth else 0  # cm
-        
+
+        # Carcassa sopra lo zoccolo
+        carcass_height = height - plinth_height  # mm
+
+        # Base carcassa in Z (sopra lo zoccolo)
+        z_start = plinth_height / MM_TO_CM  # cm
+
         # Pannello sinistro
         sketch_left = sketches.add(yz_plane)
-        rect_left = sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
+        sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, z_start, 0),
-            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + effective_height / MM_TO_CM, 0)
+            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + carcass_height / MM_TO_CM, 0)
         )
-        
+
         extrude_input_left = extrudes.createInput(
             sketch_left.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -289,74 +293,90 @@ class CabinetGenerator:
         extrude_input_left.setDistanceExtent(False, distance)
         extrude_left = extrudes.add(extrude_input_left)
         extrude_left.bodies.item(0).name = "Fianco_Sinistro"
-        
+
         # Pannello destro (offset in X)
         sketch_right = sketches.add(yz_plane)
-        rect_right = sketch_right.sketchCurves.sketchLines.addTwoPointRectangle(
+        sketch_right.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, z_start, 0),
-            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + effective_height / MM_TO_CM, 0)
+            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + carcass_height / MM_TO_CM, 0)
         )
-        
+
         # Transform per posizionare a destra
         transform_right = adsk.core.Matrix3D.create()
         transform_right.translation = adsk.core.Vector3D.create((width - thickness) / MM_TO_CM, 0, 0)
-        
+
         extrude_input_right = extrudes.createInput(
             sketch_right.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         extrude_input_right.setDistanceExtent(False, distance)
         extrude_right = extrudes.add(extrude_input_right)
-        
+
         # Sposta il corpo
         bodies_right = adsk.core.ObjectCollection.create()
         bodies_right.add(extrude_right.bodies.item(0))
         move_input_right = move_feats.createInput(bodies_right, transform_right)
         move_feats.add(move_input_right)
-        
+
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
-    def _create_top_bottom_panels(self, component, width, depth, thickness,
-                                  height=None, has_plinth=False, plinth_height=0,
-                                  back_inset=0, back_mounting='flush_rabbet'):
+        def _create_top_bottom_panels(
+        self,
+        component,
+        width,
+        depth,
+        thickness,
+        height=None,
+        has_plinth=False,
+        plinth_height=0,
+        back_inset=0,
+        back_mounting='flush_rabbet'
+    ):
         """
-        Crea Fondo e Cielo:
-        - Sketch su YZ
-        - Estrusione lungo X pari a larghezza interna (W_in = width - 2*thickness)
-        
-        Args:
-            component: Componente Fusion
-            width: Larghezza totale (mm)
-            depth: Profondità totale (mm)
-            thickness: Spessore pannello (mm)
-            height: Altezza totale (mm)
-            has_plinth: Se ha zoccolo
-            plinth_height: Altezza zoccolo (mm)
-            back_inset: Arretramento posteriore calcolato (mm)
-            back_mounting: Tipo montaggio retro
+        Crea Fondo e Cielo con height = altezza totale (pavimento → top).
+
+        - Carcassa sopra lo zoccolo: Z ∈ [plinth_height, height]
+        - Fondo: Z ∈ [plinth_height, plinth_height + thickness]
+        - Cielo: Z ∈ [height - thickness, height]
+        - Larghezza interna X: width - 2*thickness
+        - Profondità utile Y:
+            - se c'è schienale: depth - back_inset
+            - altrimenti: depth
+        - Tutti i pannelli interni sono traslati in X di thickness,
+          per stare tra i due fianchi.
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
 
         yz_plane = component.yZConstructionPlane
+
+        carcass_height = (height - plinth_height) if height is not None else None
 
         # Larghezza interna (X)
         W_in_mm = width - 2 * thickness
         W_in = W_in_mm / MM_TO_CM  # cm
 
-        # Quote Z
+        # Profondità utile
+        effective_depth_mm = depth - back_inset if back_inset else depth
+        effective_depth = effective_depth_mm / MM_TO_CM  # cm
+
+        # Quote Z in mm/cm
         Z_bottom_mm = plinth_height
         Z_bottom = Z_bottom_mm / MM_TO_CM
 
-        H_eff_mm = (height - plinth_height) if height is not None else None
-        Z_top_mm = (plinth_height + H_eff_mm - thickness) if H_eff_mm is not None else None
-        Z_top = (Z_top_mm / MM_TO_CM) if Z_top_mm is not None else None
+        if carcass_height is not None:
+            Z_top_mm = plinth_height + carcass_height - thickness
+            Z_top = Z_top_mm / MM_TO_CM
+        else:
+            Z_top_mm = None
+            Z_top = None
 
-        # Fondo
+        # --- Fondo ---
         sketch_bottom = sketches.add(yz_plane)
         sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, Z_bottom, 0),
-            adsk.core.Point3D.create(depth / MM_TO_CM, (Z_bottom_mm + thickness) / MM_TO_CM, 0)
+            adsk.core.Point3D.create(effective_depth, (Z_bottom_mm + thickness) / MM_TO_CM, 0)
         )
         extrude_input_bottom = extrudes.createInput(
             sketch_bottom.profiles.item(0),
@@ -367,12 +387,20 @@ class CabinetGenerator:
         body_bottom = extrude_bottom.bodies.item(0)
         body_bottom.name = "Fondo"
 
-        # Cielo
+        # Trasla il fondo tra i fianchi (X = thickness → width - thickness)
+        transform_bottom = adsk.core.Matrix3D.create()
+        transform_bottom.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
+        col_bottom = adsk.core.ObjectCollection.create()
+        col_bottom.add(body_bottom)
+        move_input_bottom = move_feats.createInput(col_bottom, transform_bottom)
+        move_feats.add(move_input_bottom)
+
+        # --- Cielo ---
         if Z_top is not None:
             sketch_top = sketches.add(yz_plane)
             sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
                 adsk.core.Point3D.create(0, Z_top, 0),
-                adsk.core.Point3D.create(depth / MM_TO_CM, (Z_top_mm + thickness) / MM_TO_CM, 0)
+                adsk.core.Point3D.create(effective_depth, (Z_top_mm + thickness) / MM_TO_CM, 0)
             )
             extrude_input_top = extrudes.createInput(
                 sketch_top.profiles.item(0),
@@ -382,6 +410,14 @@ class CabinetGenerator:
             extrude_top = extrudes.add(extrude_input_top)
             body_top = extrude_top.bodies.item(0)
             body_top.name = "Cielo"
+
+            # Trasla il cielo tra i fianchi
+            transform_top = adsk.core.Matrix3D.create()
+            transform_top.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
+            col_top = adsk.core.ObjectCollection.create()
+            col_top.add(body_top)
+            move_input_top = move_feats.createInput(col_top, transform_top)
+            move_feats.add(move_input_top)
     
     def _create_back_panel(self, component, width, height, thickness, back_thickness, has_plinth, 
                           plinth_height, back_mounting='flush_rabbet', rabbet_width=12, rabbet_depth=3,
@@ -478,48 +514,68 @@ class CabinetGenerator:
         extrude_plinth = extrudes.add(extrude_input_plinth)
         extrude_plinth.bodies.item(0).name = "Zoccolo"
     
-    def _create_shelves(self, component, width, depth, thickness, height, count,
-                        has_plinth=False, plinth_height=0, shelf_front_setback=3,
-                        back_inset=0, back_mounting='flush_rabbet'):
+        def _create_shelves(
+        self,
+        component,
+        width,
+        depth,
+        thickness,
+        height,
+        count,
+        has_plinth,
+        plinth_height,
+        shelf_front_setback,
+        back_inset,
+        back_mounting
+    ):
         """
         Crea ripiani su YZ con estrusione lungo X = W_in.
-        Considera rientro frontale e arretramento dovuto allo schienale.
-        
-        Args:
-            component: Componente Fusion
-            width: Larghezza totale (mm)
-            depth: Profondità totale (mm)
-            thickness: Spessore pannello (mm)
-            height: Altezza totale (mm)
-            count: Numero di ripiani
-            has_plinth: Se ha zoccolo
-            plinth_height: Altezza zoccolo (mm)
-            shelf_front_setback: Rientro frontale ripiani (mm)
-            back_inset: Arretramento posteriore calcolato (mm)
-            back_mounting: Tipo montaggio retro
+
+        - height totale (pavimento → top)
+        - carcassa sopra lo zoccolo
+        - arretramento dovuto allo schienale (back_inset)
+        - rientro frontale ripiani (shelf_front_setback)
+        - ripiani allineati tra i fianchi in X
         """
+        if count <= 0:
+            return
+
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
 
         yz_plane = component.yZConstructionPlane
 
-        W_in = width - 2 * thickness
-        H_eff = height - plinth_height
+        W_in_mm = width - 2 * thickness
+        W_in = W_in_mm / MM_TO_CM
 
-        shelf_depth_eff = depth - back_inset - shelf_front_setback
+        carcass_height = height - plinth_height  # mm
 
-        usable_height = H_eff - 2 * thickness
-        spacing = usable_height / (count + 1)
+        # Profondità ripiano
+        shelf_depth_eff_mm = depth - back_inset - shelf_front_setback
+        shelf_depth_eff = shelf_depth_eff_mm / MM_TO_CM
+
+        # Altezza utile interna (tra fondo e cielo, dentro ai fianchi)
+        usable_height_mm = carcass_height - 2 * thickness
+        if usable_height_mm <= 0:
+            return
+
+        spacing_mm = usable_height_mm / (count + 1)
 
         for i in range(count):
-            Z_pos_mm = plinth_height + thickness + spacing * (i + 1)
-            Z_pos_cm = Z_pos_mm / MM_TO_CM
+            # quota Z di base ripiano in mm
+            Z_pos_mm = plinth_height + thickness + spacing_mm * (i + 1)
+            Z_pos = Z_pos_mm / MM_TO_CM
 
-            # Profilo ripiano su YZ
             sketch = sketches.add(yz_plane)
-            rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(shelf_front_setback / MM_TO_CM, Z_pos_cm, 0),
-                adsk.core.Point3D.create((shelf_front_setback + shelf_depth_eff) / MM_TO_CM, (Z_pos_mm + thickness) / MM_TO_CM, 0)
+            # Y parte dal rientro frontale, fino a front+profondità effettiva
+            sketch.sketchCurves.sketchLines.addTwoPointRectangle(
+                adsk.core.Point3D.create(shelf_front_setback / MM_TO_CM, Z_pos, 0),
+                adsk.core.Point3D.create(
+                    (shelf_front_setback + shelf_depth_eff_mm) / MM_TO_CM,
+                    (Z_pos_mm + thickness) / MM_TO_CM,
+                    0
+                )
             )
 
             extrude_input_shelf = extrudes.createInput(
@@ -528,11 +584,19 @@ class CabinetGenerator:
             )
             extrude_input_shelf.setDistanceExtent(
                 False,
-                adsk.core.ValueInput.createByReal(W_in / MM_TO_CM)
+                adsk.core.ValueInput.createByReal(W_in)
             )
             extrude_shelf = extrudes.add(extrude_input_shelf)
             shelf_body = extrude_shelf.bodies.item(0)
             shelf_body.name = f"Ripiano_{i+1}"
+
+            # Trasla il ripiano tra i fianchi (X = thickness → width - thickness)
+            transform_shelf = adsk.core.Matrix3D.create()
+            transform_shelf.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
+            col_shelf = adsk.core.ObjectCollection.create()
+            col_shelf.add(shelf_body)
+            move_input_shelf = move_feats.createInput(col_shelf, transform_shelf)
+            move_feats.add(move_input_shelf)
     
     def _create_rabbet_cuts(self, component, width, height, depth, thickness, back_thickness,
                            has_plinth, plinth_height, rabbet_width, rabbet_depth):
