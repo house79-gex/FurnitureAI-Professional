@@ -360,7 +360,7 @@ class CabinetGenerator:
 
         extrude_right.bodies.item(0).name = "Fianco_Destro"
 
-    def _create_top_bottom_panels(
+        def _create_top_bottom_panels(
         self,
         component,
         width,
@@ -379,9 +379,8 @@ class CabinetGenerator:
         - Fondo: Z ∈ [plinth_height, plinth_height + thickness]
         - Cielo: Z ∈ [height - thickness, height]
         - Larghezza interna X: width - 2*thickness
-        - Profondità utile Y:
-            - se c'è schienale: depth - back_inset
-            - altrimenti: depth
+        - Profondità Y: SEMPRE = depth (come i fianchi).
+          È lo schienale che viene arretrato, NON il fondo/cielo.
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -391,12 +390,14 @@ class CabinetGenerator:
 
         carcass_height = (height - plinth_height) if height is not None else None
 
+        # Larghezza interna (X)
         W_in_mm = width - 2 * thickness
         W_in = W_in_mm / MM_TO_CM  # cm
 
-        effective_depth_mm = depth - back_inset if back_inset else depth
-        effective_depth = effective_depth_mm / MM_TO_CM  # cm
+        # Profondità = stessa dei fianchi
+        depth_cm = depth / MM_TO_CM
 
+        # Quote Z
         Z_bottom_mm = plinth_height
         Z_bottom = Z_bottom_mm / MM_TO_CM
 
@@ -411,7 +412,7 @@ class CabinetGenerator:
         sketch_bottom = sketches.add(yz_plane)
         sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, Z_bottom, 0),
-            adsk.core.Point3D.create(effective_depth, (Z_bottom_mm + thickness) / MM_TO_CM, 0),
+            adsk.core.Point3D.create(depth_cm, (Z_bottom_mm + thickness) / MM_TO_CM, 0),
         )
         extrude_input_bottom = extrudes.createInput(
             sketch_bottom.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -421,6 +422,7 @@ class CabinetGenerator:
         body_bottom = extrude_bottom.bodies.item(0)
         body_bottom.name = "Fondo"
 
+        # Trasla il fondo tra i fianchi
         transform_bottom = adsk.core.Matrix3D.create()
         transform_bottom.translation = adsk.core.Vector3D.create(thickness / MM_TO_CM, 0, 0)
         col_bottom = adsk.core.ObjectCollection.create()
@@ -433,7 +435,7 @@ class CabinetGenerator:
             sketch_top = sketches.add(yz_plane)
             sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
                 adsk.core.Point3D.create(0, Z_top, 0),
-                adsk.core.Point3D.create(effective_depth, (Z_top_mm + thickness) / MM_TO_CM, 0),
+                adsk.core.Point3D.create(depth_cm, (Z_top_mm + thickness) / MM_TO_CM, 0),
             )
             extrude_input_top = extrudes.createInput(
                 sketch_top.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -449,7 +451,7 @@ class CabinetGenerator:
             col_top.add(body_top)
             move_input_top = move_feats.createInput(col_top, transform_top)
             move_feats.add(move_input_top)
-
+            
     def _create_back_panel(
         self,
         component,
@@ -738,7 +740,7 @@ class CabinetGenerator:
     # -------------------------------------------------------------------------
     # ANTA E FERRAMENTA
     # -------------------------------------------------------------------------
-    def _create_door_panel(
+        def _create_door_panel(
         self,
         component,
         width,
@@ -747,59 +749,62 @@ class CabinetGenerator:
         thickness,
         has_plinth,
         plinth_height,
-        door_gap,
-        door_overlay_left,
-        door_overlay_right,
-        door_overlay_top,
-        door_overlay_bottom,
+        door_gap,              # ignorato per ora
+        door_overlay_left,     # ignorato per ora
+        door_overlay_right,    # ignorato per ora
+        door_overlay_top,      # ignorato per ora
+        door_overlay_bottom,   # ignorato per ora
         door_thickness,
         params,
     ):
         """
-        Crea pannello anta a copertura carcassa, leggermente PIÙ PICCOLO
-        dell'ingombro esterno per i giochi.
+        Anta a copertura carcassa (frontale), leggermente più piccola
+        dell'ingombro esterno per evitare collisioni:
 
-        Convenzioni:
-        - height = altezza totale (pavimento → top)
-        - carcassa esterna in Z: [plinth_height, height]
-        - carcassa esterna in X: [0, width]
+        - in X: segue [0, width] con un gioco side_gap per lato
+        - in Z: segue [plinth_height, height] con:
+            - gioco top_gap sopra
+            - gioco bottom_gap sotto
+        - in Y: è davanti al mobile, spessore door_thickness
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
 
-        # Giochi tipici (in mm)
-        side_gap_mm = 1.5   # gioco per lato
-        top_gap_mm = 2.0    # gioco sopra
-        bottom_gap_mm = 0.0 # filo in basso
+        # Giochi in mm
+        side_gap_mm = 1.5   # per lato
+        top_gap_mm = 2.0    # sopra
+        bottom_gap_mm = 0.0 # sotto a filo carcassa
 
-        # Carcassa
-        carcass_base_mm = plinth_height
-        carcass_top_mm = height
-        carcass_height_mm = carcass_top_mm - carcass_base_mm
-        carcass_width_mm = width
+        # Carcassa esterna
+        carcass_x_min_mm = 0.0
+        carcass_x_max_mm = width
+        carcass_z_min_mm = plinth_height
+        carcass_z_max_mm = height
 
         # Dimensioni anta
-        door_width_mm = carcass_width_mm - 2 * side_gap_mm
-        door_height_mm = carcass_height_mm - top_gap_mm - bottom_gap_mm
+        door_width_mm = (carcass_x_max_mm - carcass_x_min_mm) - 2 * side_gap_mm
+        door_height_mm = (carcass_z_max_mm - carcass_z_min_mm) - top_gap_mm - bottom_gap_mm
 
         # Posizione anta
-        x_door_mm = side_gap_mm
-        y_door = depth / MM_TO_CM
-        z_door_mm = carcass_base_mm + bottom_gap_mm
+        x_door_mm = carcass_x_min_mm + side_gap_mm
+        z_door_mm = carcass_z_min_mm + bottom_gap_mm
+        y_door_cm = depth / MM_TO_CM  # fronte mobile
 
         yz_plane = component.yZConstructionPlane
         sketch_door = sketches.add(yz_plane)
 
+        # Rettangolo anta in YZ
         sketch_door.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(y_door, z_door_mm / MM_TO_CM, 0),
+            adsk.core.Point3D.create(y_door_cm, z_door_mm / MM_TO_CM, 0),
             adsk.core.Point3D.create(
-                y_door + door_thickness / MM_TO_CM,
+                y_door_cm + door_thickness / MM_TO_CM,
                 (z_door_mm + door_height_mm) / MM_TO_CM,
                 0,
             ),
         )
 
+        # Estrusione lungo X
         extrude_input_door = extrudes.createInput(
             sketch_door.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
@@ -810,6 +815,7 @@ class CabinetGenerator:
         door_body = extrude_door.bodies.item(0)
         door_body.name = "Anta"
 
+        # Sposta in X alla posizione corretta
         transform_door = adsk.core.Matrix3D.create()
         transform_door.translation = adsk.core.Vector3D.create(x_door_mm / MM_TO_CM, 0, 0)
 
@@ -818,7 +824,7 @@ class CabinetGenerator:
         move_input_door = move_feats.createInput(bodies_door, transform_door)
         move_feats.add(move_input_door)
 
-        # Smusso / raggio su tutti i bordi anta (R=2mm)
+        # Fillet / smusso sui bordi anta (R=2mm)
         try:
             fillet_feats = component.features.filletFeatures
             edge_collection = adsk.core.ObjectCollection.create()
@@ -833,7 +839,7 @@ class CabinetGenerator:
         except:
             pass
 
-        # Placeholder fori tazza cerniera / piastra
+        # Placeholder cerniere
         self._create_hinge_cup_holes(component, door_body, door_height_mm, door_thickness, params)
 
         for body in component.bRepBodies:
