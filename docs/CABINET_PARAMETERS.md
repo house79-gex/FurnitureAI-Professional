@@ -333,10 +333,10 @@ Calculates the depth reduction for shelves and internal components based on back
 ```python
 def _compute_back_inset(self, back_mounting, groove_offset, rabbet_width=12):
     """
-    Helper per calcolare l'arretramento posteriore in base al tipo di montaggio retro.
+    Calculates the back inset based on the back mounting type.
     
     Returns:
-        float: Arretramento in mm
+        float: Inset in mm
     """
     if back_mounting == 'flush_rabbet':
         return rabbet_width  # 12mm default

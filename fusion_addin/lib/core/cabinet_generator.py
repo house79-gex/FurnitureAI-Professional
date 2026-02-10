@@ -254,8 +254,7 @@ class CabinetGenerator:
     
     def _compute_back_inset(self, back_mounting, groove_offset, rabbet_width=12):
         """
-        Helper per calcolare l'arretramento posteriore in base al tipo di montaggio retro.
-        Versione semplificata di _calculate_back_inset per uso in _create_shelves.
+        Calcola l'arretramento posteriore in base al tipo di montaggio retro.
         
         Args:
             back_mounting: Tipo montaggio ('flush_rabbet', 'groove', 'surface')
