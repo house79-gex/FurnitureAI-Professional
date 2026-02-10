@@ -1,6 +1,18 @@
 """
 Test suite for professional cabinet generator features
-Tests door, hinge, back mounting, and shelf parameters
+
+This module tests the professional cabinet generator's advanced features including:
+- Door dimension calculations with overlay and gap parameters
+- Automatic hinge count determination based on door height
+- Hinge position calculations for multiple configurations
+- Back mounting inset calculations (flush_rabbet, groove, surface)
+- Shelf depth calculations with front setback and back inset
+- Parameter validation for Blum Clip-top 110° hinge preset
+- System 32 mounting plate parameter validation
+- Unit conversion from mm to cm
+
+Tests door, hinge, back mounting, and shelf parameters using the defaults
+defined in CabinetGenerator class.
 """
 
 import unittest
@@ -144,7 +156,8 @@ class TestCabinetGeometry(unittest.TestCase):
         
         self.assertEqual(z_start, 100)
         self.assertEqual(z_end, 900)
-        # Note: Side panels span from Z=100 to Z=900, so top is at 900, not 800
+        # Note: Side panels span 800mm in height (effective_height)
+        # but their Z coordinates range from Z=100mm to Z=900mm absolute position
         
         # Bottom panel Z position
         z_bottom = plinth_height  # 100 mm

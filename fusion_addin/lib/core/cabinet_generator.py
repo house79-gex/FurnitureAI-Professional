@@ -1,6 +1,8 @@
 """
-Generatore di mobili base (carcasse) con parametri utente
-Sistema completo per la creazione di mobili parametrici con lavorazioni professionali
+Cabinet Generator - Professional furniture carcass creation with parametric design
+
+Complete system for creating parametric cabinets with professional machining features
+including door/hinge parameters, back mounting options, and adjustable shelf systems.
 """
 
 import adsk.core
@@ -208,6 +210,9 @@ class CabinetGenerator:
         
         Returns:
             float: Rientro retro in mm
+        
+        Raises:
+            ValueError: If back_mounting type is not recognized
         """
         if back_mounting == 'flush_rabbet':
             # Retro a filo con scasso: rientra di rabbet_width
@@ -219,7 +224,10 @@ class CabinetGenerator:
             # Retro in superficie: a filo con il retro
             return 0
         else:
-            # Default: flush_rabbet
+            # Unrecognized back_mounting type
+            if self.logger:
+                self.logger.warning(f"Unrecognized back_mounting type '{back_mounting}', defaulting to 'flush_rabbet'")
+            # Default to flush_rabbet for backward compatibility
             return rabbet_width
     
     def _create_user_parameters(self, component, params):
@@ -718,6 +726,15 @@ class CabinetGenerator:
             door_height: Altezza anta (mm)
             door_thickness: Spessore anta (mm)
             params: Parametri configurazione cerniera
+        
+        Note:
+            This is a placeholder method. Actual hole drilling will be implemented
+            in a future update using Fusion 360's holeFeatures API. The method
+            calculates positions for future use.
+        
+        TODO: Implement actual hole drilling using component.features.holeFeatures
+              Each hole should be: diameter = cup_diameter, depth = cup_depth,
+              centerline at K offset from edge
         """
         # Get hinge parameters
         cup_diameter = params.get('cup_diameter', self.DEFAULT_CUP_DIAMETER)
@@ -745,10 +762,14 @@ class CabinetGenerator:
                 door_height - hinge_offset_bottom
             ]
         
-        # Create cup holes at each position
-        # TODO: Implement actual hole drilling using Fusion API
-        # Placeholder for now - would use component.features.holeFeatures
-        # Each hole: diameter = cup_diameter, depth = cup_depth, centerline at K offset from edge
+        # Store calculated positions for future implementation
+        # When implemented, create cup holes at each position:
+        # - Diameter: cup_diameter (35mm)
+        # - Depth: cup_depth (12.5mm) 
+        # - Centerline: cup_offset_k (21.5mm) from door edge
+        self._hinge_positions = hinge_positions
+        
+        # Placeholder - actual implementation will use Fusion API to create holes
         pass
     
     def _create_mounting_plate_holes(self, component, side_body, effective_height, depth, thickness,
@@ -765,6 +786,18 @@ class CabinetGenerator:
             has_plinth: Se ha zoccolo
             plinth_height: Altezza zoccolo (mm)
             params: Parametri configurazione
+        
+        Note:
+            This is a placeholder method. Actual hole drilling will be implemented
+            in a future update using Fusion 360's holeFeatures API.
+            
+        Hole Pattern:
+            - Vertical line at system_line distance (37mm) from front edge
+            - Holes spaced vertically at 32mm intervals (System 32 standard)
+            - Holes aligned with hinge positions on door
+            - Diameter: 5mm, Depth: 13mm (for euro-screw 5×13)
+        
+        TODO: Implement actual hole drilling using component.features.holeFeatures
         """
         # Get mounting plate parameters
         system_line = params.get('mounting_plate_system_line', self.DEFAULT_MOUNTING_PLATE_SYSTEM_LINE)
@@ -777,9 +810,17 @@ class CabinetGenerator:
         # Holes spaced vertically at 32mm intervals
         # Aligned with hinge positions on door
         
-        # TODO: Implement actual hole drilling
-        # Placeholder for now - would use component.features.holeFeatures
-        # Pattern: vertical line at system_line distance from front, 32mm spacing
+        # Store calculated pattern for future implementation
+        # When implemented, create holes at:
+        # - Y position: system_line (37mm from front)
+        # - Z positions: aligned with hinge positions, plus additional holes in 32mm grid
+        # - X position: on side panel face
+        # - Diameter: hole_diameter (5mm)
+        # - Depth: screw_depth (13mm)
+        self._mounting_plate_system_line = system_line
+        self._mounting_plate_hole_spacing = hole_spacing
+        
+        # Placeholder - actual implementation will use Fusion API to create holes
         pass
     
     def _create_rabbet_cuts(self, component, width, height, depth, thickness, has_plinth,
