@@ -25,7 +25,7 @@ class DoorGenerator:
     # ANTA SINGOLA
     # -------------------------------------------------------------------------
     def create_door(self, params):
-                app = adsk.core.Application.get()
+        app = adsk.core.Application.get()
         ui = app.userInterface
         ui.messageBox(
             f"DEBUG DOOR:\n"
