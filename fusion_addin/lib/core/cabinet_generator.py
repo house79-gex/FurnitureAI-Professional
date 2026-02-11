@@ -18,10 +18,10 @@ class CabinetGenerator:
 
     # Door and hinge defaults (Blum Clip-top 110° with spring)
     DEFAULT_DOOR_GAP = 2.0  # mm
-    DEFAULT_DOOR_OVERLAY_LEFT = 18.0  # mm
-    DEFAULT_DOOR_OVERLAY_RIGHT = 18.0  # mm
-    DEFAULT_DOOR_OVERLAY_TOP = 18.0  # mm
-    DEFAULT_DOOR_OVERLAY_BOTTOM = 18.0  # mm
+    DEFAULT_DOOR_OVERLAY_LEFT = 0.0  # mm
+    DEFAULT_DOOR_OVERLAY_RIGHT = 0.0  # mm
+    DEFAULT_DOOR_OVERLAY_TOP = 0.0 # mm
+    DEFAULT_DOOR_OVERLAY_BOTTOM = 0.0  # mm
     DEFAULT_DOOR_THICKNESS = 18.0  # mm
 
     # Hinge preset: Blum Clip-top 110°
