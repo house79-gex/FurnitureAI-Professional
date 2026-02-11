@@ -702,6 +702,17 @@ class CabinetGenerator:
         y_door_cm = depth / MM_TO_CM
 
         yz_plane = component.yZConstructionPlane
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        ui.messageBox(
+            f"Door debug:\n"
+            f"width={width} height={height} depth={depth}\n"
+            f"plinth_height={plinth_height}\n"
+            f"x_door_mm={x_door_mm}\n"
+            f"z_door_mm={z_door_mm}\n"
+            f"door_width_mm={door_width_mm}\n"
+            f"door_height_mm={door_height_mm}"
+        )
         sketch_door = sketches.add(yz_plane)
 
         sketch_door.sketchCurves.sketchLines.addTwoPointRectangle(
