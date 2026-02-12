@@ -1,6 +1,85 @@
 # FurnitureAI-Professional - Changelog
 
-Chronological record of all significant changes, additions, and fixes to the FurnitureAI-Professional add-in.
+Registro cronologico di tutte le modifiche significative, aggiunte e correzioni all'add-in FurnitureAI-Professional.
+
+---
+
+## [2.2.0] - 2026-02-12
+
+### 🇮🇹 Seconda Fase Refactoring: Localizzazione Italiana e Pulizia Documentazione
+
+**Sommario**: Seconda ondata di refactoring architetturale con focus su localizzazione italiana completa del codice, riorganizzazione documentazione legacy, e verifica matematica della geometria ante.
+
+#### Added
+- **Documentazione Italiana Estensiva**:
+  - `fusion_addin/lib/core/door_generator.py`: Completamente documentato in italiano
+    - Sistema coordinate 3D spiegato in dettaglio (X=larghezza, Y=profondità, Z=altezza)
+    - Logica posizionamento ante con formule matematiche e esempi
+    - Calcolo gap (giochi) per funzionamento cerniere documentato
+    - Geometria ante flat e frame descritta in dettaglio italiano
+    - Preparazione cerniere Blum con specifiche tecniche
+  - `fusion_addin/lib/core/cabinet_generator.py`: Header modulo e metodi chiave in italiano
+    - Responsabilità modulo chiarite (SOLO carcassa, NO ante/cassetti)
+    - Sistema coordinate carcassa documentato
+    - Calcolo inset schienale (flush_rabbet, groove, surface) spiegato
+    - Geometria fianchi (side panels) documentata
+  - Terminologia italiana standardizzata: fianco, cielo, fondo, schienale, zoccolo, anta, cerniera, carcassa
+  
+- **Logging Estensivo con Emoji**:
+  - DoorGenerator: Log dettagliati per ogni anta creata con coordinate, dimensioni, gap
+  - CabinetGenerator: Log parametri principali e altezza carcassa
+  - Emoji per readability: 🚪 ante, 🏗️ cabinet, 📐 dimensioni, 📏 misure, 🔧 parametri, ✅ successo
+  
+- **Riorganizzazione Documentazione**:
+  - `docs/legacy/`: Nuova directory per documentazione storica
+  - `docs/legacy/README.md`: Indice contenuti documentazione legacy in italiano
+  - Spostati 19 file IMPLEMENTATION_*.md, FIX_*.md, FLOW_*.md in docs/legacy/
+  - Root repository ora pulita: solo README.md e LICENSE
+  - docs/ principale contiene solo documentazione attiva
+
+#### Changed
+- **DoorGenerator** (`fusion_addin/lib/core/door_generator.py`):
+  - Docstring metodo `create_door()` esteso con spiegazione completa sistema coordinate
+  - Aggiunto logging dettagliato per ogni fase creazione anta
+  - Commenti inline tradotti in italiano tecnico
+  - Parametri documentati con unità di misura esplicite (mm)
+  - Calcoli posizionamento commentati step-by-step
+  
+- **CabinetGenerator** (`fusion_addin/lib/core/cabinet_generator.py`):
+  - Header modulo aggiornato con responsabilità v2.1+ e deleghe
+  - Metodo `_calculate_back_inset()` documentato con 3 modalità montaggio schienale
+  - Metodo `_mm_to_cm()` documentato con spiegazione conversione Fusion 360
+  - Metodo `_create_side_panels()` documentato con coordinate e costruzione
+  - Warning message tradotto in italiano
+
+#### Verified
+- **Verifica Matematica Geometria Ante**:
+  - Eseguita analisi matematica completa del posizionamento ante
+  - Test case: mobile base 600×720×580mm con plinth 100mm
+  - Carcassa: Z ∈ [100mm, 720mm] (da top zoccolo a top mobile) ✅
+  - Anta: Z ∈ [100mm, 718mm] (con gap 2mm superiore) ✅
+  - Allineamento base: anta @ plinth_height = 100mm ✅
+  - Altezza anta: carcass_height (620mm) - top_gap (2mm) = 618mm ✅
+  - **Conclusione**: Nessun bug rilevato, logica matematicamente corretta
+  
+- **Verifica Flusso Architetturale**:
+  - Wizard → CabinetGenerator (carcassa) ✅
+  - Wizard → DoorDesigner.compute_door_configs() (configurazione ante) ✅
+  - Wizard → DoorGenerator.create_door() (geometria ante) ✅
+  - Nessuna duplicazione logica ante rilevata ✅
+  - Separazione responsabilità confermata ✅
+
+#### Documentation
+- `docs/legacy/README.md`: Creato indice documentazione legacy in italiano
+- `docs/changelog.md`: Aggiornato con questa versione 2.2.0
+- Documentazione codice: 90% commenti tradotti in italiano tecnico
+- Tutti i docstring principali ora in italiano con dettagli tecnici
+
+#### Notes
+- Costanti DEPRECATED in CabinetGenerator mantenute per backward compatibility
+- Saranno rimosse in versione 3.0.0
+- Test manuali con Fusion 360 raccomandati per validazione finale
+- Documentazione legacy mantenuta per riferimento storico
 
 ---
 

@@ -1,41 +1,49 @@
-# FurnitureAI-Professional - Architecture Overview
+# FurnitureAI-Professional - Panoramica Architettura / Architecture Overview
 
-**Version**: 2.0  
-**Last Updated**: 2026-02-12  
-**Status**: Production-ready base features, AI integration in progress
-
----
-
-## Table of Contents
-1. [Overview](#overview)
-2. [High-Level Architecture](#high-level-architecture)
-3. [Core Components](#core-components)
-4. [Cabinet & Door Generation Flow](#cabinet--door-generation-flow)
-5. [Command System](#command-system)
-6. [Data Model](#data-model)
-7. [AI Integration Points](#ai-integration-points)
-8. [Testing Strategy](#testing-strategy)
-9. [Future Roadmap](#future-roadmap)
+**Versione / Version**: 2.2  
+**Ultimo Aggiornamento / Last Updated**: 2026-02-12  
+**Stato / Status**: Funzionalità base production-ready, integrazione IA in progress
 
 ---
 
-## Overview
+## Indice / Table of Contents
+1. [Panoramica / Overview](#panoramica--overview)
+2. [Architettura High-Level / High-Level Architecture](#architettura-high-level--high-level-architecture)
+3. [Componenti Core / Core Components](#componenti-core--core-components)
+4. [Flusso Generazione Cabinet & Ante / Cabinet & Door Generation Flow](#flusso-generazione-cabinet--ante--cabinet--door-generation-flow)
+5. [Sistema Comandi / Command System](#sistema-comandi--command-system)
+6. [Modello Dati / Data Model](#modello-dati--data-model)
+7. [Punti Integrazione IA / AI Integration Points](#punti-integrazione-ia--ai-integration-points)
+8. [Strategia Testing / Testing Strategy](#strategia-testing--testing-strategy)
+9. [Roadmap Futura / Future Roadmap](#roadmap-futura--future-roadmap)
 
-**FurnitureAI-Professional** is a Autodesk Fusion 360 add-in for professional furniture design and manufacturing. It provides parametric cabinet generation, door design with multiple profiles, hardware management, and AI-powered design assistance.
+---
 
-### Key Features
+## Panoramica / Overview
+
+**FurnitureAI-Professional** è un add-in per Autodesk Fusion 360 dedicato alla progettazione e produzione professionale di mobili. Fornisce generazione parametrica di carcasse, design ante con profili multipli, gestione ferramenta, e assistenza progettuale AI-powered.
+
+**FurnitureAI-Professional** is an Autodesk Fusion 360 add-in for professional furniture design and manufacturing. It provides parametric cabinet generation, door design with multiple profiles, hardware management, and AI-powered design assistance.
+
+### Caratteristiche Chiave / Key Features
+- **Generazione Parametrica Cabinet**: Creazione professionale carcasse con pattern foratura System 32, montaggio schienale professionale (flush rabbet, groove, surface), e sistemi ripiani regolabili
 - **Parametric Cabinet Generation**: Professional carcass creation with System 32 drilling patterns, professional back mounting (flush rabbet, groove, surface), and adjustable shelf systems
+- **Sistema Design Ante**: Profili ante multipli (flat, shaker, raised panel, glass, custom), posizionamento automatico cerniere (Blum Clip-top 110°), tipi montaggio configurabili
 - **Door Design System**: Multiple door profiles (flat, shaker, raised panel, glass, custom), automatic hinge placement (Blum Clip-top 110°), configurable mounting types
+- **Generazione Cassetti**: Cassetti standard e a coda di rondine con integrazione guide
 - **Drawer Generation**: Standard and dovetail drawers with slide integration
+- **Gestione Ferramenta**: Libreria completa hardware (cerniere, guide, maniglie, piedini) con suggerimenti automatici
 - **Hardware Management**: Comprehensive hardware library (hinges, slides, handles, feet) with automatic suggestions
+- **Cut List & Export**: Liste materiali automatiche con capacità export CNC
 - **Cut List & Export**: Automatic material lists with CNC export capabilities
+- **Integrazione IA**: Generazione mobili linguaggio naturale (OpenAI, Azure OpenAI, Anthropic, LLM locali via Ollama)
 - **AI Integration**: Natural language furniture generation (OpenAI, Azure OpenAI, Anthropic, local LLMs via Ollama)
 
-### Target Users
-- Cabinet makers and furniture manufacturers
-- Interior designers and architects  
-- CNC shop operators
-- Hobbyist woodworkers with Fusion 360
+### Utenti Target / Target Users
+- Produttori mobili e falegnami professionisti / Cabinet makers and furniture manufacturers
+- Designer interni e architetti / Interior designers and architects  
+- Operatori CNC shop / CNC shop operators
+- Falegnami hobbisti con Fusion 360 / Hobbyist woodworkers with Fusion 360
 
 ---
 
@@ -951,8 +959,48 @@ elif profile_type == 'new_profile':
 - `docs/ai_configuration.md`: AI provider setup and configuration
 - `docs/changelog.md`: Chronological change history
 
+
 ---
 
-**Document Version**: 1.0  
-**Author**: FurnitureAI Development Team  
-**License**: See LICENSE file in repository root
+## Cronologia Versioni / Version History
+
+### v2.2.0 (2026-02-12) - Localizzazione Italiana & Pulizia Documentazione
+**Modifiche / Changes**:
+- 🇮🇹 **Localizzazione italiana completa**: Tutti i commenti, docstring e log nei moduli core tradotti in italiano tecnico
+- 📚 **Riorganizzazione documentazione**: Documentazione legacy spostata in `docs/legacy/`, root repository pulita
+- 🔍 **Logging estensivo**: Aggiunto logging dettagliato con emoji per debugging ante e cabinet
+- ✅ **Verifica matematica**: Confermata correttezza geometrica posizionamento ante (nessun bug rilevato)
+- 📖 **Terminologia standardizzata**: fianco, cielo, fondo, schienale, zoccolo, anta, cerniera, carcassa
+
+**Componenti aggiornati / Updated components**:
+- `fusion_addin/lib/core/door_generator.py`: Documentazione italiana completa + logging estensivo
+- `fusion_addin/lib/core/cabinet_generator.py`: Header e metodi chiave documentati in italiano
+- `docs/changelog.md`: Aggiornato con v2.2.0
+- `docs/legacy/`: 19 file documentazione storica spostati con indice README
+
+### v2.1.0 (2026-02-12) - Unified Cabinet & Door Architecture
+**Changes**:
+- Separated cabinet carcass generation from door generation
+- CabinetGenerator now ONLY creates carcass (sides, top, bottom, back, plinth, shelves)
+- Door generation delegated to DoorDesigner (configuration) + DoorGenerator (geometry)
+- Eliminated duplicate door generation code
+- Added comprehensive architecture documentation
+
+**Components modified**:
+- `fusion_addin/lib/core/cabinet_generator.py`: Removed door methods, deprecated door constants
+- `fusion_addin/lib/doors/door_designer.py`: Added `compute_door_configs()` method
+- `fusion_addin/lib/commands/wizard_command.py`: Refactored door generation flow
+- `docs/architecture_overview.md`: Created comprehensive architecture guide
+- `docs/changelog.md`: Created changelog
+
+### v2.0.0 and earlier
+See `docs/legacy/` for historical implementation notes.
+
+---
+
+**Documento vivente - Aggiornato continuamente / Living document - Updated continuously**  
+Ultima revisione / Last revision: 2026-02-12 (v2.2)
+
+**Versione Documento / Document Version**: 2.0  
+**Autore / Author**: FurnitureAI Development Team  
+**Licenza / License**: Apache 2.0 (see LICENSE file in repository root)
