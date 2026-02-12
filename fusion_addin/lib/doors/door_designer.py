@@ -242,9 +242,12 @@ class DoorDesigner:
         door_configs = []
         
         for i, door_spec in enumerate(door_options_list):
+            # Estrai larghezza una volta per riuso
+            door_width = door_spec.get('larghezza', door_spec.get('width', 400))
+            
             # Usa valori espliciti o default
             config = {
-                'width': door_spec.get('larghezza', door_spec.get('width', 400)),
+                'width': door_width,
                 'height': door_spec.get('altezza', door_spec.get('height', carcass_height)),
                 'thickness': door_spec.get('spessore', door_spec.get('thickness', 18)),
                 'door_type': door_spec.get('door_type', 'flat'),
@@ -252,7 +255,7 @@ class DoorDesigner:
                 'parent_component': parent_component,
                 'cabinet_depth': cabinet_depth,
                 'cabinet_plinth_height': plinth_height,
-                'x_offset': door_spec.get('x_offset', i * door_spec.get('larghezza', 400)),
+                'x_offset': door_spec.get('x_offset', i * door_width),
                 'mounting_type': door_spec.get('tipo_montaggio', 
                                                door_spec.get('mounting_type', 'copertura_totale'))
             }
