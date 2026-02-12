@@ -1,11 +1,41 @@
 """
-Cabinet Generator - Professional furniture carcass creation with parametric design
+Cabinet Generator - Generatore professionale di carcasse mobili parametriche
 
-Complete system for creating parametric cabinets with professional machining features
-including back mounting options and adjustable shelf systems.
+Sistema completo per la creazione di carcasse mobili (scocca/struttura) con caratteristiche
+professionali di falegnameria, incluse opzioni di montaggio schienale e sistemi di foratura.
 
-NOTE: As of version 2.1.0, door generation is handled separately by DoorGenerator and
-DoorDesigner. This module is responsible ONLY for carcass (structural box) generation.
+RESPONSABILITÀ (versione 2.1+):
+- Creazione carcassa mobile (fianchi, top, fondo, schienale, zoccolo, ripiani, divisori)
+- Sistema coordinate: X=larghezza, Y=profondità, Z=altezza (origine=pavimento retro sinistro)
+- Montaggio professionale schienale: flush_rabbet, groove, surface
+- Sistema ripiani regolabili con forature System 32 (opzionale)
+- Parametri utente nel componente per personalizzazione post-generazione
+
+NON RESPONSABILE DI (delegato ad altri moduli):
+- ❌ Generazione ante (vedi DoorGenerator + DoorDesigner)
+- ❌ Generazione cassetti (vedi DrawerGenerator)
+- ❌ Configurazione cerniere ante (vedi DoorGenerator.add_hinge_preparation)
+- ❌ Logica business ante multiple (vedi DoorDesigner.compute_door_configs)
+
+COORDINATE SYSTEM:
+- Origine: (0, 0, 0) = pavimento, retro, fianco sinistro
+- X: Larghezza (0 = fianco sinistro, width = fianco destro)
+- Y: Profondità (0 = retro/schienale, depth = fronte)
+- Z: Altezza (0 = pavimento, height = top mobile)
+- Unità Fusion 360: cm (conversione automatica da mm input)
+
+STRUTTURA CARCASSA:
+- Zoccolo (plinth): da Z=0 a Z=plinth_height
+- Fianchi (sides): da Z=plinth_height a Z=height (altezza = carcass_height)
+- Fondo (bottom): a Z=plinth_height
+- Cielo (top): a Z=height-thickness
+- Schienale (back): secondo tipo montaggio (flush_rabbet/groove/surface)
+- Ripiani (shelves): spaziati uniformemente in altezza carcassa
+
+MODIFICHE ARCHITETTURALI v2.1.0:
+- Rimosso: _create_door_panel(), _create_hinge_cup_holes(), _create_mounting_plate_holes()
+- Costanti ante/cerniere marcate DEPRECATED (saranno rimosse in v3.0)
+- Responsabilità ante trasferita a DoorDesigner + DoorGenerator
 """
 
 import adsk.core
@@ -239,6 +269,36 @@ class CabinetGenerator:
     # SUPPORTO PARAMETRI E UNITÀ
     # -------------------------------------------------------------------------
     def _calculate_back_inset(self, back_mounting, thickness, back_thickness, rabbet_width, groove_offset):
+        """
+        Calcola l'arretramento (inset) dello schienale dalla faccia posteriore dei fianchi.
+        
+        Questo valore determina quanto lo schienale "entra" nella profondità del mobile,
+        e influenza la profondità effettiva dei ripiani.
+        
+        Tipi di montaggio schienale:
+        
+        1. flush_rabbet (battuta a filo):
+           - Schienale incassato in una fresatura (battuta) sui fianchi
+           - Inset = rabbet_width (es. 12mm)
+        
+        2. groove (canale):
+           - Schienale inserito in un canale fresato nei fianchi
+           - Inset = groove_offset (es. 10mm)
+        
+        3. surface (superficiale):
+           - Schienale avvitato sulla superficie posteriore
+           - Inset = 0mm
+        
+        Args:
+            back_mounting: Tipo montaggio ('flush_rabbet' | 'groove' | 'surface')
+            thickness: Spessore fianchi (mm)
+            back_thickness: Spessore schienale (mm)
+            rabbet_width: Larghezza battuta (mm, default 12)
+            groove_offset: Offset canale (mm, default 10)
+        
+        Returns:
+            int: Inset schienale in mm
+        """
         if back_mounting == "flush_rabbet":
             return rabbet_width
         elif back_mounting == "groove":
@@ -248,11 +308,24 @@ class CabinetGenerator:
         else:
             if self.logger:
                 self.logger.warning(
-                    f"Unrecognized back_mounting type '{back_mounting}', defaulting to 'flush_rabbet'"
+                    f"Tipo back_mounting non riconosciuto '{back_mounting}', uso 'flush_rabbet' di default"
                 )
             return rabbet_width
 
     def _mm_to_cm(self, value_mm):
+        """
+        Converte millimetri in centimetri per Fusion 360.
+        
+        Fusion 360 usa centimetri internamente. Tutti i parametri utente
+        sono in mm (standard falegnameria), quindi convertiamo prima di 
+        usarli nelle API Fusion.
+        
+        Args:
+            value_mm: Valore in millimetri
+        
+        Returns:
+            float: Valore in centimetri (value_mm / 10.0)
+        """
         return value_mm / MM_TO_CM
 
     def _create_user_parameters(self, component, params):
@@ -314,22 +387,50 @@ class CabinetGenerator:
                 pass
 
     # -------------------------------------------------------------------------
-    # GEOMETRIA SCATOLA
+    # GEOMETRIA SCATOLA (BOX CARCASS)
     # -------------------------------------------------------------------------
     def _create_side_panels(self, component, width, height, depth, thickness, has_plinth, plinth_height):
+        """
+        Crea i pannelli laterali (fianchi sinistro e destro) della carcassa.
+        
+        I fianchi sono i pannelli verticali che definiscono la larghezza del mobile.
+        Supportano tutto il peso della struttura (top, ripiani, contenuto).
+        
+        COORDINATE E DIMENSIONI:
+        - Piano YZ (depth × carcass_height)
+        - Estrusione lungo X per spessore (thickness)
+        - Fianco sinistro: a X = 0
+        - Fianco destro: a X = width - thickness
+        - Altezza: da Z = plinth_height a Z = height
+        
+        COSTRUZIONE:
+        1. Sketch rettangolare su piano YZ
+        2. Estrusione lungo X per thickness
+        3. Posizionamento fianco destro via trasformazione
+        
+        Args:
+            component: Componente cabinet
+            width: Larghezza mobile (mm)
+            height: Altezza totale mobile da pavimento (mm)
+            depth: Profondità mobile (mm)
+            thickness: Spessore pannelli (mm, tipicamente 18)
+            has_plinth: True se mobile ha zoccolo
+            plinth_height: Altezza zoccolo (mm), ignorato se has_plinth=False
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
 
         yz_plane = component.yZConstructionPlane
 
+        # Calcola altezza e base carcassa
         carcass_height = height - plinth_height  # mm
-        z_start = plinth_height / MM_TO_CM  # cm
+        z_start = plinth_height / MM_TO_CM  # cm (base carcassa = top zoccolo)
 
-        # Fianco sinistro
+        # --- FIANCO SINISTRO ---
         sketch_left = sketches.add(yz_plane)
         sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, z_start, 0),
+            adsk.core.Point3D.create(0, z_start, 0),  # Y=0 (retro), Z=plinth_height
             adsk.core.Point3D.create(depth / MM_TO_CM, z_start + carcass_height / MM_TO_CM, 0),
         )
 
@@ -341,13 +442,14 @@ class CabinetGenerator:
         extrude_left = extrudes.add(extrude_input_left)
         extrude_left.bodies.item(0).name = "Fianco_Sinistro"
 
-        # Fianco destro
+        # --- FIANCO DESTRO ---
         sketch_right = sketches.add(yz_plane)
         sketch_right.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, z_start, 0),
             adsk.core.Point3D.create(depth / MM_TO_CM, z_start + carcass_height / MM_TO_CM, 0),
         )
 
+        # Trasformazione per posizionare a X = width - thickness
         transform_right = adsk.core.Matrix3D.create()
         transform_right.translation = adsk.core.Vector3D.create((width - thickness) / MM_TO_CM, 0, 0)
 
@@ -357,6 +459,7 @@ class CabinetGenerator:
         extrude_input_right.setDistanceExtent(False, distance)
         extrude_right = extrudes.add(extrude_input_right)
 
+        # Sposta fianco destro nella posizione corretta
         bodies_right = adsk.core.ObjectCollection.create()
         bodies_right.add(extrude_right.bodies.item(0))
         move_input_right = move_feats.createInput(bodies_right, transform_right)
