@@ -722,22 +722,6 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
                 'dowel_diameter': 8,  # mm
                 'dowel_edge_distance': 35,  # mm
                 'dowel_spacing': 64,  # mm (multiple of 32mm)
-                
-                # Professional door and hinge parameters (Blum Clip-top 110°)
-                'door_gap': 2,  # mm
-                'door_overlay_left': 18,  # mm
-                'door_overlay_right': 18,  # mm
-                'door_overlay_top': 18,  # mm
-                'door_overlay_bottom': 18,  # mm
-                'door_thickness': 18,  # mm
-                'hinge_cup_diameter': 35,  # mm (Blum Clip-top)
-                'hinge_cup_depth': 12.5,  # mm
-                'hinge_k': 21.5,  # mm (K dimension - cup center offset from edge)
-                'hinge_offset_top': 100,  # mm
-                'hinge_offset_bottom': 100,  # mm
-                'mounting_plate_system_line': 37,  # mm (System 32)
-                'mounting_plate_hole_spacing': 32,  # mm (System 32)
-                'mounting_plate_hole_diameter': 5,  # mm
             }
             
             cabinet_generator = CabinetGenerator(design)
@@ -745,29 +729,58 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             
             self.logger.info(f"✅ Cabinet component created: {cabinet_comp.name}")
             
-            # 2. Generate doors if configured
+            # 2. Build cabinet_info dict for door/drawer generators
+            plinth_height_actual = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
+            carcass_height = dimensioni['altezza'] - plinth_height_actual
+            
+            cabinet_info = {
+                'component': cabinet_comp,
+                'width': dimensioni['larghezza'],
+                'total_height': dimensioni['altezza'],
+                'carcass_height': carcass_height,
+                'plinth_height': plinth_height_actual,
+                'depth': dimensioni['profondita'],
+                'thickness': furniture.elementi['fianchi']['spessore'],
+                'type': tipo_id
+            }
+            
+            self.logger.info(f"📋 Cabinet info: width={cabinet_info['width']}, "
+                           f"carcass_height={cabinet_info['carcass_height']}, "
+                           f"plinth_height={cabinet_info['plinth_height']}")
+            
+            # 3. Generate doors using DoorDesigner + DoorGenerator
             ante = furniture.elementi.get('ante', [])
             if len(ante) > 0:
-                door_generator = DoorGenerator(design)
-                plinth_height_for_doors = cabinet_params.get('plinth_height', 0) if cabinet_params.get('has_plinth', False) else 0
+                from ..doors.door_designer import DoorDesigner
                 
-                for i, anta in enumerate(ante):
-                    door_params = {
-                        'width': anta.get('larghezza', dimensioni['larghezza'] / len(ante)),
-                        'height': anta.get('altezza', dimensioni['altezza'] - plinth_height_for_doors),
-                        'thickness': anta.get('spessore', 18),
+                door_designer = DoorDesigner(design)
+                door_generator = DoorGenerator(design)
+                
+                # Build door options for DoorDesigner
+                # If ante list has explicit configurations, use those; otherwise aggregate
+                if ante and isinstance(ante[0], dict) and 'larghezza' in ante[0]:
+                    # Explicit door configurations from furniture model
+                    door_configs = door_designer.compute_door_configs(cabinet_info, ante)
+                else:
+                    # Aggregate options (simple n_doors case)
+                    door_options = {
+                        'n_doors': len(ante),
                         'door_type': 'flat',
-                        'position': 'left' if i == 0 else 'right',
-                        'parent_component': cabinet_comp,
-                        'cabinet_depth': dimensioni['profondita'],
-                        'cabinet_plinth_height': plinth_height_for_doors,
-                        'x_offset': i * (dimensioni['larghezza'] / len(ante)),
-                        'mounting_type': anta.get('tipo_montaggio', 'copertura_totale')
+                        'thickness': ante[0].get('spessore', 18) if ante else 18,
+                        'mounting_type': ante[0].get('tipo_montaggio', 'copertura_totale') if ante else 'copertura_totale',
+                        'side_gap': 1.5,
+                        'center_gap': 3.0,
+                        'top_gap': 2.0,
+                        'bottom_gap': 0.0
                     }
-                    door_comp = door_generator.create_door(door_params)
+                    door_configs = door_designer.compute_door_configs(cabinet_info, door_options)
+                
+                # Generate each door
+                for i, door_config in enumerate(door_configs):
+                    door_comp = door_generator.create_door(door_config)
                     self.logger.info(f"✅ Door {i+1} created: {door_comp.name}")
             
-            # 3. Generate drawers if configured
+            # 4. Generate drawers if configured
             cassetti = furniture.elementi.get('cassetti', [])
             if len(cassetti) > 0:
                 drawer_generator = DrawerGenerator(design)
