@@ -25,16 +25,6 @@ class DoorGenerator:
     # ANTA SINGOLA
     # -------------------------------------------------------------------------
     def create_door(self, params):
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox(
-            f"DEBUG DOOR:\n"
-            f"width={params.get('width')}\n"
-            f"height={params.get('height')}\n"
-            f"cabinet_depth={params.get('cabinet_depth')}\n"
-            f"plinth={params.get('cabinet_plinth_height')}\n"
-            f"x_offset={params.get('x_offset')}"
-        )
         """
         Crea un'anta singola.
 

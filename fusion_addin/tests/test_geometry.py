@@ -38,20 +38,30 @@ class TestDoorGenerator(unittest.TestCase):
     
     def test_hinge_count(self):
         """Test calcolo numero cerniere"""
-        # Anta bassa: 2 cerniere
+        # Anta bassa: 2 cerniere (≤900mm)
         self.assertEqual(self._calculate_hinge_count(700), 2)
+        self.assertEqual(self._calculate_hinge_count(900), 2)
         
-        # Anta alta: 3 cerniere
+        # Anta media: 3 cerniere (900-1500mm)
+        self.assertEqual(self._calculate_hinge_count(1200), 3)
         self.assertEqual(self._calculate_hinge_count(1500), 3)
+        
+        # Anta alta: 4 cerniere (>1500mm)
+        self.assertEqual(self._calculate_hinge_count(1800), 4)
     
     def _calculate_hinge_count(self, height):
-        """Helper calcolo cerniere"""
-        if height > 1500:
+        """
+        Helper calcolo cerniere (matches original CabinetGenerator logic).
+        Note: This logic was removed from CabinetGenerator in architecture refactor.
+        Should be in DoorGenerator if needed for hinge placement.
+        """
+        # Thresholds: 900mm and 1500mm
+        if height <= 900:
+            return 2
+        elif height <= 1500:
             return 3
-        elif height > 1000:
-            return 2
         else:
-            return 2
+            return 4
 
 class TestDrawerGenerator(unittest.TestCase):
     """Test generatore cassetti"""

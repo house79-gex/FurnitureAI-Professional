@@ -2,12 +2,16 @@
 Cabinet Generator - Professional furniture carcass creation with parametric design
 
 Complete system for creating parametric cabinets with professional machining features
-including door/hinge parameters, back mounting options, and adjustable shelf systems.
+including back mounting options and adjustable shelf systems.
+
+NOTE: As of version 2.1.0, door generation is handled separately by DoorGenerator and
+DoorDesigner. This module is responsible ONLY for carcass (structural box) generation.
 """
 
 import adsk.core
 import adsk.fusion
 import math
+from ..logging_utils import setup_logger
 
 # Unit conversion constant: Fusion 360 uses cm internally
 MM_TO_CM = 10.0
@@ -16,45 +20,56 @@ MM_TO_CM = 10.0
 class CabinetGenerator:
     """Generatore parametrico di mobili con sistema di foratura e lavorazioni professionali"""
 
-    # Door and hinge defaults (Blum Clip-top 110° with spring)
-    DEFAULT_DOOR_GAP = 2.0  # mm
-    DEFAULT_DOOR_OVERLAY_LEFT = 18.0  # mm
-    DEFAULT_DOOR_OVERLAY_RIGHT = 18.0  # mm
-    DEFAULT_DOOR_OVERLAY_TOP = 18.0 # mm
-    DEFAULT_DOOR_OVERLAY_BOTTOM = 18.0  # mm
-    DEFAULT_DOOR_THICKNESS = 18.0  # mm
+    # =========================================================================
+    # DEPRECATED: Door and hinge defaults
+    # These constants are kept for backwards compatibility but are no longer
+    # used by CabinetGenerator. Use DoorGenerator and DoorDesigner instead.
+    # Will be removed in version 3.0.0
+    # =========================================================================
+    DEFAULT_DOOR_GAP = 2.0  # mm - DEPRECATED
+    DEFAULT_DOOR_OVERLAY_LEFT = 18.0  # mm - DEPRECATED
+    DEFAULT_DOOR_OVERLAY_RIGHT = 18.0  # mm - DEPRECATED
+    DEFAULT_DOOR_OVERLAY_TOP = 18.0 # mm - DEPRECATED
+    DEFAULT_DOOR_OVERLAY_BOTTOM = 18.0  # mm - DEPRECATED
+    DEFAULT_DOOR_THICKNESS = 18.0  # mm - DEPRECATED
 
-    # Hinge preset: Blum Clip-top 110°
-    DEFAULT_HINGE_TYPE = "clip_top_110"
-    DEFAULT_CUP_DIAMETER = 35.0  # mm
-    DEFAULT_CUP_DEPTH = 12.5  # mm
-    DEFAULT_CUP_CENTER_OFFSET_FROM_EDGE = 21.5  # mm (K dimension)
-    DEFAULT_HINGE_OFFSET_TOP = 100.0  # mm from top edge to center
-    DEFAULT_HINGE_OFFSET_BOTTOM = 100.0  # mm from bottom edge to center
-    DEFAULT_MOUNTING_PLATE_SYSTEM_LINE = 37.0  # mm (System 32 standard)
-    DEFAULT_MOUNTING_PLATE_HOLE_SPACING = 32.0  # mm (vertical interaxis)
-    DEFAULT_MOUNTING_PLATE_HOLE_DIAMETER = 5.0  # mm
-    DEFAULT_SCREW_DEPTH = 13.0  # mm for euro-screw 5×13
+    # Hinge preset: Blum Clip-top 110° - DEPRECATED
+    DEFAULT_HINGE_TYPE = "clip_top_110"  # DEPRECATED
+    DEFAULT_CUP_DIAMETER = 35.0  # mm - DEPRECATED
+    DEFAULT_CUP_DEPTH = 12.5  # mm - DEPRECATED
+    DEFAULT_CUP_CENTER_OFFSET_FROM_EDGE = 21.5  # mm (K dimension) - DEPRECATED
+    DEFAULT_HINGE_OFFSET_TOP = 100.0  # mm from top edge to center - DEPRECATED
+    DEFAULT_HINGE_OFFSET_BOTTOM = 100.0  # mm from bottom edge to center - DEPRECATED
+    DEFAULT_MOUNTING_PLATE_SYSTEM_LINE = 37.0  # mm (System 32 standard) - DEPRECATED
+    DEFAULT_MOUNTING_PLATE_HOLE_SPACING = 32.0  # mm (vertical interaxis) - DEPRECATED
+    DEFAULT_MOUNTING_PLATE_HOLE_DIAMETER = 5.0  # mm - DEPRECATED
+    DEFAULT_SCREW_DEPTH = 13.0  # mm for euro-screw 5×13 - DEPRECATED
 
-    # Auto hinge count thresholds
-    DEFAULT_HINGE_THRESHOLD_2 = 900.0  # mm - 2 hinges for height ≤ 900
-    DEFAULT_HINGE_THRESHOLD_3 = 1500.0  # mm - 3 hinges for 900-1500
-    # 4+ hinges for > 1500 mm
+    # Auto hinge count thresholds - DEPRECATED
+    DEFAULT_HINGE_THRESHOLD_2 = 900.0  # mm - 2 hinges for height ≤ 900 - DEPRECATED
+    DEFAULT_HINGE_THRESHOLD_3 = 1500.0  # mm - 3 hinges for 900-1500 - DEPRECATED
+    # 4+ hinges for > 1500 mm - DEPRECATED
 
-    # Back mounting defaults
+    # =========================================================================
+    # ACTIVE: Back mounting defaults
+    # =========================================================================
     DEFAULT_BACK_MOUNTING = "flush_rabbet"  # or "groove" or "surface"
     DEFAULT_RABBET_WIDTH = 12.0  # mm
     DEFAULT_GROOVE_WIDTH_TOLERANCE = 0.5  # mm (added to back_thickness)
     DEFAULT_GROOVE_OFFSET_FROM_REAR = 10.0  # mm
 
-    # Shelves defaults
+    # =========================================================================
+    # ACTIVE: Shelves defaults
+    # =========================================================================
     DEFAULT_SHELF_FRONT_SETBACK = 3.0  # mm
     DEFAULT_SHELF_BORE_ENABLED = False
     DEFAULT_SHELF_BORE_DIAMETER = 5.0  # mm
     DEFAULT_SHELF_BORE_FRONT_DISTANCE = 37.0  # mm
     DEFAULT_SHELF_BORE_PATTERN = 32.0  # mm
 
-    # Dowel/Joinery defaults
+    # =========================================================================
+    # ACTIVE: Dowel/Joinery defaults
+    # =========================================================================
     DEFAULT_DOWELS_ENABLED = False
     DEFAULT_DOWEL_DIAMETER = 8.0  # mm
     DEFAULT_DOWEL_EDGE_DISTANCE = 35.0  # mm
@@ -69,7 +84,7 @@ class CabinetGenerator:
         """
         self.design = design
         self.root_comp = design.rootComponent
-        self.logger = None
+        self.logger = setup_logger('CabinetGenerator')
 
     # -------------------------------------------------------------------------
     # ENTRY POINT
@@ -77,14 +92,41 @@ class CabinetGenerator:
     def create_cabinet(self, params):
         """
         Crea un mobile completo con parametri utente (tutti in mm).
+        
+        RESPONSABILITÀ: Genera SOLO la carcassa del mobile (sides, top, bottom, back,
+        plinth, shelves, dividers). NON genera ante o cassetti.
+        
+        Per aggiungere ante, usa DoorDesigner.compute_door_configs() + DoorGenerator.
+        Per aggiungere cassetti, usa DrawerGenerator.
 
         NOTA: height = altezza TOTALE da pavimento a top.
+        
+        Args:
+            params: dict con parametri cabinet (tutti in mm):
+                - width: larghezza (default 800)
+                - height: altezza totale da pavimento (default 720)
+                - depth: profondità (default 580)
+                - material_thickness: spessore pannelli (default 18)
+                - has_back: presenza schienale (default True)
+                - back_thickness: spessore schienale (default 3)
+                - back_mounting: tipo montaggio schienale (default 'flush_rabbet')
+                - has_plinth: presenza zoccolo (default True)
+                - plinth_height: altezza zoccolo (default 100)
+                - shelves_count: numero ripiani (default 0)
+                - divisions_count: numero divisori verticali (default 0)
+                - shelf_front_setback: arretramento ripiani dal fronte (default 3)
+                - dowels_enabled: abilita spinatura (default False)
+        
+        Returns:
+            adsk.fusion.Component: Componente cabinet creato
         """
+        # Parametri base cabinet
         width = params.get("width", 800)
         height = params.get("height", 720)
         depth = params.get("depth", 580)
         thickness = params.get("material_thickness", 18)
 
+        # Schienale
         has_back = params.get("has_back", True)
         back_thickness = params.get("back_thickness", 3)
         back_mounting = params.get("back_mounting", self.DEFAULT_BACK_MOUNTING)
@@ -94,21 +136,15 @@ class CabinetGenerator:
         groove_depth = params.get("groove_depth", back_thickness)
         groove_offset = params.get("groove_offset_from_rear", self.DEFAULT_GROOVE_OFFSET_FROM_REAR)
 
+        # Zoccolo
         has_plinth = params.get("has_plinth", True)
         plinth_height = params.get("plinth_height", 100)
 
+        # Ripiani e divisori
         shelves_count = params.get("shelves_count", 0)
         shelf_front_setback = params.get("shelf_front_setback", self.DEFAULT_SHELF_FRONT_SETBACK)
         shelf_bore_enabled = params.get("shelf_bore_enabled", self.DEFAULT_SHELF_BORE_ENABLED)
         divisions_count = params.get("divisions_count", 0)
-
-        has_door = params.get("has_door", False)
-        door_gap = params.get("door_gap", self.DEFAULT_DOOR_GAP)
-        door_overlay_left = params.get("door_overlay_left", self.DEFAULT_DOOR_OVERLAY_LEFT)
-        door_overlay_right = params.get("door_overlay_right", self.DEFAULT_DOOR_OVERLAY_RIGHT)
-        door_overlay_top = params.get("door_overlay_top", self.DEFAULT_DOOR_OVERLAY_TOP)
-        door_overlay_bottom = params.get("door_overlay_bottom", self.DEFAULT_DOOR_OVERLAY_BOTTOM)
-        door_thickness = params.get("door_thickness", self.DEFAULT_DOOR_THICKNESS)
 
         # Parametri spinatura/foratura (placeholder, non usati ora)
         dowels_enabled = params.get("dowels_enabled", False)
@@ -117,6 +153,18 @@ class CabinetGenerator:
         dowel_spacing = params.get("dowel_spacing", 32)
 
         self._params = params
+        
+        # Log parametri principali
+        self.logger.info("═" * 60)
+        self.logger.info("🏗️ CabinetGenerator.create_cabinet() chiamato")
+        self.logger.info(f"📐 Dimensioni: {width}x{height}x{depth} mm")
+        self.logger.info(f"📦 Spessore: {thickness}mm, Schienale: {back_thickness}mm")
+        self.logger.info(f"🔧 Zoccolo: {plinth_height}mm" if has_plinth else "🔧 Senza zoccolo")
+        self.logger.info(f"📚 Ripiani: {shelves_count}, Divisori: {divisions_count}")
+        self.logger.info(f"🔨 Back mounting: {back_mounting}")
+        carcass_height = height - plinth_height if has_plinth else height
+        self.logger.info(f"📏 Altezza carcassa (sopra zoccolo): {carcass_height}mm")
+        self.logger.info("─" * 60)
 
         occurrence = self.root_comp.occurrences.addNewComponent(adsk.core.Matrix3D.create())
         cabinet_comp = occurrence.component
@@ -182,24 +230,9 @@ class CabinetGenerator:
                 cabinet_comp, width, height, depth, thickness, divisions_count, has_plinth, plinth_height
             )
 
-        if has_door:
-            self._create_door_panel(
-                cabinet_comp,
-                width,
-                height,
-                depth,
-                thickness,
-                has_plinth,
-                plinth_height,
-                door_gap,
-                door_overlay_left,
-                door_overlay_right,
-                door_overlay_top,
-                door_overlay_bottom,
-                door_thickness,
-                params,
-            )
-
+        self.logger.info(f"✅ Cabinet carcass creato: {cabinet_comp.name}")
+        self.logger.info("═" * 60)
+        
         return cabinet_comp
 
     # -------------------------------------------------------------------------
@@ -656,164 +689,24 @@ class CabinetGenerator:
             move_input_div = move_feats.createInput(bodies_div, transform_div)
             move_feats.add(move_input_div)
 
-    # -------------------------------------------------------------------------
-    # ANTA E FERRAMENTA
-    # -------------------------------------------------------------------------
-    def _create_door_panel(
-        self,
-        component,
-        width,
-        height,
-        depth,
-        thickness,
-        has_plinth,
-        plinth_height,
-        door_gap,
-        door_overlay_left,
-        door_overlay_right,
-        door_overlay_top,
-        door_overlay_bottom,
-        door_thickness,
-        params,
-    ):
-        """
-        Anta a copertura carcassa, leggermente più piccola per i giochi:
-        - X: [0,width] con gioco laterale
-        - Z: [plinth_height,height] con gioco sopra e filo sotto
-        """
-        sketches = component.sketches
-        extrudes = component.features.extrudeFeatures
-        move_feats = component.features.moveFeatures
+    # =========================================================================
+    # NOTE: Door generation methods have been REMOVED in version 2.1.0
+    # 
+    # Previously, CabinetGenerator had methods like:
+    #   - _create_door_panel()
+    #   - _create_hinge_cup_holes()
+    #   - _create_mounting_plate_holes()
+    #   - _calculate_hinge_count()
+    #
+    # These have been moved to DoorGenerator and DoorDesigner for proper
+    # separation of concerns.
+    #
+    # To add doors to a cabinet:
+    #   1. Create cabinet: cabinet_comp = CabinetGenerator.create_cabinet(params)
+    #   2. Build cabinet_info dict with dimensions
+    #   3. Use DoorDesigner.compute_door_configs(cabinet_info, door_options)
+    #   4. Use DoorGenerator.create_door(config) for each door config
+    #
+    # See docs/architecture_overview.md for complete flow documentation.
+    # =========================================================================
 
-        side_gap_mm = 1.5
-        top_gap_mm = 2.0
-        bottom_gap_mm = 0.0
-
-        carcass_x_min_mm = 0.0
-        carcass_x_max_mm = width
-        carcass_z_min_mm = plinth_height
-        carcass_z_max_mm = height
-
-        door_width_mm = (carcass_x_max_mm - carcass_x_min_mm) - 2 * side_gap_mm
-        door_height_mm = (carcass_z_max_mm - carcass_z_min_mm) - top_gap_mm - bottom_gap_mm
-
-        x_door_mm = carcass_x_min_mm + side_gap_mm
-        z_door_mm = carcass_z_min_mm + bottom_gap_mm
-        y_door_cm = depth / MM_TO_CM
-
-        yz_plane = component.yZConstructionPlane
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox(
-            f"Door debug:\n"
-            f"width={width} height={height} depth={depth}\n"
-            f"plinth_height={plinth_height}\n"
-            f"x_door_mm={x_door_mm}\n"
-            f"z_door_mm={z_door_mm}\n"
-            f"door_width_mm={door_width_mm}\n"
-            f"door_height_mm={door_height_mm}"
-        )
-        sketch_door = sketches.add(yz_plane)
-
-        sketch_door.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(y_door_cm, z_door_mm / MM_TO_CM, 0),
-            adsk.core.Point3D.create(
-                y_door_cm + door_thickness / MM_TO_CM,
-                (z_door_mm + door_height_mm) / MM_TO_CM,
-                0,
-            ),
-        )
-
-        extrude_input_door = extrudes.createInput(
-            sketch_door.profiles.item(0),
-            adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
-        )
-        distance = adsk.core.ValueInput.createByReal(door_width_mm / MM_TO_CM)
-        extrude_input_door.setDistanceExtent(False, distance)
-        extrude_door = extrudes.add(extrude_input_door)
-        door_body = extrude_door.bodies.item(0)
-        door_body.name = "Anta"
-
-        transform_door = adsk.core.Matrix3D.create()
-        transform_door.translation = adsk.core.Vector3D.create(x_door_mm / MM_TO_CM, 0, 0)
-
-        bodies_door = adsk.core.ObjectCollection.create()
-        bodies_door.add(door_body)
-        move_input_door = move_feats.createInput(bodies_door, transform_door)
-        move_feats.add(move_input_door)
-
-        try:
-            fillet_feats = component.features.filletFeatures
-            edge_collection = adsk.core.ObjectCollection.create()
-            for edge in door_body.edges:
-                edge_collection.add(edge)
-            if edge_collection.count > 0:
-                fillet_input = fillet_feats.createInput()
-                radius_val = adsk.core.ValueInput.createByReal(2.0 / MM_TO_CM)
-                fillet_input.addConstantRadiusEdgeSet(edge_collection, radius_val, True)
-                fillet_feats.add(fillet_input)
-        except:
-            pass
-
-        self._create_hinge_cup_holes(component, door_body, door_height_mm, door_thickness, params)
-
-        for body in component.bRepBodies:
-            if body.name == "Fianco_Sinistro":
-                effective_height = height - plinth_height if has_plinth else height
-                self._create_mounting_plate_holes(
-                    component,
-                    body,
-                    effective_height,
-                    depth,
-                    thickness,
-                    has_plinth,
-                    plinth_height,
-                    params,
-                )
-                break
-
-    def _calculate_hinge_count(self, door_height):
-        if door_height <= self.DEFAULT_HINGE_THRESHOLD_2:
-            return 2
-        elif door_height <= self.DEFAULT_HINGE_THRESHOLD_3:
-            return 3
-        else:
-            return 4
-
-    def _create_hinge_cup_holes(self, component, door_body, door_height, door_thickness, params):
-        cup_diameter = params.get("cup_diameter", self.DEFAULT_CUP_DIAMETER)
-        cup_depth = params.get("cup_depth", self.DEFAULT_CUP_DEPTH)
-        cup_offset_k = params.get("cup_center_offset_from_edge", self.DEFAULT_CUP_CENTER_OFFSET_FROM_EDGE)
-        hinge_offset_top = params.get("hinge_offset_top", self.DEFAULT_HINGE_OFFSET_TOP)
-        hinge_offset_bottom = params.get("hinge_offset_bottom", self.DEFAULT_HINGE_OFFSET_BOTTOM)
-
-        hinge_count = self._calculate_hinge_count(door_height)
-
-        if hinge_count == 2:
-            hinge_positions = [hinge_offset_top, door_height - hinge_offset_bottom]
-        elif hinge_count == 3:
-            middle = door_height / 2.0
-            hinge_positions = [hinge_offset_top, middle, door_height - hinge_offset_bottom]
-        else:
-            spacing = (door_height - hinge_offset_top - hinge_offset_bottom) / 3.0
-            hinge_positions = [
-                hinge_offset_top,
-                hinge_offset_top + spacing,
-                hinge_offset_top + 2 * spacing,
-                door_height - hinge_offset_bottom,
-            ]
-
-        self._hinge_positions = hinge_positions
-        pass
-
-    def _create_mounting_plate_holes(
-        self, component, side_body, effective_height, depth, thickness, has_plinth, plinth_height, params
-    ):
-        system_line = params.get("mounting_plate_system_line", self.DEFAULT_MOUNTING_PLATE_SYSTEM_LINE)
-        hole_spacing = params.get("mounting_plate_hole_spacing", self.DEFAULT_MOUNTING_PLATE_HOLE_SPACING)
-        hole_diameter = params.get("mounting_plate_hole_diameter", self.DEFAULT_MOUNTING_PLATE_HOLE_DIAMETER)
-        screw_depth = params.get("screw_depth", self.DEFAULT_SCREW_DEPTH)
-
-        self._mounting_plate_system_line = system_line
-        self._mounting_plate_hole_spacing = hole_spacing
-        pass
