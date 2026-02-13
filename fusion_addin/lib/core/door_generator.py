@@ -196,15 +196,15 @@ class DoorGenerator:
             # - base anta alla base carcassa: Y_min_anta = Y_min_carcassa
             # - faccia posteriore anta sul fronte carcassa: Z_max_anta = Z_max_carcassa
 
-            desired_door_y_min = cab_bbox.minPoint.y         # base carcassa (include zoccolo)
-            desired_door_z_max = cab_bbox.maxPoint.z         # fronte carcassa (tipicamente 0)
+            desired_door_y_min = cab_bbox.minPoint.y   # base carcassa (include zoccolo)
+            desired_door_z_min = cab_bbox.maxPoint.z   # fronte carcassa (tipicamente 0)
 
             current_door_y_min = door_bbox.minPoint.y
-            current_door_z_max = door_bbox.maxPoint.z
+            current_door_z_min = door_bbox.minPoint.z
 
             delta_y = desired_door_y_min - current_door_y_min
-            delta_z = desired_door_z_max - current_door_z_max
-
+            delta_z = desired_door_z_min - current_door_z_min
+            
             self.logger.info(
                 f"   Riallineamento via bbox: delta_y={delta_y:.2f}cm, delta_z={delta_z:.2f}cm"
             )
