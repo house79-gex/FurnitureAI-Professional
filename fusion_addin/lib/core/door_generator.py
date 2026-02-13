@@ -90,6 +90,16 @@ class DoorGenerator:
         cabinet_plinth_height = params.get("cabinet_plinth_height", 0)
         x_offset_mm = params.get("x_offset", 0)
         mounting_type = params.get("mounting_type", "copertura_totale")
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        ui.messageBox(
+            f"DEBUG DOOR:\n"
+            f"width={nominal_width_mm}\n"
+            f"height={carcass_height_mm}\n"
+            f"depth={cabinet_depth}\n"
+            f"plinth={cabinet_plinth_height}\n"
+            f"x_offset={x_offset_mm}"
+        )
 
         self.logger.info("=" * 70)
         self.logger.info(f"🚪 Creazione anta singola: {position}")
