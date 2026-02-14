@@ -554,12 +554,12 @@ class CabinetGenerator:
         # Sketch di base: rettangolo in XZ, lo estrudiamo in Y
         sketch = sketches.add(xy_plane)
         lines = sketch.sketchCurves.sketchLines
-
         p1 = adsk.core.Point3D.create(0, 0, 0)
         p2 = adsk.core.Point3D.create(width / MM_TO_CM, 0, 0)
-        p3 = adsk.core.Point3D.create(width / MM_TO_CM, (thickness * 2) / MM_TO_CM, 0)
-        p4 = adsk.core.Point3D.create(0, (thickness * 2) / MM_TO_CM, 0)
-
+        # uso la profondità del mobile per lo zoccolo (o una frazione se vuoi uno zoccolo più stretto)
+        p3 = adsk.core.Point3D.create(width / MM_TO_CM, depth / MM_TO_CM, 0)
+        p4 = adsk.core.Point3D.create(0, depth / MM_TO_CM, 0)
+       
         lines.addByTwoPoints(p1, p2)
         lines.addByTwoPoints(p2, p3)
         lines.addByTwoPoints(p3, p4)
