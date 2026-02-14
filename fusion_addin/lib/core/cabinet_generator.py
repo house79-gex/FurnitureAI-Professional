@@ -551,6 +551,20 @@ class CabinetGenerator:
         extrude_input_plinth.setDistanceExtent(False, distance)
         extrude_plinth = extrudes.add(extrude_input_plinth)
         extrude_plinth.bodies.item(0).name = "Zoccolo"
+                # DEBUG: bounding box zoccolo
+        try:
+            plinth_body = extrude_plinth.bodies.item(0)
+            bbox = plinth_body.boundingBox
+            app = adsk.core.Application.get()
+            ui = app.userInterface
+            ui.messageBox(
+                f"DEBUG ZOCCOLO BBOX:\n"
+                f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
+                f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
+                f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
+            )
+        except:
+            pass
 
     def _create_shelves(
         self,
