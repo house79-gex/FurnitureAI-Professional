@@ -6,7 +6,7 @@ professionali di falegnameria, incluse opzioni di montaggio schienale e sistemi 
 
 RESPONSABILITÀ (versione 2.1+):
 - Creazione carcassa mobile (fianchi, top, fondo, schienale, zoccolo, ripiani, divisori)
-- Sistema coordinate: X=larghezza, Y=profondità, Z=altezza (origine=pavimento retro sinistro)
+- Sistema coordinate: X=larghezza, Y=altezza, Z=profondità (allineato con Fusion 360)
 - Montaggio professionale schienale: flush_rabbet, groove, surface
 - Sistema ripiani regolabili con forature System 32 (opzionale)
 - Parametri utente nel componente per personalizzazione post-generazione
@@ -17,20 +17,20 @@ NON RESPONSABILE DI (delegato ad altri moduli):
 - ❌ Configurazione cerniere ante (vedi DoorGenerator.add_hinge_preparation)
 - ❌ Logica business ante multiple (vedi DoorDesigner.compute_door_configs)
 
-COORDINATE SYSTEM:
-- Origine: (0, 0, 0) = pavimento, retro, fianco sinistro
-- X: Larghezza (0 = fianco sinistro, width = fianco destro)
-- Y: Profondità (0 = retro/schienale, depth = fronte)
-- Z: Altezza (0 = pavimento, height = top mobile)
+COORDINATE SYSTEM (allineato con Fusion 360):
+- Origine: (0, 0, 0) = angolo inferiore sinistro posteriore del mobile
+- X: Larghezza (0 = fianco sinistro, width = fianco destro)  
+- Y: Altezza (0 = pavimento, height = top mobile)
+- Z: Profondità (0 = retro/schienale, depth = fronte)
 - Unità Fusion 360: cm (conversione automatica da mm input)
 
-STRUTTURA CARCASSA:
-- Zoccolo (plinth): da Z=0 a Z=plinth_height
-- Fianchi (sides): da Z=plinth_height a Z=height (altezza = carcass_height)
-- Fondo (bottom): a Z=plinth_height
-- Cielo (top): a Z=height-thickness
-- Schienale (back): secondo tipo montaggio (flush_rabbet/groove/surface)
-- Ripiani (shelves): spaziati uniformemente in altezza carcassa
+STRUTTURA CARCASSA (coordinate Y=altezza, Z=profondità):
+- Zoccolo (plinth): da Y=0 a Y=plinth_height, Z da retro a fronte
+- Fianchi (sides): da Y=plinth_height a Y=height (altezza = carcass_height)
+- Fondo (bottom): a Y=plinth_height
+- Cielo (top): a Y=height-thickness
+- Schienale (back): secondo tipo montaggio, a Z=0 (retro) + offset
+- Ripiani (shelves): spaziati uniformemente in altezza carcassa (Y)
 
 MODIFICHE ARCHITETTURALI v2.1.0:
 - Rimosso: _create_door_panel(), _create_hinge_cup_holes(), _create_mounting_plate_holes()
@@ -328,6 +328,17 @@ class CabinetGenerator:
     def _create_side_panels(self, component, width, height, depth, thickness, has_plinth, plinth_height):
         """
         Crea i pannelli laterali (fianchi sinistro e destro) della carcassa.
+        
+        Sistema coordinate:
+        - Sketch su yZConstructionPlane (piano X=0)
+        - Primo parametro sketch → Y mondo (altezza: plinth_height → height)
+        - Secondo parametro sketch → Z mondo (profondità: 0 → depth)
+        - Estrusione in direzione +X per spessore fianco
+        
+        Risultato bbox fianco sinistro:
+        - X: 0 → thickness
+        - Y: plinth_height → height  
+        - Z: 0 → depth
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -337,13 +348,16 @@ class CabinetGenerator:
 
         # Calcola altezza e base carcassa
         carcass_height = height - plinth_height  # mm
-        z_start = plinth_height / MM_TO_CM      # cm (base carcassa)
+        y_start = plinth_height / MM_TO_CM      # cm (base carcassa in Y, non Z!)
 
         # --- FIANCO SINISTRO ---
+        # Sketch su YZ plane: (Y, Z) in world coords
+        # Y = altezza (da plinth_height a height)
+        # Z = profondità (da 0/retro a depth/fronte)
         sketch_left = sketches.add(yz_plane)
         sketch_left.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, z_start, 0),
-            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + carcass_height / MM_TO_CM, 0),
+            adsk.core.Point3D.create(y_start, 0, 0),  # (Y=plinth_height, Z=0/retro)
+            adsk.core.Point3D.create(y_start + carcass_height / MM_TO_CM, depth / MM_TO_CM, 0),  # (Y=height, Z=depth/fronte)
         )
 
         extrude_input_left = extrudes.createInput(
@@ -371,8 +385,8 @@ class CabinetGenerator:
         # --- FIANCO DESTRO ---
         sketch_right = sketches.add(yz_plane)
         sketch_right.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, z_start, 0),
-            adsk.core.Point3D.create(depth / MM_TO_CM, z_start + carcass_height / MM_TO_CM, 0),
+            adsk.core.Point3D.create(y_start, 0, 0),  # (Y=plinth_height, Z=0/retro)
+            adsk.core.Point3D.create(y_start + carcass_height / MM_TO_CM, depth / MM_TO_CM, 0),  # (Y=height, Z=depth/fronte)
         )
 
         transform_right = adsk.core.Matrix3D.create()
@@ -405,6 +419,15 @@ class CabinetGenerator:
     ):
         """
         Fondo e cielo con stessa profondità dei fianchi.
+        
+        Sistema coordinate:
+        - Sketch su yZConstructionPlane (piano X=0)
+        - Primo parametro → Y mondo (altezza)
+        - Secondo parametro → Z mondo (profondità)
+        - Estrusione in +X per larghezza interna pannello
+        
+        Fondo: Y = plinth_height, Z = 0 → depth
+        Cielo: Y = height - thickness, Z = 0 → depth
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -419,21 +442,24 @@ class CabinetGenerator:
 
         depth_cm = depth / MM_TO_CM
 
-        Z_bottom_mm = plinth_height
-        Z_bottom = Z_bottom_mm / MM_TO_CM
+        # Fondo: posizionato a Y = plinth_height (altezza)
+        Y_bottom_mm = plinth_height
+        Y_bottom = Y_bottom_mm / MM_TO_CM
 
+        # Cielo: posizionato a Y = height - thickness (altezza)
         if carcass_height is not None:
-            Z_top_mm = plinth_height + carcass_height - thickness
-            Z_top = Z_top_mm / MM_TO_CM
+            Y_top_mm = plinth_height + carcass_height - thickness
+            Y_top = Y_top_mm / MM_TO_CM
         else:
-            Z_top_mm = None
-            Z_top = None
+            Y_top_mm = None
+            Y_top = None
 
-        # Fondo
+        # Fondo: sketch su YZ plane
+        # (Y=plinth_height, Z=0) → (Y=plinth_height+thickness, Z=depth)
         sketch_bottom = sketches.add(yz_plane)
         sketch_bottom.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(0, Z_bottom, 0),
-            adsk.core.Point3D.create(depth_cm, (Z_bottom_mm + thickness) / MM_TO_CM, 0),
+            adsk.core.Point3D.create(Y_bottom, 0, 0),  # (Y=plinth_height, Z=0/retro)
+            adsk.core.Point3D.create((Y_bottom_mm + thickness) / MM_TO_CM, depth_cm, 0),  # (Y=plinth+thick, Z=depth/fronte)
         )
         extrude_input_bottom = extrudes.createInput(
             sketch_bottom.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -450,12 +476,13 @@ class CabinetGenerator:
         move_input_bottom = move_feats.createInput(col_bottom, transform_bottom)
         move_feats.add(move_input_bottom)
 
-        # Cielo
-        if Z_top is not None:
+        # Cielo: sketch su YZ plane
+        # (Y=top_position, Z=0) → (Y=top_position+thickness, Z=depth)
+        if Y_top is not None:
             sketch_top = sketches.add(yz_plane)
             sketch_top.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(0, Z_top, 0),
-                adsk.core.Point3D.create(depth_cm, (Z_top_mm + thickness) / MM_TO_CM, 0),
+                adsk.core.Point3D.create(Y_top, 0, 0),  # (Y=height-thickness, Z=0/retro)
+                adsk.core.Point3D.create((Y_top_mm + thickness) / MM_TO_CM, depth_cm, 0),  # (Y=height, Z=depth/fronte)
             )
             extrude_input_top = extrudes.createInput(
                 sketch_top.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -491,6 +518,14 @@ class CabinetGenerator:
     ):
         """
         Schienale interno appoggiato su fondo e sotto il cielo.
+        
+        Sistema coordinate:
+        - Sketch su yZConstructionPlane (piano X=0)
+        - Primo parametro → Y mondo (altezza)
+        - Secondo parametro → Z mondo (profondità)
+        - Estrusione in +X per larghezza interna pannello
+        
+        Schienale: Y da (plinth+thickness) a (height-thickness), Z al retro (0 + offset)
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -503,23 +538,26 @@ class CabinetGenerator:
         panel_width_mm = width - 2 * thickness
         panel_height_mm = carcass_height - 2 * thickness
 
-        z_base_mm = plinth_height + thickness
-        z_base = z_base_mm / MM_TO_CM
-        z_top = (z_base_mm + panel_height_mm) / MM_TO_CM
+        # Schienale in altezza (Y): sopra fondo, sotto cielo
+        y_base_mm = plinth_height + thickness
+        y_base = y_base_mm / MM_TO_CM
+        y_top = (y_base_mm + panel_height_mm) / MM_TO_CM
 
+        # Schienale in profondità (Z): arretrato dal retro (Z=0) secondo tipo montaggio
         if back_mounting == "flush_rabbet":
-            y_position = (depth - rabbet_width) / MM_TO_CM
+            z_position = rabbet_width / MM_TO_CM  # arretrato dal retro
         elif back_mounting == "groove":
-            y_position = (depth - groove_offset) / MM_TO_CM
+            z_position = groove_offset / MM_TO_CM  # arretrato dal retro
         elif back_mounting == "surface":
-            y_position = (depth - back_thickness) / MM_TO_CM
+            z_position = 0  # al retro (Z=0)
         else:
-            y_position = (depth - rabbet_width) / MM_TO_CM
+            z_position = rabbet_width / MM_TO_CM  # default
 
+        # Sketch: (Y=plinth+thickness, Z=position) → (Y=height-thickness, Z=position+back_thickness)
         sketch = sketches.add(yz_plane)
         sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-            adsk.core.Point3D.create(y_position, z_base, 0),
-            adsk.core.Point3D.create(y_position + back_thickness / MM_TO_CM, z_top, 0),
+            adsk.core.Point3D.create(y_base, z_position, 0),  # (Y=base, Z=retro+offset)
+            adsk.core.Point3D.create(y_top, z_position + back_thickness / MM_TO_CM, 0),  # (Y=top, Z=retro+offset+thickness)
         )
 
         extrude_input_back = extrudes.createInput(
@@ -539,33 +577,50 @@ class CabinetGenerator:
         move_feats.add(move_input_back)
     def _create_plinth(self, component, width, depth, thickness, plinth_height):
         """
-        Crea lo zoccolo sotto la carcassa e lo riallinea via bounding box.
+        Crea lo zoccolo sotto la carcassa.
 
-        Sistema assi reale del cabinet:
-        - Y = altezza (fianco: 10 → 72 cm)
-        - Z = profondità (fianco: -58 → 0 cm, fronte a 0)
+        Sistema coordinate (CORRETTO per allineamento con Fusion 360):
+        - Origine: angolo inferiore sinistro posteriore
+        - X = larghezza (0 → width)
+        - Y = altezza (0 = pavimento → plinth_height)
+        - Z = profondità (0 = retro → depth)
+        
+        Metodo:
+        - Sketch su xZConstructionPlane (piano Y=0, pavimento)
+        - Disegna rettangolo X × Z (larghezza × profondità)
+        - Estrude in direzione +Y per plinth_height (verso l'alto)
+        
+        Risultato bbox zoccolo:
+        - X: 0 → width
+        - Y: 0 → plinth_height  
+        - Z: 0 → depth
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
-        move_feats = component.features.moveFeatures
 
-        xy_plane = component.xYConstructionPlane
+        # Piano XZ (Y=0, pavimento)
+        xz_plane = component.xZConstructionPlane
 
-        # Sketch di base: rettangolo in XZ, lo estrudiamo in Y
-        sketch = sketches.add(xy_plane)
+        # Sketch: rettangolo su piano XZ (larghezza × profondità)
+        sketch = sketches.add(xz_plane)
         lines = sketch.sketchCurves.sketchLines
-        p1 = adsk.core.Point3D.create(0, 0, 0)
-        p2 = adsk.core.Point3D.create(width / MM_TO_CM, 0, 0)
-        # uso la profondità del mobile per lo zoccolo (o una frazione se vuoi uno zoccolo più stretto)
-        p3 = adsk.core.Point3D.create(width / MM_TO_CM, depth / MM_TO_CM, 0)
-        p4 = adsk.core.Point3D.create(0, depth / MM_TO_CM, 0)
+        
+        # Converti dimensioni in cm per Fusion 360
+        width_cm = width / MM_TO_CM
+        depth_cm = depth / MM_TO_CM
+        
+        # Disegna rettangolo: (X=0, Z=0) → (X=width, Z=depth)
+        p1 = adsk.core.Point3D.create(0, 0, 0)           # Origine: retro sinistro
+        p2 = adsk.core.Point3D.create(width_cm, 0, 0)   # Retro destro
+        p3 = adsk.core.Point3D.create(width_cm, depth_cm, 0)  # Fronte destro
+        p4 = adsk.core.Point3D.create(0, depth_cm, 0)   # Fronte sinistro
        
         lines.addByTwoPoints(p1, p2)
         lines.addByTwoPoints(p2, p3)
         lines.addByTwoPoints(p3, p4)
         lines.addByTwoPoints(p4, p1)
 
-        # Estrusione lungo Y per altezza zoccolo
+        # Estrusione in direzione +Y (verso l'alto) per altezza zoccolo
         extrude_input_plinth = extrudes.createInput(
             sketch.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
@@ -574,66 +629,18 @@ class CabinetGenerator:
         extrude_plinth = extrudes.add(extrude_input_plinth)
         plinth_body = extrude_plinth.bodies.item(0)
         plinth_body.name = "Zoccolo"
-
-        # DEBUG opzionale
+        
+        # Log bbox per verifica
         try:
             bbox = plinth_body.boundingBox
-            app = adsk.core.Application.get()
-            ui = app.userInterface
-            ui.messageBox(
-                f"DEBUG ZOCCOLO BBOX (prima riallineamento):\n"
-                f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
-                f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
-                f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
+            self.logger.info(
+                f"   Zoccolo creato - bbox: "
+                f"X=[{bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}] "
+                f"Y=[{bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}] "
+                f"Z=[{bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}] cm"
             )
-        except:
-            pass
-
-        # --- RIALLINEAMENTO ZOCCOLO ---
-        # Obiettivo:
-        # - base zoccolo a Y=0
-        # - top zoccolo a Y=plinth_height/10
-        # - allineato in Z al retro carcassa (Z_min carcassa),
-        #   o lasciato al fronte a tua scelta.
-
-        try:
-            # 1) bounding box zoccolo
-            pl_bbox = plinth_body.boundingBox
-
-            # 2) bounding box carcassa (primo body del componente)
-            if component.bRepBodies.count > 0:
-                cab_body = component.bRepBodies.item(0)
-                cab_bbox = cab_body.boundingBox
-            else:
-                cab_body = None
-                cab_bbox = None
-
-            # Vogliamo:
-            # - plinth Y_min = 0 (pavimento)
-            desired_plinth_y_min = 0.0
-            current_plinth_y_min = pl_bbox.minPoint.y
-            delta_y = desired_plinth_y_min - current_plinth_y_min
-
-            # In Z ci sono due opzioni: sotto la carcassa (retro) o centrato.
-            # Per semplicità, lo mettiamo da retro a retro: Z_min_zoccolo = Z_min_carcassa
-            if cab_bbox:
-                desired_plinth_z_min = cab_bbox.minPoint.z   # retro carcassa (-58)
-                current_plinth_z_min = pl_bbox.minPoint.z
-                delta_z = desired_plinth_z_min - current_plinth_z_min
-            else:
-                delta_z = 0.0
-
-            transform_plinth = adsk.core.Matrix3D.create()
-            transform_plinth.translation = adsk.core.Vector3D.create(0, delta_y, delta_z)
-
-            bodies_plinth = adsk.core.ObjectCollection.create()
-            bodies_plinth.add(plinth_body)
-            move_input_plinth = move_feats.createInput(bodies_plinth, transform_plinth)
-            move_feats.add(move_input_plinth)
-
-        except:
-            # se il riallineamento fallisce, lo zoccolo resta dove sta
-            pass
+        except Exception as e:
+            self.logger.warning(f"   Impossibile ottenere bbox zoccolo: {e}")
     
     def _create_shelves(
         self,
@@ -649,6 +656,18 @@ class CabinetGenerator:
         back_inset,
         back_mounting,
     ):
+        """
+        Crea ripiani interni regolabili.
+        
+        Sistema coordinate:
+        - Sketch su yZConstructionPlane (piano X=0)
+        - Primo parametro → Y mondo (altezza)
+        - Secondo parametro → Z mondo (profondità)
+        - Estrusione in +X per larghezza interna
+        
+        Ripiani: distribuiti uniformemente in Y (altezza) tra fondo e cielo,
+                 con profondità ridotta per back_inset e shelf_front_setback
+        """
         if count <= 0:
             return
 
@@ -663,23 +682,31 @@ class CabinetGenerator:
 
         carcass_height = height - plinth_height  # mm
 
+        # Profondità effettiva ripiano (Z): da (back_inset + front_setback) a (depth - front_setback)
         shelf_depth_eff_mm = depth - back_inset - shelf_front_setback
+        
+        # Altezza utile (Y): tra fondo e cielo
         usable_height_mm = carcass_height - 2 * thickness
         if usable_height_mm <= 0:
             return
 
+        # Spaziatura uniforme in Y
         spacing_mm = usable_height_mm / (count + 1)
 
         for i in range(count):
-            Z_pos_mm = plinth_height + thickness + spacing_mm * (i + 1)
-            Z_pos = Z_pos_mm / MM_TO_CM
+            # Posizione in Y (altezza)
+            Y_pos_mm = plinth_height + thickness + spacing_mm * (i + 1)
+            Y_pos = Y_pos_mm / MM_TO_CM
+            
+            # Profondità in Z: da back_inset a (depth - front_setback)
+            Z_start = back_inset / MM_TO_CM
+            Z_end = (depth - shelf_front_setback) / MM_TO_CM
 
+            # Sketch su YZ plane: (Y=pos, Z=start) → (Y=pos+thickness, Z=end)
             sketch = sketches.add(yz_plane)
             sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(shelf_front_setback / MM_TO_CM, Z_pos, 0),
-                adsk.core.Point3D.create(
-                    (shelf_front_setback + shelf_depth_eff_mm) / MM_TO_CM, (Z_pos_mm + thickness) / MM_TO_CM, 0
-                ),
+                adsk.core.Point3D.create(Y_pos, Z_start, 0),  # (Y=pos, Z=retro+inset)
+                adsk.core.Point3D.create((Y_pos_mm + thickness) / MM_TO_CM, Z_end, 0),  # (Y=pos+thick, Z=fronte-setback)
             )
 
             extrude_input_shelf = extrudes.createInput(
@@ -747,6 +774,18 @@ class CabinetGenerator:
         pass
 
     def _create_divisions(self, component, width, height, depth, thickness, count, has_plinth, plinth_height):
+        """
+        Crea divisori verticali interni.
+        
+        Sistema coordinate:
+        - Sketch su yZConstructionPlane (piano X=0)
+        - Primo parametro → Y mondo (altezza)
+        - Secondo parametro → Z mondo (profondità)
+        - Estrusione in +X per spessore divisorio
+        
+        Divisori: distribuiti uniformemente in X (larghezza),
+                  con altezza da (plinth+thickness) a (height-thickness)
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
@@ -759,15 +798,17 @@ class CabinetGenerator:
         effective_height = height - plinth_height if has_plinth else height
         panel_height = effective_height - 2 * thickness
 
-        z_offset = (plinth_height + thickness) / MM_TO_CM if has_plinth else thickness / MM_TO_CM
+        # Posizione in Y (altezza): da (plinth + thickness) a (plinth + thickness + panel_height)
+        y_offset = (plinth_height + thickness) / MM_TO_CM if has_plinth else thickness / MM_TO_CM
 
         for i in range(count):
             x_position = thickness + spacing * (i + 1)
 
+            # Sketch su YZ plane: (Y=offset, Z=0) → (Y=offset+height, Z=depth)
             sketch = sketches.add(yz_plane)
             sketch.sketchCurves.sketchLines.addTwoPointRectangle(
-                adsk.core.Point3D.create(0, z_offset, 0),
-                adsk.core.Point3D.create(depth / MM_TO_CM, z_offset + panel_height / MM_TO_CM, 0),
+                adsk.core.Point3D.create(y_offset, 0, 0),  # (Y=base, Z=retro)
+                adsk.core.Point3D.create(y_offset + panel_height / MM_TO_CM, depth / MM_TO_CM, 0),  # (Y=top, Z=fronte)
             )
 
             extrude_input_div = extrudes.createInput(
