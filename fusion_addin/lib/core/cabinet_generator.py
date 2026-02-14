@@ -537,13 +537,21 @@ class CabinetGenerator:
         bodies_back.add(back_body)
         move_input_back = move_feats.createInput(bodies_back, transform_back)
         move_feats.add(move_input_back)
-
     def _create_plinth(self, component, width, depth, thickness, plinth_height):
+        """
+        Crea lo zoccolo sotto la carcassa e lo riallinea via bounding box.
+
+        Sistema assi reale del cabinet:
+        - Y = altezza (fianco: 10 → 72 cm)
+        - Z = profondità (fianco: -58 → 0 cm, fronte a 0)
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
+        move_feats = component.features.moveFeatures
 
         xy_plane = component.xYConstructionPlane
 
+        # Sketch di base: rettangolo in XZ, lo estrudiamo in Y
         sketch = sketches.add(xy_plane)
         lines = sketch.sketchCurves.sketchLines
 
@@ -557,21 +565,23 @@ class CabinetGenerator:
         lines.addByTwoPoints(p3, p4)
         lines.addByTwoPoints(p4, p1)
 
+        # Estrusione lungo Y per altezza zoccolo
         extrude_input_plinth = extrudes.createInput(
             sketch.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
         distance = adsk.core.ValueInput.createByReal(plinth_height / MM_TO_CM)
         extrude_input_plinth.setDistanceExtent(False, distance)
         extrude_plinth = extrudes.add(extrude_input_plinth)
-        extrude_plinth.bodies.item(0).name = "Zoccolo"
-                # DEBUG: bounding box zoccolo
+        plinth_body = extrude_plinth.bodies.item(0)
+        plinth_body.name = "Zoccolo"
+
+        # DEBUG opzionale
         try:
-            plinth_body = extrude_plinth.bodies.item(0)
             bbox = plinth_body.boundingBox
             app = adsk.core.Application.get()
             ui = app.userInterface
             ui.messageBox(
-                f"DEBUG ZOCCOLO BBOX:\n"
+                f"DEBUG ZOCCOLO BBOX (prima riallineamento):\n"
                 f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
                 f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
                 f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
@@ -579,6 +589,52 @@ class CabinetGenerator:
         except:
             pass
 
+        # --- RIALLINEAMENTO ZOCCOLO ---
+        # Obiettivo:
+        # - base zoccolo a Y=0
+        # - top zoccolo a Y=plinth_height/10
+        # - allineato in Z al retro carcassa (Z_min carcassa),
+        #   o lasciato al fronte a tua scelta.
+
+        try:
+            # 1) bounding box zoccolo
+            pl_bbox = plinth_body.boundingBox
+
+            # 2) bounding box carcassa (primo body del componente)
+            if component.bRepBodies.count > 0:
+                cab_body = component.bRepBodies.item(0)
+                cab_bbox = cab_body.boundingBox
+            else:
+                cab_body = None
+                cab_bbox = None
+
+            # Vogliamo:
+            # - plinth Y_min = 0 (pavimento)
+            desired_plinth_y_min = 0.0
+            current_plinth_y_min = pl_bbox.minPoint.y
+            delta_y = desired_plinth_y_min - current_plinth_y_min
+
+            # In Z ci sono due opzioni: sotto la carcassa (retro) o centrato.
+            # Per semplicità, lo mettiamo da retro a retro: Z_min_zoccolo = Z_min_carcassa
+            if cab_bbox:
+                desired_plinth_z_min = cab_bbox.minPoint.z   # retro carcassa (-58)
+                current_plinth_z_min = pl_bbox.minPoint.z
+                delta_z = desired_plinth_z_min - current_plinth_z_min
+            else:
+                delta_z = 0.0
+
+            transform_plinth = adsk.core.Matrix3D.create()
+            transform_plinth.translation = adsk.core.Vector3D.create(0, delta_y, delta_z)
+
+            bodies_plinth = adsk.core.ObjectCollection.create()
+            bodies_plinth.add(plinth_body)
+            move_input_plinth = move_feats.createInput(bodies_plinth, transform_plinth)
+            move_feats.add(move_input_plinth)
+
+        except:
+            # se il riallineamento fallisce, lo zoccolo resta dove sta
+            pass
+    
     def _create_shelves(
         self,
         component,
