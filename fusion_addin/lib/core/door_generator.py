@@ -91,22 +91,6 @@ class DoorGenerator:
         x_offset_mm = params.get("x_offset", 0)
         mounting_type = params.get("mounting_type", "copertura_totale")
 
-        # DEBUG POPUP PARAMETRI INPUT
-        try:
-            app = adsk.core.Application.get()
-            ui = app.userInterface
-            ui.messageBox(
-                f"DEBUG DOOR:\n"
-                f"width={nominal_width_mm}\n"
-                f"height={carcass_height_mm}\n"
-                f"depth={cabinet_depth}\n"
-                f"plinth={cabinet_plinth_height}\n"
-                f"x_offset={x_offset_mm}"
-            )
-        except:
-            # Se il popup fallisce (es. in test headless), proseguiamo comunque
-            pass
-
         self.logger.info("=" * 70)
         self.logger.info(f"🚪 Creazione anta singola: {position}")
         self.logger.info(f"   Larghezza nominale: {nominal_width_mm}mm")
@@ -193,21 +177,7 @@ class DoorGenerator:
         elif door_type == "frame":
             self._create_frame_door(door_comp, door_width_mm, door_height_mm, thickness)
             self.logger.info("   Geometria: anta a telaio (frame)")
-
-                # DEBUG: bounding box anta (popup)
-        try:
-            if door_comp.bRepBodies.count > 0:
-                bbox = door_comp.bRepBodies.item(0).boundingBox
-                app = adsk.core.Application.get()
-                ui = app.userInterface
-                ui.messageBox(
-                    f"DEBUG ANTA BBOX:\n"
-                    f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
-                    f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
-                    f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
-                )
-        except:
-            pass
+        
         self.logger.info(f"✅ Anta {position} completata")
         self.logger.info("=" * 70)
 
