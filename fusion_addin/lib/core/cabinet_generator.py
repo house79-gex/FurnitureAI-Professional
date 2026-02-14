@@ -354,6 +354,19 @@ class CabinetGenerator:
         extrude_left = extrudes.add(extrude_input_left)
         left_body = extrude_left.bodies.item(0)
         left_body.name = "Fianco_Sinistro"
+       
+        try:
+            bbox = left_body.boundingBox
+            app = adsk.core.Application.get()
+            ui = app.userInterface
+            ui.messageBox(
+                f"DEBUG FIANCO SINISTRO BBOX:\n"
+                f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
+                f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
+                f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
+            )
+        except:
+            pass
 
         # --- FIANCO DESTRO ---
         sketch_right = sketches.add(yz_plane)
