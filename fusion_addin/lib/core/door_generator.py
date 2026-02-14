@@ -7,6 +7,12 @@ RESPONSABILITÀ:
 - Posiziona ante nello spazio 3D relativo alla carcassa
 - Applica giochi (gap) standard per funzionamento cerniere
 - Gestisce montaggio copertura totale, filo, semicopertura
+- Gestisce trasformazione coordinate door→cabinet
+
+SISTEMA COORDINATE:
+- Cabinet (world): X=larghezza, Y=profondità, Z=altezza
+- Door (local): Creata su piano XY (X=larghezza, Y=altezza, Z=spessore)
+- Trasformazione: Rotazione 90° attorno X per allineare Y_door→Z_cabinet
 
 NON RESPONSABILE DI:
 - Calcolo numero ante (vedi DoorDesigner)
@@ -48,20 +54,35 @@ class DoorGenerator:
         """
         Crea un'anta singola con geometria e posizionamento.
         
-        IMPORTANTE - Sistema di coordinate:
+        IMPORTANTE - Sistema di coordinate CABINET (world):
         - X: Larghezza mobile (sinistra → destra, origine = fianco sinistro)
         - Y: Profondità mobile (retro → fronte, origine = retro mobile)
         - Z: Altezza mobile (pavimento → top, origine = pavimento)
+        
+        IMPORTANTE - Sistema di coordinate DOOR (local, prima della rotazione):
+        - X: Larghezza anta (0 → width)
+        - Y: Altezza anta (0 → height)
+        - Z: Spessore anta (0 → thickness)
+        
+        IMPORTANTE - Trasformazione coordinate:
+        La geometria dell'anta viene creata su piano XY e poi ruotata di 90° 
+        attorno all'asse X per allineare:
+        - X_door → X_cabinet (larghezza)
+        - Y_door → Z_cabinet (altezza)
+        - Z_door → -Y_cabinet (spessore, sviluppa verso fronte)
         
         IMPORTANTE - Carcassa (cabinet carcass):
         - Base carcassa in Z = plinth_height (top dello zoccolo)
         - Top carcassa in Z = total_height (top mobile)
         - Altezza carcassa = total_height - plinth_height
+        - Fronte carcassa in Y = depth (fronte mobile)
         
-        IMPORTANTE - Posizionamento anta:
+        IMPORTANTE - Posizionamento anta (dopo rotazione):
         - Base anta in Z = plinth_height (allineata a base carcassa)
         - Altezza anta = carcass_height - top_gap (gioco superiore 2mm di default)
         - Top anta in Z = plinth_height + door_height
+        - Fronte anta in Y = depth (faccia interna al fronte cabinet)
+        - Spessore anta si sviluppa verso l'esterno (Y positivi)
         
         Parametri (tutti in mm salvo indicazioni):
         - width: Larghezza nominale anta (spazio allocato a questa anta)
