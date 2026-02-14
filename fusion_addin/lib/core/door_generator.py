@@ -7,6 +7,12 @@ RESPONSABILITÀ:
 - Posiziona ante nello spazio 3D relativo alla carcassa
 - Applica giochi (gap) standard per funzionamento cerniere
 - Gestisce montaggio copertura totale, filo, semicopertura
+- Gestisce trasformazione coordinate door→cabinet
+
+SISTEMA COORDINATE:
+- Cabinet (world): X=larghezza, Y=profondità, Z=altezza
+- Door (local): Creata su piano XY (X=larghezza, Y=altezza, Z=spessore)
+- Trasformazione: Rotazione 90° attorno X per allineare Y_door→Z_cabinet
 
 NON RESPONSABILE DI:
 - Calcolo numero ante (vedi DoorDesigner)
@@ -48,20 +54,35 @@ class DoorGenerator:
         """
         Crea un'anta singola con geometria e posizionamento.
         
-        IMPORTANTE - Sistema di coordinate:
+        IMPORTANTE - Sistema di coordinate CABINET (world):
         - X: Larghezza mobile (sinistra → destra, origine = fianco sinistro)
         - Y: Profondità mobile (retro → fronte, origine = retro mobile)
         - Z: Altezza mobile (pavimento → top, origine = pavimento)
+        
+        IMPORTANTE - Sistema di coordinate DOOR (local, prima della rotazione):
+        - X: Larghezza anta (0 → width)
+        - Y: Altezza anta (0 → height)
+        - Z: Spessore anta (0 → thickness)
+        
+        IMPORTANTE - Trasformazione coordinate:
+        La geometria dell'anta viene creata su piano XY e poi ruotata di 90° 
+        attorno all'asse X per allineare:
+        - X_door → X_cabinet (larghezza)
+        - Y_door → Z_cabinet (altezza)
+        - Z_door → -Y_cabinet (spessore, sviluppa verso fronte)
         
         IMPORTANTE - Carcassa (cabinet carcass):
         - Base carcassa in Z = plinth_height (top dello zoccolo)
         - Top carcassa in Z = total_height (top mobile)
         - Altezza carcassa = total_height - plinth_height
+        - Fronte carcassa in Y = depth (fronte mobile)
         
-        IMPORTANTE - Posizionamento anta:
+        IMPORTANTE - Posizionamento anta (dopo rotazione):
         - Base anta in Z = plinth_height (allineata a base carcassa)
         - Altezza anta = carcass_height - top_gap (gioco superiore 2mm di default)
         - Top anta in Z = plinth_height + door_height
+        - Fronte anta in Y = depth (faccia interna al fronte cabinet)
+        - Spessore anta si sviluppa verso l'esterno (Y positivi)
         
         Parametri (tutti in mm salvo indicazioni):
         - width: Larghezza nominale anta (spazio allocato a questa anta)
@@ -90,22 +111,6 @@ class DoorGenerator:
         cabinet_plinth_height = params.get("cabinet_plinth_height", 0)
         x_offset_mm = params.get("x_offset", 0)
         mounting_type = params.get("mounting_type", "copertura_totale")
-
-        # DEBUG POPUP PARAMETRI INPUT
-        try:
-            app = adsk.core.Application.get()
-            ui = app.userInterface
-            ui.messageBox(
-                f"DEBUG DOOR:\n"
-                f"width={nominal_width_mm}\n"
-                f"height={carcass_height_mm}\n"
-                f"depth={cabinet_depth}\n"
-                f"plinth={cabinet_plinth_height}\n"
-                f"x_offset={x_offset_mm}"
-            )
-        except:
-            # Se il popup fallisce (es. in test headless), proseguiamo comunque
-            pass
 
         self.logger.info("=" * 70)
         self.logger.info(f"🚪 Creazione anta singola: {position}")
@@ -137,24 +142,38 @@ class DoorGenerator:
         target_comp = parent_component if parent_component else self.root_comp
 
         # --- CALCOLO TRASFORMAZIONE DI POSIZIONAMENTO ---
+        # IMPORTANTE: La geometria dell'anta è creata su piano XY (X=larghezza, Y=altezza)
+        # ma il cabinet usa Z per l'altezza. Quindi dobbiamo ruotare l'anta di 90° 
+        # attorno all'asse X per allineare correttamente Y_door -> Z_cabinet.
+        
         transform = adsk.core.Matrix3D.create()
+        
+        # Rotazione di 90° attorno all'asse X per allineare Y(door)=altezza a Z(cabinet)=altezza
+        # Questo trasforma: X->X, Y->Z, Z->-Y
+        rotation_axis = adsk.core.Vector3D.create(1, 0, 0)  # Asse X
+        rotation_angle = math.pi / 2.0  # 90 gradi in radianti
+        transform.setToRotation(rotation_angle, rotation_axis, adsk.core.Point3D.create(0, 0, 0))
 
+        # Posizione X: offset dal fianco sinistro + gap sinistro
+        x_position_cm = (x_offset_mm + side_gap_mm) / 10.0
+        
         # Posizione Y: anta posizionata davanti al fronte del mobile
+        # Dopo la rotazione, Z_door diventa -Y, quindi portiamo il fronte dell'anta
+        # (che era a Z=thickness) al fronte del cabinet
         if cabinet_depth > 0:
             if mounting_type in ("copertura_totale", "filo"):
-                # Anta a filo fronte: Y = depth - thickness
-                y_position_cm = (cabinet_depth - thickness) / 10.0
+                # Anta a filo fronte: Y = depth
+                # Il thickness dell'anta si sviluppa verso l'esterno (Y negativi dopo rotazione)
+                y_position_cm = (cabinet_depth) / 10.0
             else:  # 'semicopertura'
-                # Anta a metà spessore: Y = depth - thickness/2
+                # Anta a metà spessore
                 y_position_cm = (cabinet_depth - thickness / 2.0) / 10.0
         else:
             y_position_cm = 0.0
 
         # Posizione Z: base anta allineata alla base della carcassa
+        # Dopo la rotazione, Y_door diventa Z, quindi la base dell'anta (Y=0) va a Z=plinth_height
         z_position_cm = (cabinet_plinth_height + bottom_gap_mm) / 10.0
-
-        # Posizione X: offset dal fianco sinistro + gap sinistro
-        x_position_cm = (x_offset_mm + side_gap_mm) / 10.0
 
         self.logger.info("   Posizionamento anta (coordinate Fusion 360 in cm):")
         self.logger.info(
@@ -163,7 +182,7 @@ class DoorGenerator:
         )
         self.logger.info(
             f"      Y = {y_position_cm:.2f}cm "
-            f"(depth={cabinet_depth}mm - thickness={thickness}mm)"
+            f"(depth={cabinet_depth}mm, posizionata al fronte)"
         )
         self.logger.info(
             f"      Z = {z_position_cm:.2f}cm "
@@ -173,11 +192,14 @@ class DoorGenerator:
         # Range Z utile dell'anta (in mm)
         door_z_base_mm = cabinet_plinth_height + bottom_gap_mm
         door_z_top_mm = door_z_base_mm + door_height_mm
-        self.logger.info(f"   Range Z anta: [{door_z_base_mm}mm, {door_z_top_mm}mm]")
+        self.logger.info(f"   Range Z anta previsto: [{door_z_base_mm}mm, {door_z_top_mm}mm]")
 
-        transform.translation = adsk.core.Vector3D.create(
+        # Applica translation alla trasformazione (che già include la rotazione)
+        translation_vector = adsk.core.Vector3D.create(
             x_position_cm, y_position_cm, z_position_cm
         )
+        # Combina rotation e translation
+        transform.translation = translation_vector
 
         # --- CREA COMPONENTE ANTA ---
         occurrence = target_comp.occurrences.addNewComponent(transform)
@@ -193,21 +215,64 @@ class DoorGenerator:
         elif door_type == "frame":
             self._create_frame_door(door_comp, door_width_mm, door_height_mm, thickness)
             self.logger.info("   Geometria: anta a telaio (frame)")
-
-                # DEBUG: bounding box anta (popup)
+        
+        # --- VERIFICA POSIZIONAMENTO CON BOUNDING BOX ---
+        # Log dei bounding box per debug e verifica allineamento
         try:
             if door_comp.bRepBodies.count > 0:
-                bbox = door_comp.bRepBodies.item(0).boundingBox
-                app = adsk.core.Application.get()
-                ui = app.userInterface
-                ui.messageBox(
-                    f"DEBUG ANTA BBOX:\n"
-                    f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
-                    f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
-                    f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
-                )
-        except:
-            pass
+                # Trova l'occurrence della door nel parent
+                door_occurrence = None
+                for occ in target_comp.occurrences:
+                    if occ.component == door_comp:
+                        door_occurrence = occ
+                        break
+                
+                if door_occurrence:
+                    # Bounding box dell'anta nel sistema parent
+                    door_bbox = door_occurrence.boundingBox
+                    
+                    self.logger.info("   📦 Bounding box anta finale (coordinate parent):")
+                    self.logger.info(f"      X: [{door_bbox.minPoint.x:.2f}, {door_bbox.maxPoint.x:.2f}] cm "
+                                   f"({(door_bbox.maxPoint.x - door_bbox.minPoint.x)*10:.1f} mm)")
+                    self.logger.info(f"      Y: [{door_bbox.minPoint.y:.2f}, {door_bbox.maxPoint.y:.2f}] cm "
+                                   f"({(door_bbox.maxPoint.y - door_bbox.minPoint.y)*10:.1f} mm)")
+                    self.logger.info(f"      Z: [{door_bbox.minPoint.z:.2f}, {door_bbox.maxPoint.z:.2f}] cm "
+                                   f"({(door_bbox.maxPoint.z - door_bbox.minPoint.z)*10:.1f} mm)")
+                    
+                    # Se disponibile, confronta con bounding box cabinet
+                    if parent_component and parent_component.bRepBodies.count > 0:
+                        # Cerca il fianco sinistro o qualsiasi body della carcassa
+                        reference_body = None
+                        for body in parent_component.bRepBodies:
+                            if "Fianco_Sinistro" in body.name or "Fianco_Sinistra" in body.name:
+                                reference_body = body
+                                break
+                        
+                        if not reference_body and parent_component.bRepBodies.count > 0:
+                            # Usa il primo body disponibile come riferimento
+                            reference_body = parent_component.bRepBodies.item(0)
+                        
+                        if reference_body:
+                            cabinet_bbox = reference_body.boundingBox
+                            self.logger.info(f"   📦 Bounding box carcassa ({reference_body.name}):")
+                            self.logger.info(f"      X: [{cabinet_bbox.minPoint.x:.2f}, {cabinet_bbox.maxPoint.x:.2f}] cm")
+                            self.logger.info(f"      Y: [{cabinet_bbox.minPoint.y:.2f}, {cabinet_bbox.maxPoint.y:.2f}] cm")
+                            self.logger.info(f"      Z: [{cabinet_bbox.minPoint.z:.2f}, {cabinet_bbox.maxPoint.z:.2f}] cm")
+                            
+                            # Verifica allineamento
+                            # Base anta vs base carcassa
+                            door_base_z = door_bbox.minPoint.z
+                            cabinet_base_z = cabinet_bbox.minPoint.z
+                            z_diff = abs(door_base_z - cabinet_base_z) * 10  # cm -> mm
+                            
+                            if z_diff < 0.5:  # Tolleranza 0.5mm
+                                self.logger.info(f"   ✅ Base anta allineata con base carcassa (diff: {z_diff:.2f}mm)")
+                            else:
+                                self.logger.warning(f"   ⚠️ Disallineamento base: {z_diff:.2f}mm "
+                                                  f"(anta Z={door_base_z:.2f}cm, cabinet Z={cabinet_base_z:.2f}cm)")
+        except Exception as e:
+            self.logger.warning(f"   ⚠️ Errore verifica bounding box: {e}")
+        
         self.logger.info(f"✅ Anta {position} completata")
         self.logger.info("=" * 70)
 

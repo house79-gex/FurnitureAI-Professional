@@ -685,10 +685,14 @@ class WizardExecuteHandler(adsk.core.CommandEventHandler):
             design = self.app.activeProduct
             
             # 1. Generate cabinet body
-            # Determine plinth height from piedini if present
-            piedini = furniture.ferramenta.get('piedini', [])
-            has_plinth = len(piedini) > 0
-            plinth_height = piedini[0].get('altezza', 100) if has_plinth else 100
+            # Determine plinth height from zoccolo if present
+            zoccolo = getattr(furniture, 'zoccolo', None)
+            if zoccolo and zoccolo.get('presente', False):
+                has_plinth = True
+                plinth_height = zoccolo.get('altezza', 100)
+            else:
+                has_plinth = False
+                plinth_height = 0
             
             cabinet_params = {
                 'width': dimensioni['larghezza'],

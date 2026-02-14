@@ -191,43 +191,49 @@ class FurniturePiece:
     
     def calculate_door_dimensions(self, tipo_montaggio="copertura_totale", gioco=2):
         """
-        Calcola dimensioni ante in base al tipo montaggio e giochi
+        Calcola dimensioni ante in base al tipo montaggio e giochi.
+        
+        NOTA: Nella nuova architettura v3 (DoorDesigner + DoorGenerator),
+        i gap sono gestiti automaticamente da DoorGenerator. Questo metodo
+        fornisce solo le dimensioni nominali base.
         
         Args:
             tipo_montaggio: Tipo montaggio anta
-            gioco: Gioco in mm (default 2mm)
+            gioco: Gioco in mm (default 2mm, deprecated - ora gestito da DoorGenerator)
             
         Returns:
-            Dict con larghezza e altezza calcolate
+            Dict con larghezza e altezza calcolate (dimensioni nominali)
         """
         n_ante = len(self.elementi.get('ante', []))
         if n_ante == 0:
             return None
         
         larghezza_mobile = self.dimensioni['larghezza']
-        altezza_mobile = self.dimensioni['altezza']
+        altezza_carcassa = self.dimensioni['altezza']
         
-        # Considera zoccolo se presente
+        # Sottrai zoccolo per ottenere altezza carcassa
         if hasattr(self, 'zoccolo') and self.zoccolo.get('presente', False):
-            altezza_mobile -= self.zoccolo.get('altezza', 100)
+            altezza_carcassa -= self.zoccolo.get('altezza', 100)
         
-        # Calcolo basato su tipo montaggio
+        # Calcolo semplificato per nuova architettura v3
+        # I gap e gli overlay sono gestiti da DoorDesigner/DoorGenerator
         if tipo_montaggio == "copertura_totale":
-            # Ante coprono completamente il mobile
-            larghezza_anta = (larghezza_mobile / n_ante) + (18 * 2 / n_ante) - gioco  # +spessore fianchi
-            altezza_anta = altezza_mobile + 18 - gioco  # +spessore top
+            # Dimensioni nominali: larghezza mobile divisa per numero ante
+            # altezza = altezza carcassa (già escluso zoccolo)
+            larghezza_anta = larghezza_mobile / n_ante
+            altezza_anta = altezza_carcassa
         elif tipo_montaggio == "filo":
-            # Ante a filo interno
-            larghezza_anta = (larghezza_mobile - self.elementi['fianchi']['spessore'] * 2) / n_ante - gioco
-            altezza_anta = altezza_mobile - self.elementi['top']['spessore'] - gioco
+            # Ante a filo interno: sottrai spessore fianchi
+            larghezza_anta = (larghezza_mobile - self.elementi['fianchi']['spessore'] * 2) / n_ante
+            altezza_anta = altezza_carcassa - self.elementi['top']['spessore']
         elif tipo_montaggio == "semicopertura":
-            # Ante coprono metà spessore fianchi
-            larghezza_anta = (larghezza_mobile / n_ante) + (18 / n_ante) - gioco
-            altezza_anta = altezza_mobile + (18 / 2) - gioco
+            # Ante coprono parzialmente i fianchi
+            larghezza_anta = larghezza_mobile / n_ante
+            altezza_anta = altezza_carcassa
         else:
-            # Default: copertura totale
-            larghezza_anta = (larghezza_mobile / n_ante) - gioco
-            altezza_anta = altezza_mobile - gioco
+            # Default: dimensioni nominali
+            larghezza_anta = larghezza_mobile / n_ante
+            altezza_anta = altezza_carcassa
         
         return {
             "larghezza": round(larghezza_anta, 1),
