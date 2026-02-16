@@ -52,16 +52,6 @@ class DoorGenerator:
     # ANTA SINGOLA
     # -------------------------------------------------------------------------
     def create_door(self, params):
-        door_body = door_comp.bRepBodies.item(0)
-        bbox = door_body.boundingBox
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox(
-            f"DEBUG ANTA BBOX:\n"
-            f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
-            f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
-            f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
-        )
         """
         Crea un'anta singola con geometria e posizionamento.
         
@@ -158,6 +148,20 @@ class DoorGenerator:
         elif door_type == "frame":
             self._create_frame_door(door_comp, door_width_mm, door_height_mm, thickness)
             self.logger.info("   Geometria: anta a telaio (frame)")
+        try:
+            if door_comp.bRepBodies.count > 0:
+                door_body = door_comp.bRepBodies.item(0)
+                bbox = door_body.boundingBox
+                app = adsk.core.Application.get()
+                ui = app.userInterface
+                ui.messageBox(
+                    f"DEBUG ANTA BBOX:\n"
+                    f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
+                    f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
+                    f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
+                )
+        except:
+            pass
         
         # --- RIALLINEAMENTO FINALE VIA BOUNDING BOX ---
         # Ora allineiamo l'anta usando i bounding box del cabinet e dell'anta
@@ -170,6 +174,7 @@ class DoorGenerator:
             # Trova il body dell'anta
             door_body = door_comp.bRepBodies.item(0)
             door_bbox_local = door_body.boundingBox
+            
             
             # Log bbox iniziale (locale)
             self.logger.info(f"   📦 Bbox anta (locale, prima riallineamento):")
