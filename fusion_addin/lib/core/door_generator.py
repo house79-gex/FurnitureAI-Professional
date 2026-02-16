@@ -52,6 +52,16 @@ class DoorGenerator:
     # ANTA SINGOLA
     # -------------------------------------------------------------------------
     def create_door(self, params):
+        door_body = door_comp.bRepBodies.item(0)
+        bbox = door_body.boundingBox
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        ui.messageBox(
+            f"DEBUG ANTA BBOX:\n"
+            f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
+            f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
+            f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
+        )
         """
         Crea un'anta singola con geometria e posizionamento.
         
