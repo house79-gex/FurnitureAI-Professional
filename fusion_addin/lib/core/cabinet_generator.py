@@ -293,19 +293,8 @@ class CabinetGenerator:
     def _create_side_panels(self, component, width, height, depth, thickness, has_plinth, plinth_height):
         """
         Crea i pannelli laterali (fianchi sinistro e destro) della carcassa.
-        
-        Sistema coordinate CORRETTO (v3.1 - FIX CRITICO):
-        - Sketch su yZConstructionPlane (piano dove X=0)
-        - Point3D.create() SEMPRE in coordinate WORLD: (X=0, Y=y_world, Z=z_world)
-        - Rettangolo: da (0, plinth_height, 0) a (0, height, depth)
-        - Estrusione in direzione +X per spessore fianco
-        
-        FIX v3.1: Corretti parametri Point3D da (y,z,0) → (0,y,z)
-        
-        Risultato atteso bbox fianco sinistro (600×720×580, plinth=100):
-        - X: (0, 1.8) cm = spessore 18mm
-        - Y: (10, 72) cm = da top zoccolo a top mobile
-        - Z: (0, 58) cm = da retro a fronte
+    
+        FIX v3.1.1: Corretta direzione estrusione su yZPlane
         """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
@@ -313,44 +302,52 @@ class CabinetGenerator:
 
         yz_plane = component.yZConstructionPlane
 
-        carcass_height = height - plinth_height  # mm
-        y_start_cm = plinth_height / MM_TO_CM    # cm (base carcassa in Y)
-        y_end_cm = height / MM_TO_CM             # cm (top carcassa in Y)
-        depth_cm = depth / MM_TO_CM              # cm
+        carcass_height = height - plinth_height
+        y_start_cm = plinth_height / 10.0
+        y_end_cm = height / 10.0
+        depth_cm = depth / 10.0
 
         # --- FIANCO SINISTRO ---
-        # FIX v3.1: Su yZPlane (X=0), Point3D.create() usa (0, Y, Z) non (Y, Z, 0)!
         sketch_left = sketches.add(yz_plane)
         lines_left = sketch_left.sketchCurves.sketchLines
-        
-        # Punti in coordinate WORLD 3D (tutti con X=0 perché siamo su piano yZ)
-        p1 = adsk.core.Point3D.create(0, y_start_cm, 0)           # retro basso
-        p2 = adsk.core.Point3D.create(0, y_end_cm, 0)            # retro alto
-        p3 = adsk.core.Point3D.create(0, y_end_cm, depth_cm)     # fronte alto
-        p4 = adsk.core.Point3D.create(0, y_start_cm, depth_cm)   # fronte basso
-        
+    
+        # Punti: (X=0, Y, Z) - rettangolo verticale su piano YZ
+        p1 = adsk.core.Point3D.create(0, y_start_cm, 0)
+        p2 = adsk.core.Point3D.create(0, y_end_cm, 0)
+        p3 = adsk.core.Point3D.create(0, y_end_cm, depth_cm)
+        p4 = adsk.core.Point3D.create(0, y_start_cm, depth_cm)
+    
         lines_left.addByTwoPoints(p1, p2)
         lines_left.addByTwoPoints(p2, p3)
         lines_left.addByTwoPoints(p3, p4)
         lines_left.addByTwoPoints(p4, p1)
 
+        # CRITICO: Specifica direzione estrusione verso +X
         extrude_input_left = extrudes.createInput(
             sketch_left.profiles.item(0), 
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
-        distance = adsk.core.ValueInput.createByReal(thickness / MM_TO_CM)
-        extrude_input_left.setDistanceExtent(False, distance)
+    
+        distance = adsk.core.ValueInput.createByReal(thickness / 10.0)
+    
+        # FIX v3.1.1: Usa setOneSideExtent con direzione esplicita
+        direction = adsk.core.Vector3D.create(1, 0, 0)  # direzione +X
+        extrude_input_left.setOneSideExtent(
+            adsk.fusion.ExtentDirections.PositiveExtentDirection,
+            distance,
+            adsk.fusion.ExtentDirections.PositiveExtentDirection
+        )
+    
         extrude_left = extrudes.add(extrude_input_left)
         left_body = extrude_left.bodies.item(0)
         left_body.name = "Fianco_Sinistro"
-       
-        # DEBUG bbox
+   
         try:
             bbox = left_body.boundingBox
             app = adsk.core.Application.get()
             ui = app.userInterface
             ui.messageBox(
-                f"DEBUG FIANCO SINISTRO BBOX (v3.1 FIXED):\n"
+                f"DEBUG FIANCO SINISTRO BBOX (v3.1.1 FIXED):\n"
                 f"x=({bbox.minPoint.x:.2f}, {bbox.maxPoint.x:.2f}) cm\n"
                 f"y=({bbox.minPoint.y:.2f}, {bbox.maxPoint.y:.2f}) cm\n"
                 f"z=({bbox.minPoint.z:.2f}, {bbox.maxPoint.z:.2f}) cm"
@@ -361,12 +358,12 @@ class CabinetGenerator:
         # --- FIANCO DESTRO ---
         sketch_right = sketches.add(yz_plane)
         lines_right = sketch_right.sketchCurves.sketchLines
-        
+    
         p1 = adsk.core.Point3D.create(0, y_start_cm, 0)
         p2 = adsk.core.Point3D.create(0, y_end_cm, 0)
         p3 = adsk.core.Point3D.create(0, y_end_cm, depth_cm)
         p4 = adsk.core.Point3D.create(0, y_start_cm, depth_cm)
-        
+    
         lines_right.addByTwoPoints(p1, p2)
         lines_right.addByTwoPoints(p2, p3)
         lines_right.addByTwoPoints(p3, p4)
@@ -376,15 +373,20 @@ class CabinetGenerator:
             sketch_right.profiles.item(0),
             adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
-        extrude_input_right.setDistanceExtent(False, distance)
+    
+        extrude_input_right.setOneSideExtent(
+            adsk.fusion.ExtentDirections.PositiveExtentDirection,
+            distance,
+            adsk.fusion.ExtentDirections.PositiveExtentDirection
+        )
+    
         extrude_right = extrudes.add(extrude_input_right)
         right_body = extrude_right.bodies.item(0)
         right_body.name = "Fianco_Destro"
 
-        # Sposta fianco destro a X = width - thickness
         transform_right = adsk.core.Matrix3D.create()
         transform_right.translation = adsk.core.Vector3D.create(
-            (width - thickness) / MM_TO_CM, 0, 0
+            (width - thickness) / 10.0, 0, 0
         )
         bodies_right = adsk.core.ObjectCollection.create()
         bodies_right.add(right_body)
