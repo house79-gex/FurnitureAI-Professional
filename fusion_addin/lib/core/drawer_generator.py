@@ -179,18 +179,28 @@ class DrawerGenerator:
         extrude_right.bodies.item(0).name = "Fianco_Destro"
     
     def _create_drawer_front_back(self, component, width, height, thickness, depth=None):
-        """Crea fronte e retro del cassetto"""
+        """
+        Crea fronte e retro del cassetto.
+        
+        SISTEMA COORDINATE (allineato con Fusion 360):
+        - X = larghezza (width)
+        - Y = altezza (height)  
+        - Z = profondità (depth)
+        
+        Fronte e retro si sviluppano nel piano XY (larghezza × altezza),
+        estrusi in direzione Z (profondità).
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
         
-        xz_plane = component.xZConstructionPlane
+        xy_plane = component.xYConstructionPlane
         
         # Calcola larghezza interna
         internal_width = width - 2 * thickness
         
-        # Fronte interno
-        sketch_front = sketches.add(xz_plane)
+        # Fronte interno (a Z=0, fronte cassetto)
+        sketch_front = sketches.add(xy_plane)
         rect_front = sketch_front.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(thickness / 10.0, 0, 0),
             adsk.core.Point3D.create((thickness + internal_width) / 10.0, height / 10.0, 0)
@@ -208,7 +218,7 @@ class DrawerGenerator:
         # Retro (più basso per permettere scorrimento del fondo)
         back_height = height - 10  # 10mm più basso
         
-        sketch_back = sketches.add(xz_plane)
+        sketch_back = sketches.add(xy_plane)
         rect_back = sketch_back.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(thickness / 10.0, 0, 0),
             adsk.core.Point3D.create((thickness + internal_width) / 10.0, back_height / 10.0, 0)
@@ -222,12 +232,12 @@ class DrawerGenerator:
         extrude_back = extrudes.add(extrude_input_back)
         extrude_back.bodies.item(0).name = "Retro"
         
-        # BUG FIX: Move back panel to correct Y position (at depth of drawer)
+        # Posiziona il pannello retro alla profondità corretta (Z = depth - thickness)
         if depth is not None:
             transform_back = adsk.core.Matrix3D.create()
-            # Position back at Y = depth - thickness
-            y_back = (depth - thickness) / 10.0
-            transform_back.translation = adsk.core.Vector3D.create(0, y_back, 0)
+            # Position back at Z = depth - thickness (depth is along Z axis)
+            z_back = (depth - thickness) / 10.0
+            transform_back.translation = adsk.core.Vector3D.create(0, 0, z_back)
             
             bodies_back = adsk.core.ObjectCollection.create()
             bodies_back.add(extrude_back.bodies.item(0))
@@ -235,17 +245,27 @@ class DrawerGenerator:
             move_feats.add(move_input_back)
     
     def _create_drawer_bottom(self, component, width, depth, bottom_thickness, side_thickness):
-        """Crea il fondo del cassetto"""
+        """
+        Crea il fondo del cassetto.
+        
+        SISTEMA COORDINATE (allineato con Fusion 360):
+        - X = larghezza (width)
+        - Y = altezza (height)
+        - Z = profondità (depth)
+        
+        Il fondo si sviluppa nel piano XZ (larghezza × profondità),
+        estruso in direzione +Y (verso l'alto) per lo spessore.
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         move_feats = component.features.moveFeatures
         
-        xy_plane = component.xYConstructionPlane
+        xz_plane = component.xZConstructionPlane
         
         # Dimensioni fondo (dentro ai fianchi)
         bottom_width = width - 2 * side_thickness
         
-        sketch = sketches.add(xy_plane)
+        sketch = sketches.add(xz_plane)
         rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(side_thickness / 10.0, 0, 0),
             adsk.core.Point3D.create((side_thickness + bottom_width) / 10.0, depth / 10.0, 0)
@@ -260,11 +280,11 @@ class DrawerGenerator:
         extrude_bottom = extrudes.add(extrude_input)
         extrude_bottom.bodies.item(0).name = "Fondo"
         
-        # BUG FIX: Position bottom at correct Z (typically 10mm from bottom to allow for groove)
-        # The bottom slides into grooves in the sides, front, and back
-        z_bottom_groove_offset = 1.0  # 10mm converted to cm
+        # Il fondo scorre in scanalature nei fianchi, fronte e retro
+        # Tipicamente posizionato a 10mm dal fondo per permettere la scanalatura
+        y_bottom_groove_offset = 1.0  # 10mm convertiti in cm
         transform_bottom = adsk.core.Matrix3D.create()
-        transform_bottom.translation = adsk.core.Vector3D.create(0, 0, z_bottom_groove_offset)
+        transform_bottom.translation = adsk.core.Vector3D.create(0, y_bottom_groove_offset, 0)
         
         bodies_bottom = adsk.core.ObjectCollection.create()
         bodies_bottom.add(extrude_bottom.bodies.item(0))
@@ -272,13 +292,23 @@ class DrawerGenerator:
         move_feats.add(move_input_bottom)
     
     def _create_drawer_face(self, component, width, height, thickness):
-        """Crea il frontale del cassetto (parte visibile)"""
+        """
+        Crea il frontale del cassetto (parte visibile).
+        
+        SISTEMA COORDINATE (allineato con Fusion 360):
+        - X = larghezza (width)
+        - Y = altezza (height)
+        - Z = profondità (depth)
+        
+        Il frontale si sviluppa nel piano XY (larghezza × altezza),
+        estruso in direzione -Z (verso il fronte, verso l'esterno).
+        """
         sketches = component.sketches
         extrudes = component.features.extrudeFeatures
         
-        xz_plane = component.xZConstructionPlane
+        xy_plane = component.xYConstructionPlane
         
-        sketch = sketches.add(xz_plane)
+        sketch = sketches.add(xy_plane)
         rect = sketch.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, 0, 0),
             adsk.core.Point3D.create(width / 10.0, height / 10.0, 0)

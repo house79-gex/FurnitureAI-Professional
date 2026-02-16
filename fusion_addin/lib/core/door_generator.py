@@ -414,11 +414,16 @@ class DoorGenerator:
     def add_hinge_preparation(self, door_comp, hinge_type="clip_top", hinge_count=2):
         """
         Aggiunge le preparazioni per le cerniere (fori tazza).
+        
+        SISTEMA COORDINATE ANTA:
+        - X = larghezza
+        - Y = altezza (le cerniere sono distribuite lungo Y)
+        - Z = spessore/profondità
         """
         features = []
 
         bbox = door_comp.bRepBodies.item(0).boundingBox
-        height = (bbox.maxPoint.z - bbox.minPoint.z) * 10  # cm → mm
+        height = (bbox.maxPoint.y - bbox.minPoint.y) * 10  # cm → mm (altezza lungo Y)
 
         if hinge_count == 2:
             positions = [height * 0.15, height * 0.85]
@@ -439,21 +444,26 @@ class DoorGenerator:
 
         return features
 
-    def _create_hinge_hole(self, component, z_position, diameter, depth):
+    def _create_hinge_hole(self, component, y_position, diameter, depth):
         """
         Crea un singolo foro per cerniera (foro tazza).
+        
+        Il foro è posizionato a una certa altezza Y (y_position),
+        centrato in X, e penetra nello spessore Z.
         """
         try:
             sketches = component.sketches
             extrudes = component.features.extrudeFeatures
 
+            # Crea sketch sul piano YZ (fianco dell'anta per forare nello spessore)
             yz_plane = component.yZConstructionPlane
             sketch = sketches.add(yz_plane)
 
             bbox = component.bRepBodies.item(0).boundingBox
-            y_center = (bbox.maxPoint.y - bbox.minPoint.y) / 2.0
+            z_center = (bbox.maxPoint.z - bbox.minPoint.z) / 2.0
 
-            center_point = adsk.core.Point3D.create(0, y_center, z_position / 10.0)
+            # Centro del foro: Y = y_position (altezza), Z = centro spessore
+            center_point = adsk.core.Point3D.create(0, y_position / 10.0, z_center)
             
             sketch.sketchCurves.sketchCircles.addByCenterRadius(
                 center_point,

@@ -4,6 +4,168 @@ Registro cronologico di tutte le modifiche significative, aggiunte e correzioni 
 
 ---
 
+## [3.0.0] - 2026-02-16
+
+### 🔴 BREAKING CHANGES: Correzione Critica Sistema Coordinate
+
+**Sommario**: Refactoring completo e sistematico del sistema coordinate in TUTTI i generatori di geometria. Risolti bug critici che causavano generazione errata di pannelli orizzontali e verticali. La geometria generata sarà DIVERSA rispetto alla v2.2.
+
+⚠️ **ATTENZIONE**: Questa è una release BREAKING. I mobili generati con v3.0 hanno geometria matematicamente corretta ma diversa da v2.2. Tutti i progetti esistenti devono essere ri-generati.
+
+#### Fixed - Bug Critici Sistema Coordinate
+
+##### **CabinetGenerator** (`fusion_addin/lib/core/cabinet_generator.py`)
+
+1. **`_create_top_bottom_panels()`** - Fondo e Cielo
+   - ❌ **Bug v2.2**: Usava `yZConstructionPlane` (piano verticale Y×Z)
+   - ✅ **Fix v3.0**: Ora usa `xZConstructionPlane` (piano orizzontale X×Z)
+   - Fondo e cielo ora sono correttamente pannelli orizzontali (width × depth)
+   - Estrusione corretta in +Y per spessore
+   - Posizionamento corretto: fondo a Y=plinth_height, cielo a Y=height-thickness
+
+2. **`_create_back_panel()`** - Schienale
+   - ❌ **Bug v2.2**: Usava `yZConstructionPlane` (pannello laterale Y×Z)
+   - ✅ **Fix v3.0**: Ora usa `xYConstructionPlane` (pannello posteriore X×Y)
+   - Schienale ora è correttamente pannello verticale posteriore (width × height)
+   - Estrusione corretta in +Z per spessore
+   - Posizionamento corretto a Z=back_inset (arretramento dal retro)
+
+3. **`_create_shelves()`** - Ripiani
+   - ❌ **Bug v2.2**: Usava `yZConstructionPlane` (pannelli verticali)
+   - ✅ **Fix v3.0**: Ora usa `xZConstructionPlane` (pannelli orizzontali)
+   - Ripiani ora sono correttamente pannelli orizzontali (width × depth)
+   - Estrusione corretta in +Y per spessore
+   - Posizionamento corretto distribuito in altezza Y
+
+##### **DrawerGenerator** (`fusion_addin/lib/core/drawer_generator.py`)
+
+4. **`_create_drawer_front_back()`** - Fronte e Retro Cassetto
+   - ❌ **Bug v2.2**: Usava `xZConstructionPlane` (pannello orizzontale)
+   - ✅ **Fix v3.0**: Ora usa `xYConstructionPlane` (pannello verticale)
+   - Fronte/retro cassetto ora sono correttamente verticali (width × height)
+   - Posizionamento retro corretto lungo asse Z (profondità)
+
+5. **`_create_drawer_bottom()`** - Fondo Cassetto
+   - ❌ **Bug v2.2**: Usava `xYConstructionPlane` (pannello verticale)
+   - ✅ **Fix v3.0**: Ora usa `xZConstructionPlane` (pannello orizzontale)
+   - Fondo cassetto ora è correttamente orizzontale (width × depth)
+   - Posizionamento corretto lungo asse Y (altezza)
+
+6. **`_create_drawer_face()`** - Frontale Cassetto
+   - ❌ **Bug v2.2**: Usava `xZConstructionPlane` (pannello orizzontale)
+   - ✅ **Fix v3.0**: Ora usa `xYConstructionPlane` (pannello verticale)
+   - Frontale cassetto ora è correttamente verticale (width × height)
+
+##### **DoorGenerator** (`fusion_addin/lib/core/door_generator.py`)
+
+7. **`add_hinge_preparation()` e `_create_hinge_hole()`** - Fori Cerniere
+   - ❌ **Bug v2.2**: Usava bbox.Z per calcolare altezza anta
+   - ✅ **Fix v3.0**: Ora usa bbox.Y (altezza corretta)
+   - Fori cerniere ora sono posizionati correttamente lungo l'altezza (asse Y)
+   - Centro foro: Y = posizione_altezza, Z = centro_spessore
+
+##### **Grooves** (`fusion_addin/lib/joinery/grooves.py`)
+
+8. **`_create_horizontal_groove()`** - Scassi Orizzontali
+   - ❌ **Bug v2.2**: Usava `xYConstructionPlane` (piano verticale) e bbox.Y per profondità
+   - ✅ **Fix v3.0**: Ora usa `xZConstructionPlane` (piano orizzontale) e bbox.Z per profondità
+   - Parametro rinominato: `z_position` → `y_position` (coerente con altezza)
+   - Scassi orizzontali ora sono correttamente su piani orizzontali
+
+#### Changed - Documentazione Sistema Coordinate
+
+- **Aggiornato**: `fusion_addin/lib/core/cabinet_generator.py`
+  - Docstring metodi corretti con nuova convenzione piani
+  - Commenti inline aggiornati con assi corretti
+  - Tutti i metodi documentati in italiano con sistema coordinate v3.0
+
+- **Aggiornato**: `fusion_addin/lib/core/drawer_generator.py`
+  - Docstring metodi corretti con piani e assi corretti
+  - Sistema coordinate cassetto documentato in italiano
+
+- **Aggiornato**: `fusion_addin/lib/core/door_generator.py`
+  - Docstring metodi cerniere corretti con Y per altezza
+  - Sistema coordinate anta ribadito correttamente
+
+- **Aggiornato**: `fusion_addin/lib/joinery/grooves.py`
+  - Docstring scassi orizzontali corretti
+  - Sistema coordinate per grooves documentato
+
+#### Added - Nuova Documentazione
+
+- **Nuovo**: `docs/REFACTORING_v3.0_COORDINATE_SYSTEM_FIX.md`
+  - Documentazione completa correzione sistema coordinate
+  - Tabella comparativa bug v2.2 vs fix v3.0
+  - Spiegazione dettagliata construction planes Fusion 360
+  - Tabella riepilogativa piani di costruzione per ogni componente
+  - Sezione test case critici con verifiche dimensionali
+  - Breaking changes e guida migrazione
+
+#### Verified - Componenti Confermati Corretti
+
+✓ **CabinetGenerator**:
+  - `_create_side_panels()` - Fianchi laterali (YZ plane) - già corretto ✓
+  - `_create_plinth()` - Zoccolo (XZ plane @ Y=0) - già corretto ✓
+  - `_create_divisions()` - Divisori verticali (YZ plane) - già corretto ✓
+
+✓ **DrawerGenerator**:
+  - `_create_drawer_sides()` - Fianchi cassetto (YZ plane) - già corretto ✓
+
+✓ **DoorGenerator**:
+  - `_create_flat_door()` - Geometria anta (XY plane) - già corretto ✓
+  - Posizionamento via bounding box - già corretto ✓
+
+#### Technical Details
+
+**Sistema Coordinate Standard (v3.0)**:
+```
+ORIGINE: (0, 0, 0) = Angolo inferiore sinistro posteriore
+X = Larghezza  (0 = left → width = right)
+Y = Altezza    (0 = floor → height = top)
+Z = Profondità (0 = back → depth = front)
+```
+
+**Piani di Costruzione Corretti**:
+| Componente | Piano | Dimensioni | Estrusione |
+|------------|-------|------------|------------|
+| Fianchi | YZ | height × depth | +X |
+| Fondo/Cielo | XZ | width × depth | +Y |
+| Schienale | XY | width × height | +Z |
+| Zoccolo | XZ | width × depth | +Y |
+| Ripiani | XZ | width × depth | +Y |
+| Divisori | YZ | height × depth | +X |
+| Ante | XY | width × height | +Z |
+
+#### Migration Guide
+
+**Per Utenti**:
+1. ⚠️ Ri-generare tutti i mobili esistenti da zero
+2. ⚠️ Verificare dimensioni con strumenti misura Fusion
+3. ⚠️ Progetti salvati con v2.2 appariranno "rotti"
+4. ✅ La geometria v3.0 è matematicamente corretta
+
+**Per Sviluppatori**:
+1. ⚠️ API invariata ma output geometrico diverso
+2. ⚠️ Ri-testare tutti i test case
+3. ⚠️ Aggiornare test automatici se presenti
+4. ✅ Codice esistente continua a compilare
+
+#### Statistics
+
+- **File modificati**: 4 (cabinet_generator, door_generator, drawer_generator, grooves)
+- **Metodi corretti**: 8
+- **Bug critici risolti**: 8
+- **Righe modificate**: ~150
+- **Documentazione aggiunta**: ~600 righe
+
+#### References
+
+- `docs/REFACTORING_v3.0_COORDINATE_SYSTEM_FIX.md` - Documentazione completa
+- `docs/COORDINATE_SYSTEM_FIX_v2.2.md` - Documentazione precedente (parziale)
+- Fusion 360 API: Construction Planes documentation
+
+---
+
 ## [2.2.0] - 2026-02-12
 
 ### 🇮🇹 Seconda Fase Refactoring: Localizzazione Italiana e Pulizia Documentazione
