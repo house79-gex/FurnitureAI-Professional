@@ -67,10 +67,9 @@ class DoorGenerator:
         
         TRASFORMAZIONE & POSIZIONAMENTO:
         1. Geometria creata su piano XY locale (door coords)
-        2. Rotazione 90° attorno asse X per mapping: Y_door → Y_cabinet (altezza)
-        3. Allineamento finale via bounding box:
-           - Base anta (Y_min) → base carcassa (Y = plinth_height)
-           - Fronte anta (Z_max) → fronte carcassa (Z = depth)
+        2. Allineamento finale via bounding box:
+           - Base anta (Y_min) → base carcassa
+           - Fronte interno anta (Z_min) → fronte carcassa
            - Spessore anta si sviluppa verso +Z (esterno)
         
         Parametri (tutti in mm):
@@ -131,7 +130,6 @@ class DoorGenerator:
         target_comp = parent_component if parent_component else self.root_comp
 
         # --- CREA COMPONENTE ANTA (inizialmente senza trasformazione) ---
-        # Creeremo l'anta nell'origine locale, poi la riposizioneremo via bounding box
         transform_identity = adsk.core.Matrix3D.create()
         occurrence = target_comp.occurrences.addNewComponent(transform_identity)
         door_comp = occurrence.component
@@ -140,14 +138,14 @@ class DoorGenerator:
         self.logger.info(f"   Componente creato: {door_comp.name}")
 
         # --- GEOMETRIA INTERNA ANTA (origine locale 0,0,0) ---
-        # IMPORTANTE: Creiamo geometria già nel sistema X=width, Y=height, Z=thickness
-        # Su piano XY (Y=height), estruso in Z (thickness verso fronte)
         if door_type == "flat":
             self._create_flat_door(door_comp, door_width_mm, door_height_mm, thickness)
             self.logger.info("   Geometria: anta piatta (flat)")
         elif door_type == "frame":
             self._create_frame_door(door_comp, door_width_mm, door_height_mm, thickness)
             self.logger.info("   Geometria: anta a telaio (frame)")
+
+        # DEBUG opzionale bounding box anta subito dopo la creazione
         try:
             if door_comp.bRepBodies.count > 0:
                 door_body = door_comp.bRepBodies.item(0)
@@ -164,36 +162,29 @@ class DoorGenerator:
             pass
         
         # --- RIALLINEAMENTO FINALE VIA BOUNDING BOX ---
-        # Ora allineiamo l'anta usando i bounding box del cabinet e dell'anta
         try:
-            # Attendi che la geometria sia creata
             if door_comp.bRepBodies.count == 0:
                 self.logger.warning("   ⚠️ Nessun body creato nell'anta, salto riallineamento")
                 return door_comp
             
-            # Trova il body dell'anta
+            # Bbox anta
             door_body = door_comp.bRepBodies.item(0)
             door_bbox_local = door_body.boundingBox
             
-            
-            # Log bbox iniziale (locale)
             self.logger.info(f"   📦 Bbox anta (locale, prima riallineamento):")
             self.logger.info(f"      X: [{door_bbox_local.minPoint.x:.2f}, {door_bbox_local.maxPoint.x:.2f}] cm")
             self.logger.info(f"      Y: [{door_bbox_local.minPoint.y:.2f}, {door_bbox_local.maxPoint.y:.2f}] cm")
             self.logger.info(f"      Z: [{door_bbox_local.minPoint.z:.2f}, {door_bbox_local.maxPoint.z:.2f}] cm")
             
-            # Trova bbox del cabinet (fianco sinistro o primo body)
+            # Bbox carcassa (fianco sinistro se possibile)
             cabinet_bbox = None
             reference_body_name = "N/A"
             if parent_component and parent_component.bRepBodies.count > 0:
-                # Cerca il fianco sinistro
                 for body in parent_component.bRepBodies:
                     if "Fianco_Sinistro" in body.name or "Fianco_Sinistra" in body.name:
                         cabinet_bbox = body.boundingBox
                         reference_body_name = body.name
                         break
-                
-                # Se non trovato, usa il primo body
                 if not cabinet_bbox:
                     reference_body_name = parent_component.bRepBodies.item(0).name
                     cabinet_bbox = parent_component.bRepBodies.item(0).boundingBox
@@ -204,19 +195,16 @@ class DoorGenerator:
                 self.logger.info(f"      Y: [{cabinet_bbox.minPoint.y:.2f}, {cabinet_bbox.maxPoint.y:.2f}] cm")
                 self.logger.info(f"      Z: [{cabinet_bbox.minPoint.z:.2f}, {cabinet_bbox.maxPoint.z:.2f}] cm")
                 
-                # Calcola traslazione necessaria:
                 # 1. X: posizione da x_offset + side_gap
                 desired_x_min_cm = (x_offset_mm + side_gap_mm) / 10.0
                 delta_x = desired_x_min_cm - door_bbox_local.minPoint.x
                 
-                # 2. Y: base anta allineata a base carcassa (plinth_height)
-                # La base carcassa è a Y = cabinet_bbox.minPoint.y (= plinth_height/10 in cm)
+                # 2. Y: base anta alla base carcassa
                 desired_y_min_cm = cabinet_bbox.minPoint.y + (bottom_gap_mm / 10.0)
                 delta_y = desired_y_min_cm - door_bbox_local.minPoint.y
                 
-                # 3. Z: fronte interno anta al fronte carcassa, spessore verso esterno (+Z)
-                # cabinet_bbox.maxPoint.z è il fronte della carcassa
-                # Vogliamo door_bbox.minPoint.z = cabinet_bbox.maxPoint.z (faccia interna anta sul fronte cabinet)
+                # 3. Z: faccia interna anta al fronte carcassa
+                #    fronte = Z_max del fianco (es. -10 cm nei tuoi bbox)
                 desired_z_min_cm = cabinet_bbox.maxPoint.z
                 delta_z = desired_z_min_cm - door_bbox_local.minPoint.z
                 
@@ -225,7 +213,6 @@ class DoorGenerator:
                 self.logger.info(f"      ΔY = {delta_y:.3f} cm ({delta_y*10:.1f} mm)")
                 self.logger.info(f"      ΔZ = {delta_z:.3f} cm ({delta_z*10:.1f} mm)")
                 
-                # Applica la traslazione usando moveFeatures
                 move_feats = door_comp.features.moveFeatures
                 transform_move = adsk.core.Matrix3D.create()
                 transform_move.translation = adsk.core.Vector3D.create(delta_x, delta_y, delta_z)
@@ -237,17 +224,15 @@ class DoorGenerator:
                 
                 self.logger.info(f"   ✅ Anta riallineata via bounding box")
                 
-                # Log bbox finale
                 door_bbox_final = door_body.boundingBox
                 self.logger.info(f"   📦 Bbox anta (finale):")
                 self.logger.info(f"      X: [{door_bbox_final.minPoint.x:.2f}, {door_bbox_final.maxPoint.x:.2f}] cm")
                 self.logger.info(f"      Y: [{door_bbox_final.minPoint.y:.2f}, {door_bbox_final.maxPoint.y:.2f}] cm")
                 self.logger.info(f"      Z: [{door_bbox_final.minPoint.z:.2f}, {door_bbox_final.maxPoint.z:.2f}] cm")
             else:
-                # Nessun cabinet bbox disponibile, usa positioning manuale base
+                # Fallback: posizionamento nominale se non troviamo la carcassa
                 self.logger.warning("   ⚠️ Nessun bbox carcassa disponibile, uso posizionamento nominale")
                 
-                # Posizionamento manuale come fallback
                 x_pos_cm = (x_offset_mm + side_gap_mm) / 10.0
                 y_pos_cm = (cabinet_plinth_height + bottom_gap_mm) / 10.0
                 z_pos_cm = (cabinet_depth) / 10.0 if cabinet_depth > 0 else 0
@@ -299,11 +284,9 @@ class DoorGenerator:
         self.logger.info("🚪🚪 Creazione coppia ante doppie")
         self.logger.info(f"   Larghezza totale: {total_width}mm, Gap centrale: {gap}mm")
 
-        # Larghezza singola anta
         single_width = (total_width - gap) / 2.0
         self.logger.info(f"   Larghezza singola anta: {single_width}mm")
 
-        # Anta sinistra
         left_params = {
             "width": single_width,
             "height": carcass_height_mm,
@@ -318,7 +301,6 @@ class DoorGenerator:
         }
         left_door = self.create_door(left_params)
 
-        # Anta destra
         right_params = {
             "width": single_width,
             "height": carcass_height_mm,
@@ -350,24 +332,21 @@ class DoorGenerator:
 
         xy_plane = component.xYConstructionPlane
 
-        # Sketch rettangolare
         sketch = sketches.add(xy_plane)
         sketch.sketchCurves.sketchLines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, 0, 0),
-            adsk.core.Point3D.create(width / 10.0, height / 10.0, 0),  # mm → cm
+            adsk.core.Point3D.create(width / 10.0, height / 10.0, 0),
         )
 
-        # Estrusione
         extrude_input = extrudes.createInput(
             sketch.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
-        distance = adsk.core.ValueInput.createByReal(thickness / 10.0)  # mm → cm
+        distance = adsk.core.ValueInput.createByReal(thickness / 10.0)
         extrude_input.setDistanceExtent(False, distance)
         extrude = extrudes.add(extrude_input)
         body = extrude.bodies.item(0)
         body.name = "Pannello_Anta"
 
-        # Smusso R=2mm su tutti i bordi
         try:
             fillet_feats = component.features.filletFeatures
             edge_collection = adsk.core.ObjectCollection.create()
@@ -375,11 +354,10 @@ class DoorGenerator:
                 edge_collection.add(edge)
             if edge_collection.count > 0:
                 fillet_input = fillet_feats.createInput()
-                radius_val = adsk.core.ValueInput.createByReal(2.0 / 10.0)  # 2mm → 0.2cm
+                radius_val = adsk.core.ValueInput.createByReal(2.0 / 10.0)
                 fillet_input.addConstantRadiusEdgeSet(edge_collection, radius_val, True)
                 fillet_feats.add(fillet_input)
         except:
-            # Se il fillet fallisce non è critico
             pass
 
     def _create_frame_door(self, component, width, height, thickness):
@@ -393,23 +371,19 @@ class DoorGenerator:
 
         xy_plane = component.xYConstructionPlane
 
-        # Telaio perimetrale
         sketch = sketches.add(xy_plane)
         lines = sketch.sketchCurves.sketchLines
 
-        # Rettangolo esterno
         lines.addTwoPointRectangle(
             adsk.core.Point3D.create(0, 0, 0),
             adsk.core.Point3D.create(width / 10.0, height / 10.0, 0),
         )
 
-        # Rettangolo interno (vuoto centrale)
         lines.addTwoPointRectangle(
             adsk.core.Point3D.create(frame_width / 10.0, frame_width / 10.0, 0),
             adsk.core.Point3D.create((width - frame_width) / 10.0, (height - frame_width) / 10.0, 0),
         )
 
-        # Estrudi telaio
         extrude_input = extrudes.createInput(
             sketch.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
         )
@@ -418,7 +392,6 @@ class DoorGenerator:
         extrude_frame = extrudes.add(extrude_input)
         extrude_frame.bodies.item(0).name = "Telaio_Anta"
 
-        # Pannello centrale ribassato
         panel_thickness = thickness - 4  # mm
 
         sketch_panel = sketches.add(xy_plane)
@@ -444,11 +417,9 @@ class DoorGenerator:
         """
         features = []
 
-        # Calcola altezza anta dal bounding box
         bbox = door_comp.bRepBodies.item(0).boundingBox
         height = (bbox.maxPoint.z - bbox.minPoint.z) * 10  # cm → mm
 
-        # Posizioni verticali cerniere
         if hinge_count == 2:
             positions = [height * 0.15, height * 0.85]
         elif hinge_count == 3:
@@ -479,21 +450,20 @@ class DoorGenerator:
             yz_plane = component.yZConstructionPlane
             sketch = sketches.add(yz_plane)
 
-            # Centro Y = metà profondità anta
             bbox = component.bRepBodies.item(0).boundingBox
             y_center = (bbox.maxPoint.y - bbox.minPoint.y) / 2.0
 
-            center_point = adsk.core.Point3D.create(0, y_center, z_position / 10.0)  # mm → cm
+            center_point = adsk.core.Point3D.create(0, y_center, z_position / 10.0)
             
             sketch.sketchCurves.sketchCircles.addByCenterRadius(
                 center_point,
-                diameter / 20.0,  # mm → cm, diametro → raggio
+                diameter / 20.0,
             )
 
             extrude_input = extrudes.createInput(
                 sketch.profiles.item(0), adsk.fusion.FeatureOperations.CutFeatureOperation
             )
-            distance = adsk.core.ValueInput.createByReal(depth / 10.0)  # mm → cm
+            distance = adsk.core.ValueInput.createByReal(depth / 10.0)
             extrude_input.setDistanceExtent(False, distance)
             extrude = extrudes.add(extrude_input)
 
