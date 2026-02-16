@@ -60,12 +60,15 @@ class Grooves:
     
     def add_shelf_grooves(self, body, params):
         """
-        Aggiunge scassi per ripiani (alternativa ai fori)
+        Aggiunge scassi per ripiani (alternativa ai fori).
+        
+        Gli scassi orizzontali permettono l'inserimento di ripiani
+        a diverse altezze Y.
         
         Args:
             body: BRepBody su cui creare scassi
             params: Dizionario parametri
-                - positions: Lista di posizioni Z (mm)
+                - positions: Lista di posizioni Y (altezza in mm)
                 - groove_width: Larghezza scasso (mm)
                 - groove_depth: Profondità scasso (mm)
         
@@ -78,10 +81,10 @@ class Grooves:
         
         grooves = []
         
-        for z_pos in positions:
+        for y_pos in positions:
             groove = self._create_horizontal_groove(
                 body,
-                z_pos,
+                y_pos,
                 groove_width,
                 groove_depth
             )
@@ -184,13 +187,21 @@ class Grooves:
         except:
             return None
     
-    def _create_horizontal_groove(self, body, z_position, width, depth):
+    def _create_horizontal_groove(self, body, y_position, width, depth):
         """
-        Crea uno scasso orizzontale
+        Crea uno scasso orizzontale (per ripiani).
+        
+        SISTEMA COORDINATE (allineato con Fusion 360):
+        - X = larghezza
+        - Y = altezza
+        - Z = profondità
+        
+        Gli scassi orizzontali sono tipicamente per ripiani e si sviluppano
+        nel piano XZ (orizzontale) a una certa altezza Y.
         
         Args:
             body: BRepBody
-            z_position: Posizione Z dello scasso (mm)
+            y_position: Posizione Y (altezza) dello scasso (mm)
             width: Larghezza scasso (mm)
             depth: Profondità scasso (mm)
         
@@ -199,14 +210,14 @@ class Grooves:
         """
         try:
             sketches = self.component.sketches
-            xy_plane = self.component.xYConstructionPlane
+            xz_plane = self.component.xZConstructionPlane
             
-            # Crea piano offset alla posizione Z
+            # Crea piano offset alla posizione Y (altezza)
             planes = self.component.constructionPlanes
             plane_input = planes.createInput()
             
-            offset_value = adsk.core.ValueInput.createByReal(z_position / 10.0)
-            plane_input.setByOffset(xy_plane, offset_value)
+            offset_value = adsk.core.ValueInput.createByReal(y_position / 10.0)
+            plane_input.setByOffset(xz_plane, offset_value)
             
             offset_plane = planes.add(plane_input)
             
@@ -216,7 +227,7 @@ class Grooves:
             # Ottieni dimensioni corpo
             bbox = body.boundingBox
             body_width = (bbox.maxPoint.x - bbox.minPoint.x) * 10
-            body_depth = (bbox.maxPoint.y - bbox.minPoint.y) * 10
+            body_depth = (bbox.maxPoint.z - bbox.minPoint.z) * 10  # Profondità lungo Z
             
             # Rettangolo scasso (lungo tutta la profondità)
             lines = sketch.sketchCurves.sketchLines
